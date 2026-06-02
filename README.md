@@ -15,6 +15,21 @@ programmatically.
 - **Secret-safe** — credentials come only from the environment; nothing is
   hardcoded or read from disk.
 
+## Relationship to the official Exoscale SDK
+
+Exoscale publishes an official, actively maintained Python SDK —
+[`python-exoscale`](https://github.com/exoscale/python-exoscale) (the `exoscale`
+package on PyPI); if you want the vendor-supported, batteries-included bindings,
+use that. This connector is a smaller, opinionated alternative built for one
+goal — a **drop-in, IaC-ready APIv2 client that is as easy to use as possible**:
+where the official SDK splits into a high-level interface that grew up around the
+now-retired APIv1 and a lower-level, OpenAPI-generated `exoscale.api.v2.Client`,
+this project gives *every* asset type the same uniform, pydantic-typed client
+plus a matching per-asset CLI, talks only to APIv2, reads credentials only from
+the environment, polls async operations to completion, backs every asset type
+with a live test that has run end-to-end against a real account, depends on just
+`requests` + `pydantic`, and can be vendored by copying one folder.
+
 ## Install
 
 ```bash
