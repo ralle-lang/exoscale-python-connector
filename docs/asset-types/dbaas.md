@@ -1,0 +1,137 @@
+# dbaas (managed databases)
+
+Exoscale's Aiven-backed managed database service. Supports Postgres (`pg`),
+MySQL (`mysql`), Valkey/Redis (`valkey`), OpenSearch (`opensearch`), Kafka
+(`kafka`), Grafana (`grafana`), Thanos (`thanos`). **Services are
+identified by name, not UUID.**
+
+## Model
+
+```python
+class DBaaSConnectionInfo(ExoscaleModel):
+    host: Optional[str]
+    port: Optional[int]
+    user: Optional[str]
+    dbname: Optional[str]
+    ca: Optional[str]              # PEM-encoded TLS CA cert (single string)
+    # The wire field is a LIST of URIs for Postgres (primary + replicas).
+    # Other service types may differ — this is the most general shape.
+    uri: Optional[List[str]]
+
+
+class DBaaSService(ExoscaleModel):
+    name: Optional[str]            # the unique identifier (used in URL paths)
+    type: Optional[str]            # short form: "pg", "mysql", "valkey", ...
+    plan: Optional[str]            # e.g. "hobbyist-2", "startup-4"
+    state: Optional[str]           # "rebuilding" -> "running"
+    node_count: Optional[int]
+    disk_size: Optional[int]
+    created_at: Optional[str]
+    uri_params: Optional[DBaaSConnectionInfo]
+    uri: Optional[str]
+    connection_info: Optional[DBaaSConnectionInfo]
+```
+
+## CLI
+
+The DBaaS CLI keeps bespoke verbs (built on the shared CLI plumbing) because
+`create` needs `--type` and `--name` separately from the JSON body, and services
+are addressed by name rather than id:
+
+```bash
+exoscale-dbaas list
+exoscale-dbaas get --name <name>
+exoscale-dbaas create --type pg --name my-pg-1 --json '{"plan": "hobbyist-2"}'
+exoscale-dbaas delete --name <name>
+```
+
+## Library
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.dbaas import DBaaSServiceClient
+
+dbaas = DBaaSServiceClient(ExoscaleClient.from_env(zone="de-fra-1"))
+
+# Discover the cheapest plan and create a service
+plan = "hobbyist-2"
+dbaas.create({"plan": plan}, service_type="pg", name="my-pg-1")
+
+# Fetch (two-step lookup: list -> discover type -> type-specific GET)
+svc = dbaas.get("my-pg-1")
+print(svc.state)
+
+# Connection info (host/port/user/uri); never log/print the values.
+conn = dbaas.get_connection_info("my-pg-1", service_type="pg")
+host = conn.uri_params.host
+
+# Reveal user password — single-shot reveal endpoint
+pw_response = dbaas.reveal_user_password("my-pg-1", "avnadmin", service_type="pg")
+password = pw_response["password"]
+
+dbaas.delete("my-pg-1")
+
+# Helpers
+plans = dbaas.list_service_types()
+```
+
+## Gotchas
+
+- **Short/long type names mismatch.** The API lists service types with
+  *short* names (`pg`, `valkey`) but URL paths use *long* names
+  (`postgres`). The connector keeps an alias map; callers may pass either.
+  The only real mismatch in current use is `pg → postgres`.
+- **`GET /dbaas-service/<name>` is list-only.** The generic collection
+  path returns 404 on individual item GETs. The connector overrides
+  `get()` to do a two-step lookup: list to discover the type, then fetch
+  the detail body via the type-specific `dbaas-<long-type>/<name>` path.
+- **`DELETE /dbaas-service/<name>` IS valid** (delete uses the generic
+  path even though GET doesn't). Same path, different methods. ¯\\_(ツ)_/¯
+- **`connection-info.uri` is a LIST**, not a string. Postgres returns
+  multiple endpoint URIs (primary + replicas). The model field reflects
+  this.
+- **There are TWO `uri` fields with different shapes.** `DBaaSService.uri`
+  is a scalar `Optional[str]` — the canonical hostname-based URI for the
+  service. `DBaaSConnectionInfo.uri` (nested inside `connection_info`) is
+  `Optional[List[str]]` — the per-endpoint URIs, typically IP-based, one
+  per node. Both are populated by the live API; they are not duplicates.
+- **Provisioning takes 5–15 minutes** on the cheapest plans; longer on
+  larger plans. Use a generous timeout in `wait_for_state`.
+- **The create response carries no `reference`** — the connector
+  re-fetches from the type-specific path it just hit. Live test registers
+  cleanup BEFORE create to avoid orphan leakage if the re-fetch fails.
+- **`reveal_user_password` returns a raw `dict`, not a typed model.** The
+  response shape is type-specific (Postgres has `password`, MySQL/Valkey
+  may carry additional fields like ports). Keeping it as a dict avoids
+  forcing a tight schema that varies per backend.
+
+## End-to-end example
+
+Distilled from
+[`tests/integration/test_tier_4.py::test_dbaas_pg_lifecycle`](../../tests/integration/test_tier_4.py):
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.dbaas import DBaaSServiceClient
+from tests.integration._fixtures import resolve_cheapest_dbaas_plan, wait_for_state
+
+client = ExoscaleClient.from_env(zone="de-fra-1")
+dbaas = DBaaSServiceClient(client)
+
+plan = resolve_cheapest_dbaas_plan(client, "pg")
+name = "demo-pg-1"
+
+dbaas.create({"plan": plan}, service_type="pg", name=name)
+wait_for_state(lambda: dbaas.get(name), "running", timeout=1800, interval=15)
+
+# Connection info (don't print the values)
+conn = dbaas.get_connection_info(name, service_type="pg")
+assert conn.uri_params.host and conn.uri_params.port
+assert conn.connection_info.uri  # list of URIs
+
+# Reveal admin password (single-shot endpoint)
+pw = dbaas.reveal_user_password(name, "avnadmin", service_type="pg")
+assert pw["password"]
+
+dbaas.delete(name)
+```

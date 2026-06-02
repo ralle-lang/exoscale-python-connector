@@ -1,0 +1,81 @@
+# Python build / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Local virtualenvs
+.venv/
+venv/
+env/
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets & credentials — NEVER commit
+# App reads credentials from environment variables only; injected at runtime.
+.env
+.env.*
+*.env
+secrets.json
+secrets.yaml
+secrets.yml
+credentials
+credentials.json
+*.token
+*.secret
+
+# Exoscale / cloud credentials
+# EXOSCALE_API_KEY / EXOSCALE_API_SECRET must come from the environment, not files.
+exoscale.toml
+.exoscale/
+# Object Storage (SOS) uses boto3 — keep AWS-style shared creds out of the repo
+.aws/
+.boto
+
+# Keys & certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+# SSH keypairs (the ssh-key asset type can generate ephemeral ed25519 keys)
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_dsa
+*.ppk
+
+# Kubernetes — SKS generate_kubeconfig() output must never be committed
+*.kubeconfig
+kubeconfig
+.kube/
+
+# Terraform / IaC state & vars (this connector is built for IaC pipelines)
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

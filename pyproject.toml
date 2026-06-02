@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "exoscale-connector"
+version = "0.1.0"
+description = "A clean, typed, reusable Python connector for the Exoscale APIv2 — no CLI tool required."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Raphael Lang" }]
+keywords = ["exoscale", "api", "iac", "cloud", "connector"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+dependencies = [
+    "requests>=2.28",
+    "pydantic>=2.5,<3",
+]
+
+[project.optional-dependencies]
+# Object Storage (SOS) is S3-compatible and uses a different auth path than APIv2.
+sos = ["boto3>=1.28"]
+dev = [
+    "pytest>=7.4",
+    "responses>=0.24",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "types-requests",
+    "cryptography>=40",
+]
+
+[project.scripts]
+# One thin CLI per asset type. Each is a wrapper over the shared cli harness
+# (except dns/dbaas/sks/bucket, which use dedicated argparse for sub-resources).
+# Network
+exoscale-security-group = "exoscale_connector.cli.security_group:main"
+exoscale-elastic-ip = "exoscale_connector.cli.elastic_ip:main"
+exoscale-private-network = "exoscale_connector.cli.private_network:main"
+exoscale-load-balancer = "exoscale_connector.cli.load_balancer:main"
+# Compute
+exoscale-instance = "exoscale_connector.cli.instance:main"
+exoscale-instance-pool = "exoscale_connector.cli.instance_pool:main"
+exoscale-anti-affinity-group = "exoscale_connector.cli.anti_affinity_group:main"
+exoscale-snapshot = "exoscale_connector.cli.snapshot:main"
+# Storage
+exoscale-block-volume = "exoscale_connector.cli.block_volume:main"
+exoscale-block-volume-snapshot = "exoscale_connector.cli.block_volume_snapshot:main"
+exoscale-bucket = "exoscale_connector.cli.object_storage:main"
+# IAM
+exoscale-api-key = "exoscale_connector.cli.api_key:main"
+exoscale-iam-role = "exoscale_connector.cli.iam_role:main"
+exoscale-iam-user = "exoscale_connector.cli.iam_user:main"
+exoscale-ssh-key = "exoscale_connector.cli.ssh_key:main"
+# Managed services
+exoscale-dns = "exoscale_connector.cli.dns:main"
+exoscale-dbaas = "exoscale_connector.cli.dbaas:main"
+exoscale-sks = "exoscale_connector.cli.sks:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/exoscale_connector"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Note: the pyupgrade ("UP") rules are intentionally NOT enabled. We target
+# Python 3.9 and pydantic evaluates annotations at runtime, so PEP 604 ("X | None")
+# and PEP 585 ("list[...]") rewrites would raise TypeError on 3.9.
+select = ["E", "F", "I", "B", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: live tests that talk to a real Exoscale tenant (opt-in, see docs)",
+]
