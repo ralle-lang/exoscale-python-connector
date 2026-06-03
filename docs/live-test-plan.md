@@ -190,7 +190,7 @@ not hardcoded).
 - **Live sequence** (runs while the Tier 3 instance from #11 exists):
   1. `create_from_instance(instance_id)`; wait until `state` is terminal —
      current Exoscale auto-exports snapshots so the terminal state is
-     `"exported"` (the agent assumed `"ready"`, which the Tier 3 run
+     `"exported"` (an earlier version assumed `"ready"`, which the Tier 3 run
      corrected).
   2. `get`; `list`; assert.
   3. `delete` snapshot.

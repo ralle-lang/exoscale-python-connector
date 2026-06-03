@@ -62,10 +62,10 @@ volumes.delete(vol.id)
 ## Gotchas
 
 - **`list_key` is `block-storage-volumes`, NOT `block-storages`.** Caught
-  by the Tier 2 live test (commit `65afd51`); originally wrong.
+  by the Tier 2 live test; originally wrong.
 - **`resize` endpoint is `:resize-volume`**, not `:resize` and not the plain
   `PUT /block-storage/{id}` (which accepts the size field on the wire but
-  silently drops it). Connector fixed in commit `41d1f23`.
+  silently drops it). Caught and fixed by the Tier 3 live test.
 - **Resize `size` is in BYTES on the wire**, despite the OpenAPI spec
   documenting GiB. The connector takes GiB from callers and converts to
   bytes internally so the caller-facing unit stays consistent with `create`

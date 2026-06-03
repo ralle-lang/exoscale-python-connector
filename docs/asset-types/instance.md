@@ -67,9 +67,8 @@ instances.delete(instance.id)
 
 ## Gotchas
 
-- **Lifecycle actions are PUT, not POST**, despite the agent's original
-  docstring claiming POST. The API returns 404 on POST. Fixed in commit
-  `03e12ee`.
+- **Lifecycle actions are PUT, not POST.** The API returns 404 on POST;
+  caught and fixed by the Tier 3 live test.
 - **`instance-type` and `template` are References (`{"id": ...}`)**, not
   bare strings. Resolve their ids with
   `client.get("instance-type")` / `client.get("template")`. The Tier 3 test

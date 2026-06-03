@@ -37,7 +37,7 @@ secret-management tooling; machine-identity auth (no secrets on the CLI).
    (`tests/unit/test_ssh_key.py::test_create_operation_without_reference_refetches_by_name`).
 
 2. **dns — `list_records` used the wrong wrapper key.**
-   The agent that built `dns.py` used `dns-records` as the JSON wrapper key
+   An early version of `dns.py` used `dns-records` as the JSON wrapper key
    for `GET /dns-domain/{id}/record`; the live API actually returns
    `dns-domain-records`. As a result, `list_records` always returned an empty
    list against the real API, even though every record was created correctly.
@@ -88,7 +88,7 @@ secret-management tooling; machine-identity auth (no secrets on the CLI).
 
 ### Bugs found and fixed in this run
 
-1. **block-volume `list_key` was wrong.** The agent used
+1. **block-volume `list_key` was wrong.** The connector originally used
    `"block-storages"`; the live API returns `"block-storage-volumes"`. Same
    class of mistake as the DNS `list_records` wrapper-key bug. Fix in
    `resources/block_volume.py`; unit tests updated.
@@ -99,9 +99,9 @@ secret-management tooling; machine-identity auth (no secrets on the CLI).
    **That turned out to be wrong** — the plain PUT silently drops the size
    field. The real endpoint is `PUT /block-storage/{id}:resize-volume` with
    size in **bytes** (not GiB), as Tier 3 ultimately proved. See Tier 3
-   bug #4 below for the corrected fix and commit `41d1f23`.
+   bug #4 below for the corrected fix.
    The `attach` / `detach` colon-action paths were updated in the same
-   commit (`65afd51`) and confirmed correct by the Tier 3 online run.
+   change and confirmed correct by the Tier 3 online run.
 3. **`resize` is online-only.** Even with the correct endpoint, `PUT` returns
    `state: success` but the size never actually changes unless the volume is
    attached to a running instance. Resize / attach / detach therefore moved
@@ -116,9 +116,9 @@ secret-management tooling; machine-identity auth (no secrets on the CLI).
 - The connector's `BlockVolume.snapshots` field was originally mapped to
   the wrong wrapper key (auto-generated kebab alias `snapshots` vs. the
   live API's `block-storage-snapshots`), so the typed list was always
-  `None` even when the volume had snapshots. **Fixed** in commit
-  `7f99b38` with an explicit `Field(alias="block-storage-snapshots")` on
-  the model field; a unit regression test locks it in.
+  `None` even when the volume had snapshots. **Fixed** with an explicit
+  `Field(alias="block-storage-snapshots")` on the model field; a unit
+  regression test locks it in.
 
 ---
 
@@ -140,7 +140,7 @@ secret-management tooling; machine-identity auth (no secrets on the CLI).
 ### Bugs found and fixed in this run
 
 1. **instance.start / stop / reboot used POST; the API requires PUT.**
-   The agent's docstring said `POST instance/{id}:start` but the live API
+   The connector originally issued `POST instance/{id}:start` but the live API
    returns 404 on POST and accepts PUT. Fix in `resources/instance.py`; unit
    tests updated.
 2. **compute snapshot terminal state is `"exported"`, not `"ready"`.**
@@ -151,7 +151,7 @@ secret-management tooling; machine-identity auth (no secrets on the CLI).
    `standard.tiny` is rejected with 409 *Instance size must be at least small*.
    The block-volume online test now provisions a `standard.small` instance.
 4. **block-volume resize endpoint is `:resize-volume`, not `/resize` nor
-   plain `PUT`.** The agent used `/resize` (404). Plain
+   plain `PUT`.** The connector originally used `/resize` (404). Plain
    `PUT /block-storage/{id}` accepts the size field on the wire but silently
    drops it. The actual endpoint is `PUT /block-storage/{id}:resize-volume`,
    confirmed against the OpenAPI spec.
@@ -215,8 +215,8 @@ after the fix passed (2 min 1 s, 0 leaked resources).
 ### Bugs found and fixed in this tier
 
 1. **SKS cluster create field is `level`, not `service-level`.**
-   The agent's docs and the playbook hint both used `service-level`; the
-   live API rejects it with `400: missing keys 'level'`. Test payload fixed.
+   The connector originally used `service-level`; the live API rejects it
+   with `400: missing keys 'level'`. Test payload fixed.
 2. **SKS `generate_kubeconfig` requires `groups`, not just `user`.**
    `400: missing keys 'groups'`. The test now passes
    `groups=["system:masters"]`; the connector docstring is updated to

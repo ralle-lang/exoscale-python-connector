@@ -92,8 +92,8 @@ lbs.delete(lb.id)
 - **Service needs a backing `instance-pool`** with `{"id": ...}`. Pointing
   at individual instances isn't supported.
 - **Service path is `/service` (singular)**, e.g.
-  `POST /load-balancer/<id>/service`. The agent verified this against the
-  production playbook and it's not always reflected in the OpenAPI index.
+  `POST /load-balancer/<id>/service`. Confirmed against the live API; it's not
+  always reflected in the OpenAPI index.
 - **The `LoadBalancerService` model currently flattens healthcheck fields
   and lacks an `instance_pool` field.** Use dict payloads to send the full
   spec the wire expects. (Tracked as a follow-up model refinement.)

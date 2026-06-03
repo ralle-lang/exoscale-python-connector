@@ -64,10 +64,11 @@ dns.delete_record(zone.id, record.id)
 
 ## Gotchas
 
-- **List wrapper key is `dns-domain-records`, not `dns-records`.** The
-  agent built the connector with the wrong key originally; live testing
-  caught it. The connector now reads `dns-domain-records` first and falls
-  back to `dns-records` for forward compatibility — see commit `732ae98`.
+- **List wrapper key is `dns-domain-records`, not `dns-records`.** An early
+  version used the wrong key and `list_records` always came back empty; live
+  testing caught it. The connector now reads `dns-domain-records` only — no
+  silent fallback, so a future wrapper-key change fails loudly instead of
+  returning an empty list.
 - **`.test` TLD is reserved (RFC 2606)** — use it for test zones; they
   won't resolve publicly even when delegated, which is fine for an
   isolated test environment.

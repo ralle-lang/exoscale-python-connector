@@ -56,8 +56,8 @@ keys.delete("laptop")
   itself is often omitted from listing responses.
 - **Async-but-no-reference quirk.** The create response is an operation
   envelope with no `reference` field — the connector handles this by
-  re-fetching via the submitted name (see commit `50dae8f` for the
-  rationale).
+  re-fetching via the submitted name (for name-keyed resources, the id *is*
+  the submitted name). Caught by the Tier 1 live test.
 
 ## End-to-end example
 

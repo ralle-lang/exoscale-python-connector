@@ -98,8 +98,8 @@ sks.delete(cluster.id)
 
 ## Gotchas
 
-- **Cluster create field is `level`, not `service-level`.** The agent's
-  initial test payload used `service-level` and the API responded with
+- **Cluster create field is `level`, not `service-level`.** An initial test
+  payload used `service-level` and the API responded with
   `400: missing keys 'level'`. Allowed values: `starter` (free control
   plane) or `pro` (paid SLA).
 - **Kubeconfig requires `user` AND `groups`** in the request body.

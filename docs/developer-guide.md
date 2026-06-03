@@ -121,19 +121,18 @@ template. Steps:
 ### Finding the right paths and fields
 
 The OpenAPI reference is the *starting* point but not the source of truth —
-the live-test runs surfaced **15 spec-vs-reality divergences** in the agent
-builds (wrong wrapper keys, wrong HTTP methods, unit mismatches, terminal
-state names, short/long type aliasing, list-only endpoints, …). To avoid
-re-discovering them the slow way:
+live-test runs surfaced **15 spec-vs-reality divergences** (wrong wrapper keys,
+wrong HTTP methods, unit mismatches, terminal state names, short/long type
+aliasing, list-only endpoints, …). To avoid re-discovering them the slow way:
 
-1. **First** check whether an existing Ansible playbook touches the same
-   endpoint — production code in `../ansible/playbooks/provider/exoscale/`
-   has been right where OpenAPI was wrong (it's the canonical reference
-   for `collection_endpoint`, `list_keys`, `create_endpoint`).
-2. **Then** consult the OpenAPI reference: <https://openapi-v2.exoscale.com/>.
+1. **Consult** the OpenAPI reference as the starting point:
+   <https://openapi-v2.exoscale.com/>.
+2. **Verify against the live API**, not just the spec — where they disagree the
+   live API wins. The gotchas recorded on each asset-type page and in the
+   [live test results](live-test-results.md) capture the divergences found so far.
 3. **Always** add a live lifecycle test (see [live test plan](live-test-plan.md))
    before considering a new asset type done — the mocked unit tests can't
-   catch a wrong wire key (the mock used the same wrong key as the code,
+   catch a wrong wire key (the mock can use the same wrong key as the code,
    so both agree and both are wrong).
 
 ## Object Storage (SOS) is special

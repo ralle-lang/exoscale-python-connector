@@ -60,8 +60,8 @@ snapshots.delete(snap_id)
 
 ## Gotchas
 
-- **`list_key` is `block-storage-snapshots`** (the agent got this right;
-  the volume one was wrong).
+- **`list_key` is `block-storage-snapshots`** (note this differs from the
+  block-volume `list_key`, `block-storage-volumes`).
 - **Cannot delete the parent volume while snapshots exist** in some account
   configurations — delete snapshots first as a defensive default.
 - **Snapshots are point-in-time, not application-consistent**: filesystem
