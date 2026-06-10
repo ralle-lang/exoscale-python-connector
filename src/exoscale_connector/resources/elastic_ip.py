@@ -8,6 +8,7 @@ from typing import Dict, Optional
 
 from ..models import ExoscaleModel
 from ._base import ResourceClient
+from ._reverse_dns import ReverseDNSMixin
 
 
 class ElasticIPHealthcheck(ExoscaleModel):
@@ -40,9 +41,10 @@ class ElasticIP(ExoscaleModel):
     labels: Optional[Dict[str, str]] = None
 
 
-class ElasticIPClient(ResourceClient[ElasticIP]):
-    """Manage Exoscale Elastic IPs."""
+class ElasticIPClient(ReverseDNSMixin, ResourceClient[ElasticIP]):
+    """Manage Exoscale Elastic IPs, including their reverse-DNS PTR record."""
 
     collection_path = "elastic-ip"
     model = ElasticIP
     list_key = "elastic-ips"
+    _rdns_kind = "elastic-ip"

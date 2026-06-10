@@ -10,6 +10,7 @@ from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference
 from ._base import ResourceClient
+from ._reverse_dns import ReverseDNSMixin
 
 
 class SshKeyReference(ExoscaleModel):
@@ -39,12 +40,18 @@ class Instance(ExoscaleModel):
     created_at: Optional[str] = None
 
 
-class InstanceClient(ResourceClient[Instance]):
-    """Manage compute instances."""
+class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
+    """Manage compute instances.
+
+    Besides CRUD this client covers lifecycle actions (start/stop/reboot),
+    vertical scaling, and the instance's reverse-DNS PTR record
+    (via :class:`~exoscale_connector.resources._reverse_dns.ReverseDNSMixin`).
+    """
 
     collection_path = "instance"
     model = Instance
     list_key = "instances"
+    _rdns_kind = "instance"
 
     # ------------------------------------------------------------------ #
     # Lifecycle helpers
@@ -93,6 +100,32 @@ class InstanceClient(ResourceClient[Instance]):
         zone = self._zone(zone)
         response = self.client.put(
             f"{self.collection_path}/{instance_id}:reboot", zone=zone
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def scale(
+        self,
+        instance_id: str,
+        instance_type_id: str,
+        *,
+        zone: Optional[str] = None,
+        wait: Optional[bool] = None,
+    ) -> Operation:
+        """Change the instance's compute offering (``PUT instance/{id}:scale``).
+
+        The instance must be **stopped** before scaling. ``instance_type_id``
+        is the target offering's UUID (resolve a ``family.size`` slug with
+        :meth:`~exoscale_connector.resources.instance_type.InstanceTypeClient.find`).
+
+        .. warning::
+           Implemented from the API reference using the same colon-action
+           pattern as start/stop/reboot — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:scale",
+            zone=zone,
+            json={"instance-type": {"id": instance_type_id}},
         )
         return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
 

@@ -44,8 +44,12 @@ exoscale-load-balancer = "exoscale_connector.cli.load_balancer:main"
 # Compute
 exoscale-instance = "exoscale_connector.cli.instance:main"
 exoscale-instance-pool = "exoscale_connector.cli.instance_pool:main"
+exoscale-instance-type = "exoscale_connector.cli.instance_type:main"
+exoscale-template = "exoscale_connector.cli.template:main"
 exoscale-anti-affinity-group = "exoscale_connector.cli.anti_affinity_group:main"
 exoscale-snapshot = "exoscale_connector.cli.snapshot:main"
+# Account / platform
+exoscale-zone = "exoscale_connector.cli.zone:main"
 # Storage
 exoscale-block-volume = "exoscale_connector.cli.block_volume:main"
 exoscale-block-volume-snapshot = "exoscale_connector.cli.block_volume_snapshot:main"
