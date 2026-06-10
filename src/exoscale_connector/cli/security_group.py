@@ -6,16 +6,18 @@ Thin wrapper over the shared harness; all behaviour lives in
 from __future__ import annotations
 
 import sys
+from typing import Optional, Sequence
 
 from ..resources.security_group import SecurityGroupClient
 from ._base import run_resource_cli
 
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     return run_resource_cli(
         SecurityGroupClient,
         prog="exoscale-security-group",
         description="Manage Exoscale security groups via the APIv2.",
+        argv=argv,
     )
 
 

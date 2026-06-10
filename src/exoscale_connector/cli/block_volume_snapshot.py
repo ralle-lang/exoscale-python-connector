@@ -10,12 +10,13 @@ playbooks to trigger snapshot creation instead.
 from __future__ import annotations
 
 import sys
+from typing import Optional, Sequence
 
 from ..resources.block_volume_snapshot import BlockVolumeSnapshotClient
 from ._base import run_resource_cli
 
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     return run_resource_cli(
         BlockVolumeSnapshotClient,
         prog="exoscale-block-volume-snapshot",
@@ -24,6 +25,7 @@ def main() -> int:
             "Note: snapshots are created via the block volume client "
             "('POST /block-storage/{id}:create-snapshot'), not via this CLI."
         ),
+        argv=argv,
     )
 
 

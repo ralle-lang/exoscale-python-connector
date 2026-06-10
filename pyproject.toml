@@ -34,6 +34,8 @@ dev = [
 ]
 
 [project.scripts]
+# Umbrella command: namespaces every per-asset CLI under one binary.
+exoscale-connector = "exoscale_connector.cli.main:main"
 # One thin CLI per asset type. Each is a wrapper over the shared cli harness
 # (except dns/dbaas/sks/bucket, which use dedicated argparse for sub-resources).
 # Network

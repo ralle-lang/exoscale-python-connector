@@ -8,16 +8,18 @@ use the Python client directly or the Exoscale management console for those.
 from __future__ import annotations
 
 import sys
+from typing import Optional, Sequence
 
 from ..resources.block_volume import BlockVolumeClient
 from ._base import run_resource_cli
 
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     return run_resource_cli(
         BlockVolumeClient,
         prog="exoscale-block-volume",
         description="Manage Exoscale block storage volumes via the APIv2.",
+        argv=argv,
     )
 
 

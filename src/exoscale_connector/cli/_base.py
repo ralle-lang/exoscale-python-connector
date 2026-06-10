@@ -75,12 +75,18 @@ class SubResource:
 # ------------------------------------------------------------------ #
 
 def base_parser(prog: str, description: str) -> Tuple[argparse.ArgumentParser, Any]:
-    """Return a parser pre-wired with ``--zone`` plus its subparsers handle."""
+    """Return a parser pre-wired with ``--zone``/``--output`` plus its subparsers handle."""
     parser = argparse.ArgumentParser(prog=prog, description=description)
     parser.add_argument(
         "--zone",
         default=None,
         help="Exoscale zone (defaults to EXOSCALE_ZONE)",
+    )
+    parser.add_argument(
+        "--output",
+        choices=("json", "table"),
+        default="json",
+        help="Output format (default: json)",
     )
     sub = parser.add_subparsers(dest="command")
     return parser, sub
@@ -134,6 +140,49 @@ def print_json(result: Any) -> None:
     sys.stdout.write("\n")
 
 
+def _cell(value: Any) -> str:
+    """Render one table cell: scalars verbatim, containers as compact JSON."""
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    return str(value)
+
+
+def render_table(rows: Any) -> str:
+    """Render a list of dicts (or one dict) as an aligned plain-text table.
+
+    Columns are the union of keys in first-seen order. A single dict becomes a
+    two-column key/value table. Anything else falls back to its JSON form.
+    """
+    if isinstance(rows, dict):
+        rows = [{"field": k, "value": v} for k, v in rows.items()]
+    if not isinstance(rows, list) or not rows or not all(isinstance(r, dict) for r in rows):
+        return json.dumps(rows, indent=2)
+
+    columns: list = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(key)
+    table = [[_cell(row.get(col)) for col in columns] for row in rows]
+    widths = [
+        max(len(str(col)), *(len(line[i]) for line in table)) for i, col in enumerate(columns)
+    ]
+    header = "  ".join(str(col).ljust(widths[i]) for i, col in enumerate(columns))
+    separator = "  ".join("-" * widths[i] for i in range(len(columns)))
+    body = ("  ".join(line[i].ljust(widths[i]) for i in range(len(columns))) for line in table)
+    return "\n".join([header.rstrip(), separator, *(line.rstrip() for line in body)])
+
+
+def print_result(result: Any, output: str = "json") -> None:
+    """Write ``result`` to stdout in the requested format."""
+    if output == "table":
+        sys.stdout.write(render_table(result) + "\n")
+    else:
+        print_json(result)
+
+
 def execute_cli(
     parser: argparse.ArgumentParser,
     resource_cls: Type[ResourceClient],
@@ -159,7 +208,7 @@ def execute_cli(
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    print_json(result)
+    print_result(result, getattr(args, "output", "json"))
     return 0
 
 

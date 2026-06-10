@@ -11,12 +11,13 @@ creation via the instance client / Ansible.
 from __future__ import annotations
 
 import sys
+from typing import Optional, Sequence
 
 from ..resources.snapshot import SnapshotClient
 from ._base import run_resource_cli
 
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     return run_resource_cli(
         SnapshotClient,
         prog="exoscale-snapshot",
@@ -25,6 +26,7 @@ def main() -> int:
             "Note: snapshots are created via 'POST /instance/{id}:create-snapshot'; "
             "this CLI does not expose a create verb."
         ),
+        argv=argv,
     )
 
 

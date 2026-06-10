@@ -6,16 +6,18 @@ Thin wrapper over the shared harness; all behaviour lives in
 from __future__ import annotations
 
 import sys
+from typing import Optional, Sequence
 
 from ..resources.private_network import PrivateNetworkClient
 from ._base import run_resource_cli
 
 
-def main() -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     return run_resource_cli(
         PrivateNetworkClient,
         prog="exoscale-private-network",
         description="Manage Exoscale Private Networks via the APIv2.",
+        argv=argv,
     )
 
 

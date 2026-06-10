@@ -33,7 +33,7 @@ from typing import Optional, Sequence
 from ..config import ClientConfig
 from ..errors import ExoscaleError
 from ..resources.object_storage import BucketClient
-from ._base import dump, print_json
+from ._base import dump, print_result
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -53,7 +53,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    print_json(result)
+    print_result(result, args.output)
     return 0
 
 
@@ -70,6 +70,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--zone",
         default=None,
         help="Exoscale zone (defaults to EXOSCALE_ZONE)",
+    )
+    parser.add_argument(
+        "--output",
+        choices=("json", "table"),
+        default="json",
+        help="Output format (default: json)",
     )
     sub = parser.add_subparsers(dest="command")
 
