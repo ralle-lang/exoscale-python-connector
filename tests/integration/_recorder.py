@@ -16,6 +16,9 @@ Sanitization:
 * Email addresses are scrubbed from every string *value* — on a shared
   tenant they leak into arbitrary content (resource descriptions, labels,
   IAM user lists), so key-based redaction alone cannot catch them.
+* Exoscale API key identifiers (``EXO`` + 26 hex chars) are scrubbed the
+  same way: the id is the public half of a credential pair and identifies
+  real keys on the tenant.
 
 Recordings can still carry tenant-specific identifiers (resource UUIDs, IPs,
 zone names) — **review a recording before committing it**.
@@ -30,6 +33,7 @@ from typing import Any
 
 _SECRET_KEY = re.compile(r"secret|password|kubeconfig|private-key|token|credential", re.I)
 _EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+_API_KEY_ID = re.compile(r"\bEXO[0-9a-f]{26}\b")
 
 RECORDINGS_DIR = Path(__file__).resolve().parent.parent / "recorded"
 
@@ -44,7 +48,8 @@ def _sanitize(value: Any) -> Any:
     if isinstance(value, list):
         return [_sanitize(item) for item in value]
     if isinstance(value, str):
-        return _EMAIL.sub("[EMAIL-REDACTED]", value)
+        value = _EMAIL.sub("[EMAIL-REDACTED]", value)
+        return _API_KEY_ID.sub("[KEYID-REDACTED]", value)
     return value
 
 

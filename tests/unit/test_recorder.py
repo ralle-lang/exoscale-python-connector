@@ -38,6 +38,15 @@ def test_sanitize_scrubs_emails_from_string_values() -> None:
     assert clean["items"][0]["email"] == "[EMAIL-REDACTED]"
 
 
+def test_sanitize_scrubs_api_key_ids() -> None:
+    # The EXO… key id is the public half of a credential pair; it identifies
+    # real keys on the tenant and stays out of committed recordings.
+    body = {"key": "EXO0123456789abcdef0123456789", "name": "ci-key"}
+    clean = _sanitize(body)
+    assert clean["key"] == "[KEYID-REDACTED]"
+    assert clean["name"] == "ci-key"
+
+
 @responses.activate
 def test_recorder_writes_sanitized_jsonl(client, base_url, tmp_path) -> None:
     responses.add(
