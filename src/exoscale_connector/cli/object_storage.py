@@ -12,6 +12,11 @@ Usage examples::
     exoscale-bucket create --name my-bucket
     exoscale-bucket delete --name my-bucket
     exoscale-bucket exists --name my-bucket
+    exoscale-bucket list-objects --bucket my-bucket --prefix logs/
+    exoscale-bucket upload --bucket my-bucket --key a.txt --file ./a.txt
+    exoscale-bucket download --bucket my-bucket --key a.txt --file ./a.txt
+    exoscale-bucket delete-object --bucket my-bucket --key a.txt
+    exoscale-bucket presign --bucket my-bucket --key a.txt --method get
 
 Exit codes
 ----------
@@ -79,6 +84,33 @@ def _build_parser() -> argparse.ArgumentParser:
     p_exists = sub.add_parser("exists", help="Check whether a bucket exists")
     p_exists.add_argument("--name", required=True, help="Bucket name")
 
+    p_lo = sub.add_parser("list-objects", help="List objects in a bucket")
+    p_lo.add_argument("--bucket", required=True)
+    p_lo.add_argument("--prefix", default=None, help="Only keys starting with this prefix")
+    p_lo.add_argument("--limit", type=int, default=None, help="Stop after N objects")
+
+    p_up = sub.add_parser("upload", help="Upload a local file to a bucket")
+    p_up.add_argument("--bucket", required=True)
+    p_up.add_argument("--key", required=True)
+    p_up.add_argument("--file", required=True, help="Local file path")
+
+    p_down = sub.add_parser("download", help="Download an object to a local file")
+    p_down.add_argument("--bucket", required=True)
+    p_down.add_argument("--key", required=True)
+    p_down.add_argument("--file", required=True, help="Local destination path")
+
+    p_del = sub.add_parser("delete-object", help="Delete one object")
+    p_del.add_argument("--bucket", required=True)
+    p_del.add_argument("--key", required=True)
+
+    p_sign = sub.add_parser(
+        "presign", help="Generate a presigned URL (treat the URL as a secret)"
+    )
+    p_sign.add_argument("--bucket", required=True)
+    p_sign.add_argument("--key", required=True)
+    p_sign.add_argument("--method", choices=("get", "put"), default="get")
+    p_sign.add_argument("--expires", type=int, default=3600, help="Validity in seconds")
+
     return parser
 
 
@@ -99,6 +131,22 @@ def _dispatch(client: BucketClient, args: argparse.Namespace) -> object:
     if args.command == "exists":
         found = client.exists(args.name)
         return {"name": args.name, "exists": found}
+    if args.command == "list-objects":
+        objects = client.list_objects(args.bucket, prefix=args.prefix, limit=args.limit)
+        return [dump(o) for o in objects]
+    if args.command == "upload":
+        client.upload_file(args.bucket, args.key, args.file)
+        return {"bucket": args.bucket, "key": args.key, "uploaded": True}
+    if args.command == "download":
+        client.download_file(args.bucket, args.key, args.file)
+        return {"bucket": args.bucket, "key": args.key, "downloaded": True}
+    if args.command == "delete-object":
+        client.delete_object(args.bucket, args.key)
+        return {"bucket": args.bucket, "key": args.key, "deleted": True}
+    if args.command == "presign":
+        sign = client.presign_get if args.method == "get" else client.presign_put
+        url = sign(args.bucket, args.key, expires_in=args.expires)
+        return {"bucket": args.bucket, "key": args.key, "method": args.method, "url": url}
     raise ExoscaleError(f"unknown command: {args.command}")
 
 

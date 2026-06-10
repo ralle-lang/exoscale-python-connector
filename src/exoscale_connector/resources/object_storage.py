@@ -42,6 +42,17 @@ class Bucket(ExoscaleModel):
     creation_date: Optional[str] = None
 
 
+class S3Object(ExoscaleModel):
+    """A single object as returned by the S3 ListObjectsV2 response."""
+
+    key: Optional[str] = None
+    size: Optional[int] = None
+    etag: Optional[str] = None
+    storage_class: Optional[str] = None
+    # ISO-8601 string (see Bucket.creation_date for the rationale).
+    last_modified: Optional[str] = None
+
+
 def _build_s3_client(config: ClientConfig, zone: str) -> Any:
     """Build a real boto3 S3 client pointed at the SOS endpoint.
 
@@ -181,6 +192,180 @@ class BucketClient:
                 f"delete_bucket failed for '{name}': {exc}",
                 status_code=int(error_code) if error_code.isdigit() else 0,
             ) from exc
+
+    # ------------------------------------------------------------------ #
+    # Objects
+    # ------------------------------------------------------------------ #
+
+    def list_objects(
+        self,
+        bucket: str,
+        *,
+        prefix: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[S3Object]:
+        """List objects in *bucket*, following continuation tokens.
+
+        ``prefix`` narrows the listing server-side; ``limit`` caps the number
+        of returned objects (the listing stops paginating once reached).
+        """
+        results: List[S3Object] = []
+        kwargs: dict = {"Bucket": bucket}
+        if prefix:
+            kwargs["Prefix"] = prefix
+        try:
+            while True:
+                page = self._s3.list_objects_v2(**kwargs)
+                for item in page.get("Contents") or []:
+                    last_modified = item.get("LastModified")
+                    results.append(
+                        S3Object(
+                            key=item.get("Key"),
+                            size=item.get("Size"),
+                            etag=item.get("ETag"),
+                            storage_class=item.get("StorageClass"),
+                            last_modified=(
+                                str(last_modified) if last_modified is not None else None
+                            ),
+                        )
+                    )
+                    if limit is not None and len(results) >= limit:
+                        return results
+                token = page.get("NextContinuationToken")
+                if not page.get("IsTruncated") or not token:
+                    return results
+                kwargs["ContinuationToken"] = token
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("list_objects_v2", bucket, exc) from exc
+
+    def put_object(
+        self,
+        bucket: str,
+        key: str,
+        data: bytes,
+        *,
+        content_type: Optional[str] = None,
+    ) -> None:
+        """Upload *data* (bytes) as ``s3://bucket/key``."""
+        kwargs: dict = {"Bucket": bucket, "Key": key, "Body": data}
+        if content_type:
+            kwargs["ContentType"] = content_type
+        try:
+            self._s3.put_object(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("put_object", f"{bucket}/{key}", exc) from exc
+
+    def get_object(self, bucket: str, key: str) -> bytes:
+        """Download ``s3://bucket/key`` and return its content as bytes.
+
+        The whole object is read into memory — use :meth:`download_file` for
+        large payloads.
+        """
+        try:
+            response = self._s3.get_object(Bucket=bucket, Key=key)
+            return response["Body"].read()
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("get_object", f"{bucket}/{key}", exc) from exc
+
+    def delete_object(self, bucket: str, key: str) -> None:
+        """Delete ``s3://bucket/key``."""
+        try:
+            self._s3.delete_object(Bucket=bucket, Key=key)
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("delete_object", f"{bucket}/{key}", exc) from exc
+
+    def upload_file(self, bucket: str, key: str, path: str) -> None:
+        """Upload a local file with boto3's managed (multipart-capable) transfer."""
+        try:
+            self._s3.upload_file(path, bucket, key)
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("upload_file", f"{bucket}/{key}", exc) from exc
+
+    def download_file(self, bucket: str, key: str, path: str) -> None:
+        """Download an object to a local file with boto3's managed transfer."""
+        try:
+            self._s3.download_file(bucket, key, path)
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("download_file", f"{bucket}/{key}", exc) from exc
+
+    # ------------------------------------------------------------------ #
+    # Presigned URLs
+    # ------------------------------------------------------------------ #
+
+    def presign_get(self, bucket: str, key: str, *, expires_in: int = 3600) -> str:
+        """Return a presigned download URL for ``s3://bucket/key``.
+
+        .. warning::
+           A presigned URL is a bearer capability: anyone holding it can read
+           the object until it expires. Treat it like a secret — don't log it.
+        """
+        return self._presign("get_object", bucket, key, expires_in)
+
+    def presign_put(self, bucket: str, key: str, *, expires_in: int = 3600) -> str:
+        """Return a presigned upload URL for ``s3://bucket/key``.
+
+        See :meth:`presign_get` for the bearer-capability caveat.
+        """
+        return self._presign("put_object", bucket, key, expires_in)
+
+    def _presign(self, operation: str, bucket: str, key: str, expires_in: int) -> str:
+        try:
+            return self._s3.generate_presigned_url(
+                operation,
+                Params={"Bucket": bucket, "Key": key},
+                ExpiresIn=expires_in,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("generate_presigned_url", f"{bucket}/{key}", exc) from exc
+
+    # ------------------------------------------------------------------ #
+    # Bucket configuration (lifecycle / CORS)
+    # ------------------------------------------------------------------ #
+
+    def get_lifecycle(self, bucket: str) -> Optional[List[dict]]:
+        """Return the bucket's lifecycle rules, or ``None`` if none are set."""
+        try:
+            response = self._s3.get_bucket_lifecycle_configuration(Bucket=bucket)
+            return response.get("Rules") or []
+        except Exception as exc:  # noqa: BLE001
+            if _extract_error_code(exc) == "NoSuchLifecycleConfiguration":
+                return None
+            raise self._wrap_error("get_bucket_lifecycle_configuration", bucket, exc) from exc
+
+    def set_lifecycle(self, bucket: str, rules: List[dict]) -> None:
+        """Replace the bucket's lifecycle rules (S3 ``Rules`` schema, verbatim)."""
+        try:
+            self._s3.put_bucket_lifecycle_configuration(
+                Bucket=bucket, LifecycleConfiguration={"Rules": rules}
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("put_bucket_lifecycle_configuration", bucket, exc) from exc
+
+    def get_cors(self, bucket: str) -> Optional[List[dict]]:
+        """Return the bucket's CORS rules, or ``None`` if none are set."""
+        try:
+            response = self._s3.get_bucket_cors(Bucket=bucket)
+            return response.get("CORSRules") or []
+        except Exception as exc:  # noqa: BLE001
+            if _extract_error_code(exc) == "NoSuchCORSConfiguration":
+                return None
+            raise self._wrap_error("get_bucket_cors", bucket, exc) from exc
+
+    def set_cors(self, bucket: str, rules: List[dict]) -> None:
+        """Replace the bucket's CORS rules (S3 ``CORSRules`` schema, verbatim)."""
+        try:
+            self._s3.put_bucket_cors(Bucket=bucket, CORSConfiguration={"CORSRules": rules})
+        except Exception as exc:  # noqa: BLE001
+            raise self._wrap_error("put_bucket_cors", bucket, exc) from exc
+
+    @staticmethod
+    def _wrap_error(operation: str, target: str, exc: Exception) -> APIError:
+        """Translate a boto3 failure into the connector's APIError."""
+        error_code = _extract_error_code(exc)
+        return APIError(
+            f"{operation} failed for '{target}': {exc}",
+            status_code=int(error_code) if error_code.isdigit() else 0,
+        )
 
 
 # ------------------------------------------------------------------ #

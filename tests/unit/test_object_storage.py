@@ -232,3 +232,114 @@ def _make_client_error(code: str) -> Exception:
     exc = Exception(f"ClientError: {code}")
     exc.response = {"Error": {"Code": code}}  # type: ignore[attr-defined]
     return exc
+
+
+# ---------------------------------------------------------------------------
+# Object operations
+# ---------------------------------------------------------------------------
+
+
+def test_list_objects_follows_continuation_tokens() -> None:
+    mock_s3 = MagicMock()
+    mock_s3.list_objects_v2.side_effect = [
+        {
+            "Contents": [{"Key": "a.txt", "Size": 1}],
+            "IsTruncated": True,
+            "NextContinuationToken": "tok",
+        },
+        {"Contents": [{"Key": "b.txt", "Size": 2}], "IsTruncated": False},
+    ]
+    objects = _client(mock_s3).list_objects("my-bucket")
+    assert [o.key for o in objects] == ["a.txt", "b.txt"]
+    # Second page must carry the continuation token.
+    assert mock_s3.list_objects_v2.call_args_list[1].kwargs["ContinuationToken"] == "tok"
+
+
+def test_list_objects_respects_limit_and_prefix() -> None:
+    mock_s3 = MagicMock()
+    mock_s3.list_objects_v2.return_value = {
+        "Contents": [{"Key": f"k{i}"} for i in range(5)],
+        "IsTruncated": False,
+    }
+    objects = _client(mock_s3).list_objects("b", prefix="k", limit=2)
+    assert len(objects) == 2
+    assert mock_s3.list_objects_v2.call_args.kwargs["Prefix"] == "k"
+
+
+def test_put_and_get_object_roundtrip_signatures() -> None:
+    mock_s3 = MagicMock()
+    body = MagicMock()
+    body.read.return_value = b"payload"
+    mock_s3.get_object.return_value = {"Body": body}
+    client = _client(mock_s3)
+
+    client.put_object("b", "k", b"payload", content_type="text/plain")
+    mock_s3.put_object.assert_called_once_with(
+        Bucket="b", Key="k", Body=b"payload", ContentType="text/plain"
+    )
+    assert client.get_object("b", "k") == b"payload"
+
+
+def test_delete_object_and_file_transfers() -> None:
+    mock_s3 = MagicMock()
+    client = _client(mock_s3)
+    client.delete_object("b", "k")
+    mock_s3.delete_object.assert_called_once_with(Bucket="b", Key="k")
+    client.upload_file("b", "k", "/tmp/x")
+    mock_s3.upload_file.assert_called_once_with("/tmp/x", "b", "k")
+    client.download_file("b", "k", "/tmp/y")
+    mock_s3.download_file.assert_called_once_with("b", "k", "/tmp/y")
+
+
+def test_object_errors_become_api_errors() -> None:
+    mock_s3 = MagicMock()
+    mock_s3.get_object.side_effect = _make_client_error("NoSuchKey")
+    with pytest.raises(APIError, match="get_object failed"):
+        _client(mock_s3).get_object("b", "missing")
+
+
+def test_presign_get_and_put() -> None:
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url.return_value = "https://sos/signed"
+    client = _client(mock_s3)
+
+    assert client.presign_get("b", "k", expires_in=60) == "https://sos/signed"
+    mock_s3.generate_presigned_url.assert_called_with(
+        "get_object", Params={"Bucket": "b", "Key": "k"}, ExpiresIn=60
+    )
+    client.presign_put("b", "k")
+    mock_s3.generate_presigned_url.assert_called_with(
+        "put_object", Params={"Bucket": "b", "Key": "k"}, ExpiresIn=3600
+    )
+
+
+def test_lifecycle_none_when_unconfigured() -> None:
+    mock_s3 = MagicMock()
+    mock_s3.get_bucket_lifecycle_configuration.side_effect = _make_client_error(
+        "NoSuchLifecycleConfiguration"
+    )
+    assert _client(mock_s3).get_lifecycle("b") is None
+
+
+def test_lifecycle_set_and_get() -> None:
+    mock_s3 = MagicMock()
+    rules = [{"ID": "expire-logs", "Status": "Enabled"}]
+    mock_s3.get_bucket_lifecycle_configuration.return_value = {"Rules": rules}
+    client = _client(mock_s3)
+    assert client.get_lifecycle("b") == rules
+    client.set_lifecycle("b", rules)
+    mock_s3.put_bucket_lifecycle_configuration.assert_called_once_with(
+        Bucket="b", LifecycleConfiguration={"Rules": rules}
+    )
+
+
+def test_cors_none_when_unconfigured_and_set() -> None:
+    mock_s3 = MagicMock()
+    mock_s3.get_bucket_cors.side_effect = _make_client_error("NoSuchCORSConfiguration")
+    client = _client(mock_s3)
+    assert client.get_cors("b") is None
+    rules = [{"AllowedMethods": ["GET"], "AllowedOrigins": ["*"]}]
+    client.set_cors("b", rules)
+    mock_s3.put_bucket_cors.assert_called_once_with(
+        Bucket="b", CORSConfiguration={"CORSRules": rules}
+    )
