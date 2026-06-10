@@ -39,7 +39,15 @@ def live_client() -> ExoscaleClient:
         config = ClientConfig.from_env(zone=zone)
     except Exception as exc:  # missing creds -> skip rather than error
         pytest.skip(f"live credentials unavailable: {exc}")
-    return ExoscaleClient(config)
+    client = ExoscaleClient(config)
+    if _env_bool("EXOSCALE_RECORD"):
+        # Capture sanitized wire shapes for the offline replay suite.
+        # Review recordings before committing them (see _recorder.py).
+        from ._fixtures import make_run_id
+        from ._recorder import RECORDINGS_DIR, attach_recorder
+
+        attach_recorder(client._session, RECORDINGS_DIR / f"live-{make_run_id()}.jsonl")
+    return client
 
 
 def _env_bool(name: str) -> bool:
