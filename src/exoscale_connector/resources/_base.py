@@ -43,8 +43,18 @@ class ResourceClient(Generic[ModelT]):
     # ------------------------------------------------------------------ #
     # Read
     # ------------------------------------------------------------------ #
-    def list(self, *, zone: Optional[str] = None) -> List[ModelT]:
+    def list(
+        self,
+        *,
+        zone: Optional[str] = None,
+        labels: Optional[dict] = None,
+    ) -> List[ModelT]:
         """Return all resources of this type in the target zone.
+
+        ``labels`` filters client-side: only resources whose labels contain
+        every given key/value pair are returned (the APIv2 list endpoints do
+        not support server-side label filtering). Resources without labels
+        never match a non-empty filter.
 
         Assumes the APIv2 list endpoints return the full collection in one
         response (they are unpaginated today). If Exoscale ever introduces
@@ -53,7 +63,10 @@ class ResourceClient(Generic[ModelT]):
         """
         payload = self.client.get(self.collection_path, zone=self._zone(zone))
         items = _extract_list(payload, self.list_key)
-        return [self.model.model_validate(item) for item in items]
+        resources = [self.model.model_validate(item) for item in items]
+        if labels:
+            resources = [r for r in resources if _labels_match(r, labels)]
+        return resources
 
     def get(self, resource_id: str, *, zone: Optional[str] = None) -> ModelT:
         """Fetch a single resource by id. Raises :class:`NotFoundError` if absent."""
@@ -109,6 +122,45 @@ class ResourceClient(Generic[ModelT]):
                 fallback_id = candidate
         response = self.client.post(self.collection_path, zone=zone, json=api_payload)
         return self._resolve_mutation(response, zone=zone, wait=wait, fallback_id=fallback_id)
+
+    def ensure(
+        self,
+        payload: Any,
+        *,
+        zone: Optional[str] = None,
+        wait: Optional[bool] = None,
+        update: bool = False,
+    ) -> ModelT:
+        """Idempotent get-or-create: return the resource named in ``payload``.
+
+        Looks the resource up by its name (via :meth:`find_by_name`); if absent
+        it is created from ``payload``. If present it is returned as-is — or,
+        with ``update=True``, updated with ``payload`` first (a plain ``PUT``;
+        no diffing, so the payload should be complete for the fields you care
+        about). Calling ``ensure`` repeatedly with the same payload is safe,
+        which makes provisioning scripts re-runnable by construction.
+
+        Raises ``ValueError`` if ``payload`` carries no name to key on.
+
+        .. note::
+           Name uniqueness is not enforced by the API — ``ensure`` adopts the
+           *first* name match, same as :meth:`find_by_name`. Clients with a
+           non-standard ``create`` signature (DBaaS) don't support ``ensure``.
+        """
+        api_payload = to_api_payload(payload)
+        name = api_payload.get(self.name_field) if isinstance(api_payload, dict) else None
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(
+                f"ensure() needs a {self.name_field!r} in the payload to key the lookup on"
+            )
+        existing = self.find_by_name(name, zone=zone)
+        if existing is None:
+            return self.create(payload, zone=zone, wait=wait)
+        if update:
+            resource_id = getattr(existing, self.id_field, None)
+            if resource_id:
+                return self.update(str(resource_id), payload, zone=zone, wait=wait)
+        return existing
 
     def update(
         self,
@@ -172,6 +224,14 @@ class ResourceClient(Generic[ModelT]):
 
     def _zone(self, zone: Optional[str]) -> Optional[str]:
         return zone or self.zone
+
+
+def _labels_match(resource: Any, wanted: dict) -> bool:
+    """True if the resource's labels contain every wanted key/value pair."""
+    actual = getattr(resource, "labels", None)
+    if not isinstance(actual, dict):
+        return False
+    return all(actual.get(key) == value for key, value in wanted.items())
 
 
 def _looks_like_operation(payload: dict) -> bool:

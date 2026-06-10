@@ -61,3 +61,16 @@ class OperationError(ExoscaleError):
 
 class OperationTimeoutError(OperationError):
     """An asynchronous API operation did not complete within the timeout."""
+
+
+class WaitTimeoutError(ExoscaleError):
+    """A resource did not reach the expected state within the timeout.
+
+    Raised by :func:`exoscale_connector.wait.wait_for_state`. Carries the last
+    observed state for diagnostics.
+    """
+
+    def __init__(self, message: str, *, expected: str = "", last_state: Optional[str] = None):
+        super().__init__(message)
+        self.expected = expected
+        self.last_state = last_state

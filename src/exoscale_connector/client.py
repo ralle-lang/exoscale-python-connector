@@ -7,6 +7,7 @@ behaviour — application code normally uses those rather than this client direc
 """
 from __future__ import annotations
 
+import logging
 import random
 import time
 from typing import Any, Optional, Union
@@ -27,6 +28,14 @@ _RETRYABLE_STATUSES_IDEMPOTENT = frozenset({429, 500, 502, 503, 504})
 _RETRYABLE_STATUSES_MUTATING = frozenset({429})
 _IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "DELETE", "PUT"})
 _SUCCESS_STATUSES = frozenset({200, 201, 202, 204})
+# Upper bound on how long a server-sent Retry-After may stall a single retry.
+_MAX_RETRY_AFTER = 60.0
+
+# Debug logging for request/response tracing. Deliberately logs only
+# method/URL/status/duration — never headers (Authorization carries the
+# signature) and never bodies (create responses can carry one-time secrets).
+# Enable with: logging.getLogger("exoscale_connector").setLevel(logging.DEBUG)
+logger = logging.getLogger("exoscale_connector")
 
 
 class ExoscaleClient:
@@ -79,6 +88,7 @@ class ExoscaleClient:
         )
         attempt = 0
         while True:
+            started = time.monotonic()
             response = self._session.request(
                 verb,
                 url,
@@ -87,11 +97,17 @@ class ExoscaleClient:
                 timeout=self.config.timeout,
                 verify=self.config.verify_tls,
             )
+            logger.debug(
+                "%s %s -> %s (%.0f ms)",
+                verb,
+                url,
+                response.status_code,
+                (time.monotonic() - started) * 1000,
+            )
             if response.status_code in _SUCCESS_STATUSES:
                 return _parse_body(response)
             if response.status_code in retryable and attempt < self.config.max_retries:
-                # Full jitter keeps a fleet of clients from retrying in lockstep.
-                time.sleep(random.uniform(0, self.config.retry_backoff * (2**attempt)))
+                time.sleep(_retry_delay(response, attempt, self.config.retry_backoff))
                 attempt += 1
                 continue
             _raise_for_response(method, url, response)
@@ -185,6 +201,20 @@ class ExoscaleClient:
                 state=state,
                 payload=operation.model_dump(by_alias=True),
             )
+
+
+def _retry_delay(response: requests.Response, attempt: int, backoff: float) -> float:
+    """Pick the sleep before the next retry.
+
+    A server-sent ``Retry-After`` (seconds form) wins over our own backoff —
+    the server knows its rate-limit window better than we do — capped so a
+    pathological header can't stall the client. Otherwise full-jitter
+    exponential backoff keeps a fleet of clients from retrying in lockstep.
+    """
+    header = response.headers.get("Retry-After", "")
+    if header.strip().isdigit():
+        return min(float(header.strip()), _MAX_RETRY_AFTER)
+    return random.uniform(0, backoff * (2**attempt))
 
 
 def _as_operation(operation: Union[Operation, dict, str]) -> Optional[Operation]:

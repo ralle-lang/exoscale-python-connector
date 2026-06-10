@@ -23,8 +23,10 @@ from .errors import (
     NotFoundError,
     OperationError,
     OperationTimeoutError,
+    WaitTimeoutError,
 )
 from .models import ExoscaleModel, Operation, Reference
+from .wait import wait_for_state
 
 __version__ = "0.1.0"
 
@@ -40,5 +42,7 @@ __all__ = [
     "NotFoundError",
     "OperationError",
     "OperationTimeoutError",
+    "WaitTimeoutError",
+    "wait_for_state",
     "__version__",
 ]

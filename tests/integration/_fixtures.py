@@ -159,27 +159,7 @@ def resolve_sks_version(client: Any, zone: Optional[str] = None) -> str:
     return versions[0]
 
 
-def wait_for_state(
-    getter: Callable[[], Any],
-    expected: str,
-    *,
-    timeout: float = 600.0,
-    interval: float = 5.0,
-) -> Any:
-    """Poll ``getter()`` until ``.state`` equals ``expected``; raise on timeout.
-
-    Used to bridge the gap between an async API operation completing and the
-    resource it touched actually transitioning to a usable state
-    (e.g. an instance reaching ``running`` after create).
-    """
-    deadline = time.time() + timeout
-    last = None
-    while time.time() < deadline:
-        last = getter()
-        if (getattr(last, "state", None) or "").lower() == expected.lower():
-            return last
-        time.sleep(interval)
-    raise AssertionError(
-        f"resource never reached state {expected!r} within {timeout}s "
-        f"(last state: {getattr(last, 'state', None)!r})"
-    )
+# wait_for_state graduated into the library (it was always user-facing — the
+# asset-type docs reference it). Re-exported here so the tiers keep importing
+# it from _fixtures. It now raises WaitTimeoutError instead of AssertionError.
+from exoscale_connector.wait import wait_for_state  # noqa: E402,F401
