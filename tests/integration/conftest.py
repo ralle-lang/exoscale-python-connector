@@ -158,7 +158,15 @@ def tier_3_client(live_client):
         max_retries=base.max_retries,
         retry_backoff=base.retry_backoff,
     )
-    return ExoscaleClient(extended)
+    client = ExoscaleClient(extended)
+    if _env_bool("EXOSCALE_RECORD"):
+        # This is a fresh session — the recorder attached to live_client does
+        # not carry over. Without this, tier 3/4 runs record nothing.
+        from ._fixtures import make_run_id
+        from ._recorder import RECORDINGS_DIR, attach_recorder
+
+        attach_recorder(client._session, RECORDINGS_DIR / f"live-{make_run_id()}.jsonl")
+    return client
 
 
 @pytest.fixture
