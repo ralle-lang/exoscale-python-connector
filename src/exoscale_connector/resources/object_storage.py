@@ -323,10 +323,16 @@ class BucketClient:
     # ------------------------------------------------------------------ #
 
     def get_lifecycle(self, bucket: str) -> Optional[List[dict]]:
-        """Return the bucket's lifecycle rules, or ``None`` if none are set."""
+        """Return the bucket's lifecycle rules, or ``None`` if none are set.
+
+        Exoscale SOS answers an unconfigured bucket with 200 and no rules
+        (AWS S3 raises ``NoSuchLifecycleConfiguration`` instead — confirmed
+        live); both shapes normalise to ``None`` here. A configured-but-empty
+        list cannot exist: the S3 schema requires at least one rule.
+        """
         try:
             response = self._s3.get_bucket_lifecycle_configuration(Bucket=bucket)
-            return response.get("Rules") or []
+            return response.get("Rules") or None
         except Exception as exc:  # noqa: BLE001
             if _extract_error_code(exc) == "NoSuchLifecycleConfiguration":
                 return None

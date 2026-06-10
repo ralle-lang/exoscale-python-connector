@@ -321,6 +321,14 @@ def test_lifecycle_none_when_unconfigured() -> None:
     assert _client(mock_s3).get_lifecycle("b") is None
 
 
+def test_lifecycle_none_on_empty_200() -> None:
+    # Exoscale SOS answers an unconfigured bucket with 200 and no Rules,
+    # where AWS raises NoSuchLifecycleConfiguration; both normalise to None.
+    mock_s3 = MagicMock()
+    mock_s3.get_bucket_lifecycle_configuration.return_value = {}
+    assert _client(mock_s3).get_lifecycle("b") is None
+
+
 def test_lifecycle_set_and_get() -> None:
     mock_s3 = MagicMock()
     rules = [{"ID": "expire-logs", "Status": "Enabled"}]

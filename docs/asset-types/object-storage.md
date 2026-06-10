@@ -81,6 +81,10 @@ buckets = BucketClient(config, s3_client=my_mock_s3_client)
   access-denied even though the same key works fine on APIv2. Grant it in
   the policy's `services` map (see the
   [IAM policy cookbook](../iam-policy-cookbook.md)).
+- **Unconfigured lifecycle answers 200, not an error.** AWS S3 raises
+  `NoSuchLifecycleConfiguration` for a bucket without lifecycle rules;
+  Exoscale SOS returns 200 with no rules (confirmed live 2026-06-10).
+  `get_lifecycle()` normalises both shapes to `None`.
 
 ## End-to-end example
 
@@ -105,10 +109,10 @@ buckets.delete(name)
 assert not buckets.exists(name)
 ```
 
-## Object-level operations (pending live verification)
+## Object-level operations
 
-Added on the extensions branch; live-tested in Tier 2
-(`test_bucket_object_roundtrip`) on the next run:
+Added on the extensions branch; live-verified in Tier 2
+(`test_bucket_object_roundtrip`, 2026-06-10):
 
 ```bash
 exoscale-bucket list-objects --bucket backups --prefix logs/
