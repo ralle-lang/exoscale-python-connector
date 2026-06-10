@@ -292,3 +292,38 @@ def test_block_volume_online_lifecycle(tier_3_client, run_id, tracker, tier_3_en
 
     instances.delete(inst_id)
     tracker.unregister(inst_id)
+
+
+def test_instance_scale(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
+    """Vertical scaling: create tiny → stop → scale to small → verify (new surface)."""
+    from ._fixtures import resolve_instance_type, resolve_linux_template, wait_for_state
+
+    instances = InstanceClient(tier_3_client)
+    name = make_name(run_id, "scale-inst")
+    assert_safe_name(name)
+
+    tiny = resolve_instance_type(tier_3_client, "standard.tiny")
+    small = resolve_instance_type(tier_3_client, "standard.small")
+    template = resolve_linux_template(tier_3_client)
+
+    inst = instances.create(
+        {
+            "name": name,
+            "instance-type": {"id": tiny},
+            "template": {"id": template},
+            "disk-size": 10,
+        }
+    )
+    assert inst.id
+    tracker.register("instance", lambda: instances.delete(inst.id), inst.id)
+    wait_for_state(lambda: instances.get(inst.id), "running", timeout=600, interval=10)
+
+    instances.stop(inst.id)
+    wait_for_state(lambda: instances.get(inst.id), "stopped", timeout=300, interval=5)
+
+    instances.scale(inst.id, small)
+    scaled = instances.get(inst.id)
+    assert scaled.instance_type is not None and scaled.instance_type.id == small
+
+    instances.delete(inst.id)
+    tracker.unregister(inst.id)

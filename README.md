@@ -9,7 +9,11 @@ programmatically.
   model, so you get validation and editor autocompletion.
 - **One module per asset type** — `security-group`, `instance`, `elastic-ip`,
   `dns`, `dbaas`, `sks`, … each with a small, uniform client.
-- **Library + CLI** — import it, or use the per-asset command-line tools.
+- **Library + CLI** — import it, or use the per-asset command-line tools
+  (also namespaced under one `exoscale-connector` binary, with `--output table`).
+- **Built for automation** — idempotent `ensure()` (get-or-create by name),
+  `wait_for_state` polling, and label-filtered listing make provisioning
+  scripts re-runnable by construction.
 - **Self-contained** — runtime deps are just `requests` + `pydantic`; copy the
   package into another repo and it keeps working.
 - **Secret-safe** — credentials come only from the environment; nothing is

@@ -69,7 +69,15 @@ the HTTP method:
 The APIv2 is zone-scoped: the host is `https://api-<zone>.exoscale.com/v2`. A
 single `ExoscaleClient` can target any zone — pass `zone=` per call, or set a
 default on the client / config / `EXOSCALE_ZONE`. Globally-scoped resources (IAM,
-DNS) are still served through a zone host.
+DNS) are still served through a zone host. The live zone list is available via
+`ZoneClient` (`GET /zone`); `config.KNOWN_ZONES` is only a static hint.
+
+### Debug logging
+
+`logging.getLogger("exoscale_connector").setLevel(logging.DEBUG)` traces every
+request as `METHOD url -> status (ms)`. Headers and bodies are deliberately
+never logged — the `Authorization` header carries the request signature and
+create-response bodies can carry one-time secrets.
 
 ### Field naming
 
@@ -174,6 +182,14 @@ mypy src                    # type-check
 - **Unit tests** (`tests/unit/`) are mandatory and CI-safe: every resource's
   request shaping, response parsing, and error handling is covered with mocked
   HTTP. They never hit the network.
+- **Recorded wire fixtures** (`tests/recorded/`): run any live tier with
+  `EXOSCALE_RECORD=1` and every API call is appended — sanitized — to a
+  `.jsonl` recording (`Authorization` never recorded, secret-bearing keys
+  redacted). `tests/unit/test_recorded_replay.py` then replays each recorded
+  GET through a real client on every CI run, catching wire-shape regressions
+  that hand-written mocks can't (the mock can use the same wrong key as the
+  code, so both agree and both are wrong). Recordings can still contain
+  tenant identifiers — **review each file before committing**.
 - **Integration tests** (`tests/integration/`) are opt-in and tiered. Enable
   read-only smoke tests with `EXOSCALE_RUN_LIVE_TESTS=1` plus credentials and
   `EXOSCALE_TEST_ZONE`. Mutating tests need `EXOSCALE_ALLOW_MUTATION=1` plus

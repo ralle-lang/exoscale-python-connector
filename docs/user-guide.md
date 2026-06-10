@@ -44,9 +44,11 @@ IAM and DNS are account-global but are still reached through a zone.
 
 ## Common commands
 
-Every asset type supports the same verbs:
+Every asset type supports the same verbs, callable either via the per-asset
+binary (`exoscale-<asset> …`) or namespaced under the umbrella command:
 
 ```bash
+exoscale-connector <asset> <verb> [...]     # same CLIs, one binary
 exoscale-<asset> list                       # all resources in the zone
 exoscale-<asset> get --id <uuid>            # one by id
 exoscale-<asset> find --name <name>         # first match by name
@@ -54,6 +56,9 @@ exoscale-<asset> create --json '{...}'      # create from inline JSON
 exoscale-<asset> create --file payload.json # create from a file ('-' = stdin)
 exoscale-<asset> delete --id <uuid>         # delete
 ```
+
+Output is JSON by default; pass `--output table` for an aligned plain-text
+table (handy interactively, e.g. `exoscale-connector zone --output table list-zones`).
 
 > **Secrets in payloads:** `--json` puts the payload on the command line, where it is
 > visible in the process list and lands in shell history. For payloads that carry
@@ -94,6 +99,29 @@ created = sg.create({"name": "web"})     # waits for the operation, returns the 
 sg.delete(created.id)
 ```
 
+### Idempotent provisioning
+
+`ensure()` makes scripts re-runnable by construction — the first run creates,
+every later run adopts the existing resource (add `update=True` to also push
+the payload onto an existing one):
+
+```python
+web = sg.ensure({"name": "web"})          # create or adopt — always returns the resource
+```
+
+`list(labels={...})` filters by labels, and `wait_for_state` bridges the gap
+between an operation finishing and the resource being usable:
+
+```python
+from exoscale_connector import wait_for_state
+from exoscale_connector.resources.instance import InstanceClient
+
+instances = InstanceClient(client)
+prod = instances.list(labels={"env": "prod"})
+inst = instances.create({...})
+inst = wait_for_state(lambda: instances.get(inst.id), "running", timeout=600)
+```
+
 Error handling:
 
 ```python
@@ -117,20 +145,23 @@ except OperationError as e:
 | Network | Elastic IP | `exoscale-elastic-ip` |
 | Network | Private network | `exoscale-private-network` |
 | Network | Load balancer (+ services) | `exoscale-load-balancer` |
-| Compute | Instance (+ start/stop/reboot) | `exoscale-instance` |
+| Compute | Instance (+ start/stop/reboot/scale, reverse DNS) | `exoscale-instance` |
 | Compute | Instance pool (+ scale) | `exoscale-instance-pool` |
+| Compute | Instance type (read-only) | `exoscale-instance-type` |
+| Compute | Template | `exoscale-template` |
 | Compute | Anti-affinity group | `exoscale-anti-affinity-group` |
 | Compute | Snapshot | `exoscale-snapshot` |
 | Storage | Block volume (+ attach/detach/resize) | `exoscale-block-volume` |
 | Storage | Block volume snapshot | `exoscale-block-volume-snapshot` |
-| Storage | Object Storage bucket (S3) | `exoscale-bucket` |
+| Storage | Object Storage bucket + objects (S3) | `exoscale-bucket` |
 | IAM | API key | `exoscale-api-key` |
 | IAM | Role | `exoscale-iam-role` |
 | IAM | User / org member | `exoscale-iam-user` |
 | IAM | SSH key | `exoscale-ssh-key` |
 | Managed | DNS domain + records | `exoscale-dns` |
-| Managed | DBaaS service | `exoscale-dbaas` |
+| Managed | DBaaS service (+ users, maintenance) | `exoscale-dbaas` |
 | Managed | SKS cluster (+ nodepools) | `exoscale-sks` |
+| Platform | Zone (read-only) | `exoscale-zone` |
 
 The behaviour above (verbs, auth, zones, output) is identical across every type.
 The `dns`, `dbaas`, `sks`, `load-balancer` and `security-group` clients add a few

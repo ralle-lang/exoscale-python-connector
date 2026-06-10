@@ -370,3 +370,20 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 
 For a granular per-asset view (fields, gotchas, end-to-end examples), see
 the [asset type reference](asset-types/README.md).
+
+## Extensions branch additions (next run)
+
+New live coverage added alongside the feature work, slotted into the existing
+tiers — no new switches:
+
+| Surface | Test | Tier |
+|---|---|---|
+| zones / templates / instance-types catalogues | `test_smoke.py` (3 new read-only tests) | 0 |
+| `ensure()` idempotency | `test_tier_1.py::test_ensure_is_idempotent` | 1 |
+| SOS object put/list/get/presign/delete | `test_tier_2.py::test_bucket_object_roundtrip` | 2 |
+| Elastic IP reverse DNS | `test_tier_2.py::test_elastic_ip_reverse_dns` | 2 |
+| Instance vertical scaling | `test_tier_3.py::test_instance_scale` | 3 |
+| DBaaS users + update | extended `test_dbaas_pg_lifecycle` | 4 |
+
+Run any tier with `EXOSCALE_RECORD=1` to also produce sanitized wire
+recordings for the offline replay suite (see the developer guide).

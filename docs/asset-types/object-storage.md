@@ -104,3 +104,30 @@ assert any(b.name == name for b in buckets.list())
 buckets.delete(name)
 assert not buckets.exists(name)
 ```
+
+## Object-level operations (pending live verification)
+
+Added on the extensions branch; live-tested in Tier 2
+(`test_bucket_object_roundtrip`) on the next run:
+
+```bash
+exoscale-bucket list-objects --bucket backups --prefix logs/
+exoscale-bucket upload --bucket backups --key a.txt --file ./a.txt
+exoscale-bucket download --bucket backups --key a.txt --file ./a.txt
+exoscale-bucket delete-object --bucket backups --key a.txt
+exoscale-bucket presign --bucket backups --key a.txt --method get --expires 600
+```
+
+```python
+buckets.put_object("backups", "a.txt", b"data", content_type="text/plain")
+buckets.list_objects("backups", prefix="logs/", limit=100)   # paginates internally
+buckets.get_object("backups", "a.txt")                        # bytes, in memory
+buckets.upload_file("backups", "big.bin", "/path/big.bin")    # multipart-capable
+buckets.download_file("backups", "big.bin", "/path/big.bin")
+buckets.presign_get("backups", "a.txt", expires_in=600)       # bearer capability!
+buckets.set_lifecycle("backups", [{"ID": "expire", "Status": "Enabled", ...}])
+buckets.get_cors("backups")                                    # None when unset
+```
+
+A presigned URL grants access to anyone who holds it until expiry — treat it
+like a secret; never log it.

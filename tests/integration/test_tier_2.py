@@ -118,3 +118,51 @@ def test_block_volume_lifecycle(live_client, run_id, tracker, tier_2_enabled) ->
     assert_safe_name(name)
     volumes.delete(vol_id)
     tracker.unregister(vol_id)
+
+
+def test_bucket_object_roundtrip(live_client, run_id, tracker, tier_2_enabled) -> None:
+    """SOS objects: put → list → get → presign → delete (new surface)."""
+    from exoscale_connector.resources.object_storage import BucketClient
+
+    buckets = BucketClient(live_client.config)
+    name = make_name(run_id, "objbkt")
+    assert_safe_name(name)
+
+    buckets.create(name)
+    tracker.register("bucket", lambda: buckets.delete(name), name)
+
+    try:
+        buckets.put_object(name, "hello.txt", b"connector test", content_type="text/plain")
+        objects = buckets.list_objects(name)
+        assert [o.key for o in objects] == ["hello.txt"]
+        assert buckets.get_object(name, "hello.txt") == b"connector test"
+        # Presigned URL is a bearer capability: assert it exists, never print it.
+        url = buckets.presign_get(name, "hello.txt", expires_in=60)
+        assert url.startswith("https://")
+        assert buckets.get_lifecycle(name) is None  # fresh bucket: unconfigured
+    finally:
+        # Bucket delete requires emptiness; remove the object either way.
+        buckets.delete_object(name, "hello.txt")
+
+    buckets.delete(name)
+    tracker.unregister(name)
+
+
+def test_elastic_ip_reverse_dns(live_client, run_id, tracker, tier_2_enabled) -> None:
+    """Reverse DNS on an elastic IP: unset → set → read back → delete (new surface)."""
+    eips = ElasticIPClient(live_client)
+    description = make_name(run_id, "rdns-eip")
+    assert_safe_name(description)
+
+    eip = eips.create({"description": description})
+    assert eip.id
+    tracker.register("elastic-ip", lambda: eips.delete(eip.id), eip.id)
+
+    assert eips.get_reverse_dns(eip.id) is None, "fresh EIP should have no PTR"
+    eips.set_reverse_dns(eip.id, "connector-test.example.com.")
+    assert eips.get_reverse_dns(eip.id) == "connector-test.example.com."
+    eips.delete_reverse_dns(eip.id)
+    assert eips.get_reverse_dns(eip.id) is None
+
+    eips.delete(eip.id)
+    tracker.unregister(eip.id)

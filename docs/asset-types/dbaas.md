@@ -135,3 +135,23 @@ assert pw["password"]
 
 dbaas.delete(name)
 ```
+
+## New surfaces (pending live verification)
+
+Service updates and user management, exercised by the extended Tier 4
+lifecycle test on the next run:
+
+```python
+# Plan change / maintenance window / type-specific settings.
+dbaas.update(name, {"maintenance": {"dow": "sunday", "time": "04:00:00"}}, service_type="pg")
+
+# Users — passwords are never returned by create/reset; fetch them
+# explicitly (and treat them as secrets).
+dbaas.create_user(name, "analyst", service_type="pg")
+dbaas.reset_user_password(name, "analyst", service_type="pg")
+secret = dbaas.reveal_user_password(name, "analyst", service_type="pg")
+dbaas.delete_user(name, "analyst", service_type="pg")
+```
+
+`ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
+kwargs) — use `get_or_none(name)` + `create(...)` explicitly.

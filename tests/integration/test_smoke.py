@@ -71,3 +71,36 @@ def test_object_storage_list_is_reachable(live_client) -> None:
 
     buckets = BucketClient(live_client.config).list()
     assert isinstance(buckets, list)
+
+
+# ---------------------------------------------------------------------------- #
+# Platform catalogues (zones / templates / instance types) — read-only.
+# ---------------------------------------------------------------------------- #
+
+
+def test_list_zones(live_client) -> None:
+    from exoscale_connector.resources.zone import ZoneClient
+
+    zones = ZoneClient(live_client).list()
+    assert zones, "zone list came back empty"
+    assert any(z.name for z in zones)
+
+
+def test_list_templates_and_find_linux(live_client) -> None:
+    from exoscale_connector.resources.template import TemplateClient
+
+    templates = TemplateClient(live_client)
+    public = templates.list(visibility="public")
+    assert public, "no public templates returned"
+    linux = templates.find_linux()
+    assert linux is not None and linux.id, "find_linux found nothing"
+
+
+def test_list_instance_types_and_find_slug(live_client) -> None:
+    from exoscale_connector.resources.instance_type import InstanceTypeClient
+
+    types = InstanceTypeClient(live_client)
+    listed = types.list()
+    assert listed, "instance-type list came back empty"
+    tiny = types.find("standard.tiny")
+    assert tiny is not None and tiny.id, "standard.tiny not resolvable"

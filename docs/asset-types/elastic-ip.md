@@ -84,3 +84,14 @@ assert eips.get(eip.id).description == "smoke-test (updated)"
 
 eips.delete(eip.id)
 ```
+
+## New surfaces (pending live verification)
+
+Reverse DNS (PTR) management, live-tested in Tier 2
+(`test_elastic_ip_reverse_dns`) on the next run:
+
+```python
+eips.set_reverse_dns(eip.id, "mail.example.com.")
+eips.get_reverse_dns(eip.id)                 # "mail.example.com." | None
+eips.delete_reverse_dns(eip.id)
+```

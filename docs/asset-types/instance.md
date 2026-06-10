@@ -114,3 +114,19 @@ wait_for_state(lambda: instances.get(inst.id), "running", timeout=300)
 
 instances.delete(inst.id)
 ```
+
+## New surfaces (pending live verification)
+
+Added on the extensions branch; live tests are wired into Tier 3
+(`test_instance_scale`) but have not run yet.
+
+```python
+# Vertical scaling — instance must be STOPPED first.
+instances.stop(inst.id)
+instances.scale(inst.id, new_type_id)        # PUT /instance/{id}:scale
+
+# Reverse DNS (PTR record).
+instances.set_reverse_dns(inst.id, "host.example.com.")
+instances.get_reverse_dns(inst.id)           # "host.example.com." | None
+instances.delete_reverse_dns(inst.id)
+```

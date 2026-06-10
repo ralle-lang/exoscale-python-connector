@@ -189,6 +189,21 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
     assert isinstance(pw, dict)
     assert pw.get("password"), "reveal-user-password returned no password"
 
+    # User management (new surface, first live exercise): create a user,
+    # confirm it can be deleted again. The username carries the test prefix
+    # convention even though users live inside the (already-prefixed) service.
+    dbaas.create_user(name, "conn-test-user", service_type="pg")
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    dbaas.delete_user(name, "conn-test-user", service_type="pg")
+
+    # update(): set a maintenance window and confirm the service stays healthy.
+    dbaas.update(
+        name,
+        {"maintenance": {"dow": "sunday", "time": "04:00:00"}},
+        service_type="pg",
+    )
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+
     assert_safe_name(name)
     dbaas.delete(name)
     tracker.unregister(name)

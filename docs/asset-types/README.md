@@ -28,8 +28,15 @@ source of truth — open an issue and the page will be corrected.
 | [instance-pool (+scale)](instance-pool.md) | `exoscale-instance-pool` | ✅ | 3 |
 | [snapshot (compute)](snapshot.md) | `exoscale-snapshot` | ✅ create/list/get/export/delete | 3 |
 | [load-balancer (+services)](load-balancer.md) | `exoscale-load-balancer` | ✅ | 4 |
-| [dbaas](dbaas.md) | `exoscale-dbaas` | ✅ | 4 |
+| [dbaas](dbaas.md) | `exoscale-dbaas` | ✅ (users/update: pending) | 4 |
 | [sks (cluster + nodepool)](sks.md) | `exoscale-sks` | ✅ | 4 |
+| [zone](zone.md) | `exoscale-zone` | pending (smoke test added) | 0 |
+| [template](template.md) | `exoscale-template` | pending (smoke test added) | 0 |
+| [instance-type](instance-type.md) | `exoscale-instance-type` | pending (smoke test added) | 0 |
+
+New surfaces from the extensions branch (instance scale, reverse DNS, SOS
+objects, DBaaS users/update, `ensure()`) ship with live tests wired into their
+tiers but are marked **pending** until the next recorded live run.
 
 ## Page template
 

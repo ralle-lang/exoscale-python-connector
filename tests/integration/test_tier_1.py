@@ -270,3 +270,20 @@ def test_api_key_lifecycle(live_client, run_id, tracker, tier_1_api_key_enabled)
     roles.delete(role_id)
     tracker.unregister(role_id)
 
+
+
+def test_ensure_is_idempotent(live_client, run_id, tracker, tier_1_enabled) -> None:
+    """ensure(): first call creates, second call adopts without mutating."""
+    sgs = SecurityGroupClient(live_client)
+    name = make_name(run_id, "ensure-sg")
+    assert_safe_name(name)
+
+    created = sgs.ensure({"name": name, "description": "ensure test"})
+    assert created.id
+    tracker.register("security-group", lambda: sgs.delete(created.id), created.id)
+
+    adopted = sgs.ensure({"name": name, "description": "ensure test"})
+    assert adopted.id == created.id, "second ensure() must adopt, not duplicate"
+
+    sgs.delete(created.id)
+    tracker.unregister(created.id)
