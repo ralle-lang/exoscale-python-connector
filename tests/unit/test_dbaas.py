@@ -268,3 +268,66 @@ def test_delete_wraps_response_in_operation(client, base_url) -> None:
     op = DBaaSServiceClient(client).delete("old-db")
     assert op.id == "op-del-2"
     assert op.state == "success"
+
+
+@responses.activate
+def test_update_puts_to_type_specific_endpoint_and_refetches(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/dbaas-postgres/my-db",
+        json={},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-postgres/my-db",
+        json={"name": "my-db", "type": "pg", "plan": "startup-8"},
+        status=200,
+    )
+    svc = DBaaSServiceClient(client).update(
+        "my-db", {"plan": "startup-8"}, service_type="pg"
+    )
+    assert svc.plan == "startup-8"
+    assert json.loads(responses.calls[0].request.body) == {"plan": "startup-8"}
+
+
+@responses.activate
+def test_create_user_posts_username(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-postgres/my-db/user",
+        json={"username": "analyst"},
+        status=200,
+    )
+    result = DBaaSServiceClient(client).create_user("my-db", "analyst", service_type="pg")
+    assert result == {"username": "analyst"}
+    assert json.loads(responses.calls[0].request.body) == {"username": "analyst"}
+
+
+@responses.activate
+def test_delete_user_hits_user_path(client, base_url) -> None:
+    responses.add(
+        responses.DELETE,
+        f"{base_url}/dbaas-postgres/my-db/user/analyst",
+        json={},
+        status=200,
+    )
+    DBaaSServiceClient(client).delete_user("my-db", "analyst", service_type="pg")
+    assert responses.calls[0].request.method == "DELETE"
+
+
+@responses.activate
+def test_reset_user_password_uses_reset_path(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/dbaas-postgres/my-db/user/analyst/password/reset",
+        json={},
+        status=200,
+    )
+    DBaaSServiceClient(client).reset_user_password("my-db", "analyst", service_type="pg")
+    assert responses.calls[0].request.method == "PUT"
+
+
+def test_ensure_is_not_supported(client) -> None:
+    with pytest.raises(NotImplementedError):
+        DBaaSServiceClient(client).ensure({"name": "my-db"})

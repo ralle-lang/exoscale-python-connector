@@ -214,6 +214,113 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
                 # hammer the endpoint in lockstep.
                 time.sleep(random.uniform(1.0, 3.0))
 
+    def ensure(self, payload: Any, **kwargs: Any) -> DBaaSService:  # type: ignore[override]
+        """Not supported: DBaaS ``create`` needs ``service_type``/``name`` kwargs.
+
+        Use ``get_or_none(name)`` + :meth:`create` explicitly instead.
+        """
+        raise NotImplementedError(
+            "DBaaSServiceClient does not support ensure(); use get_or_none(name) "
+            "and create(payload, service_type=..., name=...) explicitly"
+        )
+
+    def update(  # type: ignore[override]
+        self,
+        name: str,
+        payload: Any,
+        *,
+        service_type: str,
+        zone: Optional[str] = None,
+        wait: Optional[bool] = None,
+    ) -> DBaaSService:
+        """Update a service (``PUT dbaas-{type}/{name}``) and return its new state.
+
+        This is the path for plan changes, maintenance-window configuration
+        (``{"maintenance": {"dow": "sunday", "time": "04:00:00"}}``) and
+        type-specific settings (``pg-settings`` etc.). Like create, the DBaaS
+        API answers directly without an async operation; the service is
+        re-fetched after the PUT for a consistently typed result.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        body: Dict[str, Any] = {}
+        if isinstance(payload, dict):
+            body = {k: v for k, v in payload.items() if v is not None}
+        elif hasattr(payload, "model_dump"):
+            body = payload.model_dump(by_alias=True, exclude_none=True)
+        url_path = f"dbaas-{self._url_type(service_type)}/{name}"
+        self.client.put(url_path, zone=zone, json=body or None)
+        result = self.client.get(url_path, zone=zone)
+        return self.model.model_validate(result)
+
+    # ------------------------------------------------------------------ #
+    # Service users
+    # ------------------------------------------------------------------ #
+
+    def create_user(
+        self,
+        name: str,
+        username: str,
+        *,
+        service_type: str,
+        zone: Optional[str] = None,
+    ) -> dict:
+        """Create a database user (``POST dbaas-{type}/{name}/user``).
+
+        Returns the raw response dict (schema is type-specific). Retrieve the
+        password afterwards with :meth:`reveal_user_password` — and treat it
+        as the secret it is.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        return self.client.post(
+            f"dbaas-{self._url_type(service_type)}/{name}/user",
+            zone=self._zone(zone),
+            json={"username": username},
+        )
+
+    def delete_user(
+        self,
+        name: str,
+        username: str,
+        *,
+        service_type: str,
+        zone: Optional[str] = None,
+    ) -> dict:
+        """Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        return self.client.delete(
+            f"dbaas-{self._url_type(service_type)}/{name}/user/{username}",
+            zone=self._zone(zone),
+        )
+
+    def reset_user_password(
+        self,
+        name: str,
+        username: str,
+        *,
+        service_type: str,
+        zone: Optional[str] = None,
+    ) -> dict:
+        """Reset a user's password (``PUT .../user/{username}/password/reset``).
+
+        The new password is *not* returned here — fetch it afterwards with
+        :meth:`reveal_user_password`.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        return self.client.put(
+            f"dbaas-{self._url_type(service_type)}/{name}/user/{username}/password/reset",
+            zone=self._zone(zone),
+        )
+
     def get_connection_info(
         self,
         name: str,
