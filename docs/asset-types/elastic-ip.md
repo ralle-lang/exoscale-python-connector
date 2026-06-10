@@ -64,6 +64,10 @@ eips.delete(eip.id)
   without one; configure it when you want EIP-managed failover.
 - **Attach to an instance** is done via the instance's update endpoint
   (not exposed on this client).
+- **Setting reverse DNS is a POST, not a PUT.** The API reference's path
+  symmetry suggests `PUT /reverse-dns/elastic-ip/{id}`, but the live API
+  404s on PUT and takes **POST** for create/update (confirmed live
+  2026-06-10). `set_reverse_dns()` does the right thing.
 
 ## End-to-end example
 
@@ -85,10 +89,9 @@ assert eips.get(eip.id).description == "smoke-test (updated)"
 eips.delete(eip.id)
 ```
 
-## New surfaces (pending live verification)
+## Reverse DNS (PTR)
 
-Reverse DNS (PTR) management, live-tested in Tier 2
-(`test_elastic_ip_reverse_dns`) on the next run:
+Live-verified in Tier 2 (`test_elastic_ip_reverse_dns`, 2026-06-10):
 
 ```python
 eips.set_reverse_dns(eip.id, "mail.example.com.")

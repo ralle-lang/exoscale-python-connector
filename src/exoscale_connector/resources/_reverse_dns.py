@@ -49,9 +49,13 @@ class ReverseDNSMixin:
         zone: Optional[str] = None,
         wait: Optional[bool] = None,
     ) -> Operation:
-        """Set the PTR record (``PUT /reverse-dns/{kind}/{id}``)."""
+        """Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
+
+        The verb is POST, not PUT — the spec-symmetric PUT returns 404
+        (confirmed live 2026-06-10).
+        """
         zone = self._zone(zone)  # type: ignore[attr-defined]
-        response = self.client.put(  # type: ignore[attr-defined]
+        response = self.client.post(  # type: ignore[attr-defined]
             f"reverse-dns/{self._rdns_kind}/{resource_id}",
             zone=zone,
             json={"domain-name": domain_name},

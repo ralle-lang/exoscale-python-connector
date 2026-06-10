@@ -63,9 +63,10 @@ def test_get_reverse_dns_none_when_unset(client, base_url) -> None:
 
 
 @responses.activate
-def test_set_reverse_dns_puts_domain_and_awaits(client, base_url) -> None:
+def test_set_reverse_dns_posts_domain_and_awaits(client, base_url) -> None:
+    # POST, not PUT — the spec-symmetric PUT 404s on the live API.
     responses.add(
-        responses.PUT,
+        responses.POST,
         f"{base_url}/reverse-dns/elastic-ip/eip-1",
         json={"id": "op2", "state": "pending"},
         status=200,
