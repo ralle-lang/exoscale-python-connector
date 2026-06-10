@@ -24,6 +24,20 @@ def test_sanitize_redacts_secretish_keys_recursively() -> None:
     assert clean["items"][0]["id"] == "kept"
 
 
+def test_sanitize_scrubs_emails_from_string_values() -> None:
+    # Emails leak into arbitrary content on a shared tenant (descriptions,
+    # labels, IAM user lists) where no secret-looking key flags them.
+    body = {
+        "description": "owner: jane.doe@example.com, escalate to ops@corp.example.org",
+        "labels": {"contact": "john@example.com"},
+        "items": [{"email": "kept-key@example.com"}],
+    }
+    clean = _sanitize(body)
+    assert clean["description"] == "owner: [EMAIL-REDACTED], escalate to [EMAIL-REDACTED]"
+    assert clean["labels"]["contact"] == "[EMAIL-REDACTED]"
+    assert clean["items"][0]["email"] == "[EMAIL-REDACTED]"
+
+
 @responses.activate
 def test_recorder_writes_sanitized_jsonl(client, base_url, tmp_path) -> None:
     responses.add(

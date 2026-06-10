@@ -13,6 +13,9 @@ Sanitization:
 * Request and response bodies are redacted recursively: any key matching
   ``secret|password|kubeconfig|private-key|token|credential`` has its value
   replaced with ``"[REDACTED]"``.
+* Email addresses are scrubbed from every string *value* — on a shared
+  tenant they leak into arbitrary content (resource descriptions, labels,
+  IAM user lists), so key-based redaction alone cannot catch them.
 
 Recordings can still carry tenant-specific identifiers (resource UUIDs, IPs,
 zone names) — **review a recording before committing it**.
@@ -26,12 +29,13 @@ from pathlib import Path
 from typing import Any
 
 _SECRET_KEY = re.compile(r"secret|password|kubeconfig|private-key|token|credential", re.I)
+_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
 RECORDINGS_DIR = Path(__file__).resolve().parent.parent / "recorded"
 
 
 def _sanitize(value: Any) -> Any:
-    """Recursively redact values whose key looks secret-bearing."""
+    """Recursively redact secret-bearing keys and scrub emails from values."""
     if isinstance(value, dict):
         return {
             k: "[REDACTED]" if _SECRET_KEY.search(str(k)) else _sanitize(v)
@@ -39,6 +43,8 @@ def _sanitize(value: Any) -> Any:
         }
     if isinstance(value, list):
         return [_sanitize(item) for item in value]
+    if isinstance(value, str):
+        return _EMAIL.sub("[EMAIL-REDACTED]", value)
     return value
 
 
