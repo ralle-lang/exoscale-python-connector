@@ -169,7 +169,11 @@ Because expressions are stored verbatim, anything valid there is valid here.
 
 When a value comes from outside (a bucket name, a user input), don't build the
 expression with an f-string — a stray quote breaks it. The `iam_expr` helpers
-quote/escape for you (they don't validate the grammar, only the literals):
+quote/escape the *value* for you (they don't validate the full grammar). Field
+names — the left-hand side of `eq`/`ne`/`has` — must be developer-written
+constants like `"resources.bucket"`; the helpers enforce a dotted-identifier
+shape and raise `ValueError` on anything else, so never pass untrusted input
+there:
 
 ```python
 from exoscale_connector import iam_expr as e

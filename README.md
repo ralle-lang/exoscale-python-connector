@@ -13,7 +13,8 @@ programmatically.
 - **Self-contained** — runtime deps are just `requests` + `pydantic`; copy the
   package into another repo and it keeps working.
 - **Secret-safe** — credentials come only from the environment; nothing is
-  hardcoded or read from disk.
+  hardcoded or read from disk, and credentials are masked in `repr()`/log
+  output.
 
 ## Relationship to the official Exoscale SDK
 

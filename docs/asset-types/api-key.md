@@ -50,6 +50,9 @@ keys.delete(key_id)
 
 - **`secret` is one-shot.** The first response after `create` is the only
   time the secret is visible. Persist it to a vault immediately; never log it.
+  As a guard, `repr()` of an `ApiKey` masks the secret — but it is still
+  present in `model_dump()` and in the CLI's `create` JSON output (that is
+  your one chance to capture it).
 - **`id_field = "key"`** — the path token is the `key` field, not a uuid in
   `id`. `keys.get("EXO...")` calls `GET /api-key/EXO...`.
 - **`update` not exposed.** The API does not allow rotating a key in place —

@@ -23,7 +23,7 @@ them or reads them from a file:
 | `EXOSCALE_ZONE` | recommended | Default zone, e.g. `de-fra-1` |
 | `EXOSCALE_API_ENDPOINT` | no | Full endpoint override (private gateway / testing) |
 | `EXOSCALE_TIMEOUT` | no | Request timeout in seconds (default `60`) |
-| `EXOSCALE_VERIFY_TLS` | no | `false` to disable TLS verification (not recommended) |
+| `EXOSCALE_VERIFY_TLS` | no | `false` to disable TLS verification for all transports, including SOS (not recommended; the connector emits a `UserWarning` when disabled) |
 
 Inject them with your secret-management tooling rather than exporting them by
 hand. The connector only reads environment variables, so any injector works

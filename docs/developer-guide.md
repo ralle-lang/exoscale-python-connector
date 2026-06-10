@@ -45,6 +45,25 @@ failures are swallowed, the counter resetting on every successful poll. Errors
 become typed exceptions (`NotFoundError` on 404, `APIError` otherwise,
 `OperationError` on a failed op).
 
+Operation polling has its own deadline, `ClientConfig.operation_timeout`
+(default 600 s) — deliberately much longer than the per-request `timeout`
+(default 60 s), since instance creates or SKS clusters routinely take minutes
+to settle. Pass `timeout=` to `wait_operation()` to override per call.
+
+### Retry policy
+
+Transient failures are retried with jittered exponential backoff up to
+`ClientConfig.max_retries` (default 3), but the retryable statuses depend on
+the HTTP method:
+
+- **Idempotent verbs** (`GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`) are retried
+  on 429, 500, 502, 503 and 504.
+- **`POST` is retried on 429 only.** A 5xx on a POST is ambiguous — the
+  mutation may have been applied server-side, and a blind retry could create
+  duplicate resources (or, for API keys, a duplicate live credential whose
+  secret is never seen). Callers who want to recover from a 5xx on create
+  should re-check resource existence (e.g. `find_by_name`) before retrying.
+
 ### Zones
 
 The APIv2 is zone-scoped: the host is `https://api-<zone>.exoscale.com/v2`. A
