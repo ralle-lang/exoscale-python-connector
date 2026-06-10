@@ -42,6 +42,38 @@ def test_retries_then_succeeds_on_transient_error(client, base_url) -> None:
 
 
 @responses.activate
+def test_post_is_not_retried_on_500(client, base_url) -> None:
+    # A 5xx on a POST is ambiguous — the mutation may have been applied, so a
+    # blind retry could create duplicate resources. The error must surface
+    # after exactly one attempt.
+    responses.add(responses.POST, f"{base_url}/instance", status=500)
+    with pytest.raises(APIError) as excinfo:
+        client.post("instance", json={"name": "vm-1"})
+    assert excinfo.value.status_code == 500
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_post_is_retried_on_429(client, base_url) -> None:
+    # 429 means the server explicitly did not process the request — safe to retry.
+    responses.add(responses.POST, f"{base_url}/instance", status=429)
+    responses.add(responses.POST, f"{base_url}/instance", json={"id": "op1"}, status=200)
+    assert client.post("instance", json={"name": "vm-1"}) == {"id": "op1"}
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_delete_is_retried_on_transient_error(client, base_url) -> None:
+    # DELETE is idempotent, so transient 5xx retries remain safe.
+    responses.add(responses.DELETE, f"{base_url}/instance/abc", status=502)
+    responses.add(
+        responses.DELETE, f"{base_url}/instance/abc", json={"id": "op2"}, status=200
+    )
+    assert client.delete("instance/abc") == {"id": "op2"}
+    assert len(responses.calls) == 2
+
+
+@responses.activate
 def test_wait_operation_polls_until_success(client, base_url) -> None:
     responses.add(
         responses.GET,

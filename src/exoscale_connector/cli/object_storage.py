@@ -22,13 +22,13 @@ Exit codes
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from typing import Optional, Sequence
 
 from ..config import ClientConfig
 from ..errors import ExoscaleError
-from ..resources.object_storage import Bucket, BucketClient
+from ..resources.object_storage import BucketClient
+from ._base import dump, print_json
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -48,7 +48,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    _print_json(result)
+    print_json(result)
     return 0
 
 
@@ -89,7 +89,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _dispatch(client: BucketClient, args: argparse.Namespace) -> object:
     """Route a parsed command to the matching BucketClient method."""
     if args.command == "list":
-        return [_dump_bucket(b) for b in client.list()]
+        return [dump(b) for b in client.list()]
     if args.command == "create":
         client.create(args.name)
         return {"name": args.name, "created": True}
@@ -100,15 +100,6 @@ def _dispatch(client: BucketClient, args: argparse.Namespace) -> object:
         found = client.exists(args.name)
         return {"name": args.name, "exists": found}
     raise ExoscaleError(f"unknown command: {args.command}")
-
-
-def _dump_bucket(bucket: Bucket) -> dict:
-    return bucket.model_dump(by_alias=True, exclude_none=True)
-
-
-def _print_json(result: object) -> None:
-    json.dump(result, sys.stdout, indent=2, sort_keys=False)
-    sys.stdout.write("\n")
 
 
 if __name__ == "__main__":

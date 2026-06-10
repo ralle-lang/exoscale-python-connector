@@ -89,7 +89,10 @@ def base_parser(prog: str, description: str) -> Tuple[argparse.ArgumentParser, A
 def add_payload_args(subparser: argparse.ArgumentParser) -> None:
     """Add the mutually-exclusive ``--json`` / ``--file`` payload source."""
     src = subparser.add_mutually_exclusive_group(required=True)
-    src.add_argument("--json", help="Inline JSON payload")
+    src.add_argument(
+        "--json",
+        help="Inline JSON payload (visible in the process list; prefer --file for secrets)",
+    )
     src.add_argument("--file", help="Path to a JSON payload file ('-' for stdin)")
 
 

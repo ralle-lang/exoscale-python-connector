@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Operation, to_api_payload
 from ._base import ResourceClient
 
@@ -54,7 +56,7 @@ class LoadBalancer(ExoscaleModel):
     ip: Optional[str] = None             # public IPv4 address
     state: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
-    services: List[LoadBalancerService] = []
+    services: List[LoadBalancerService] = Field(default_factory=list)
 
 
 class LoadBalancerClient(ResourceClient[LoadBalancer]):

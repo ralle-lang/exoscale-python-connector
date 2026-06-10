@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Reference
 from ._base import ResourceClient
 
@@ -21,7 +23,7 @@ class AntiAffinityGroup(ExoscaleModel):
     name: Optional[str] = None
     description: Optional[str] = None
     # Back-references to instances that are members of this group
-    instances: List[Reference] = []
+    instances: List[Reference] = Field(default_factory=list)
 
 
 class AntiAffinityGroupClient(ResourceClient[AntiAffinityGroup]):

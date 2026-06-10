@@ -7,6 +7,7 @@ behaviour — application code normally uses those rather than this client direc
 """
 from __future__ import annotations
 
+import random
 import time
 from typing import Any, Optional, Union
 
@@ -17,8 +18,14 @@ from .config import ClientConfig
 from .errors import APIError, NotFoundError, OperationError, OperationTimeoutError
 from .models import Operation
 
-# HTTP statuses that are safe to retry with backoff (transient server / rate-limit).
-_RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
+# Retry policy is split by HTTP method semantics. For idempotent verbs any
+# transient server / rate-limit status is safe to retry. POST is not idempotent:
+# a 500/502/504 does not guarantee the mutation was not applied server-side, so
+# blindly retrying can create duplicate resources. Only 429 — where the server
+# explicitly refused to process the request — is retried for mutations.
+_RETRYABLE_STATUSES_IDEMPOTENT = frozenset({429, 500, 502, 503, 504})
+_RETRYABLE_STATUSES_MUTATING = frozenset({429})
+_IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "DELETE", "PUT"})
 _SUCCESS_STATUSES = frozenset({200, 201, 202, 204})
 
 
@@ -59,13 +66,21 @@ class ExoscaleClient:
         ``path`` is relative to the APIv2 base (e.g. ``"security-group"`` or
         ``"instance/<id>"``). Raises :class:`NotFoundError` on 404 and
         :class:`APIError` on any other non-success status. Retries transient
-        failures with exponential backoff up to ``config.max_retries``.
+        failures with jittered exponential backoff up to ``config.max_retries``;
+        non-idempotent verbs (POST) are only retried on 429, where the server
+        explicitly did not process the request.
         """
         url = f"{self.config.base_url(zone)}/{path.lstrip('/')}"
+        verb = method.upper()
+        retryable = (
+            _RETRYABLE_STATUSES_IDEMPOTENT
+            if verb in _IDEMPOTENT_METHODS
+            else _RETRYABLE_STATUSES_MUTATING
+        )
         attempt = 0
         while True:
             response = self._session.request(
-                method.upper(),
+                verb,
                 url,
                 params=params,
                 json=json,
@@ -74,8 +89,9 @@ class ExoscaleClient:
             )
             if response.status_code in _SUCCESS_STATUSES:
                 return _parse_body(response)
-            if response.status_code in _RETRYABLE_STATUSES and attempt < self.config.max_retries:
-                time.sleep(self.config.retry_backoff * (2**attempt))
+            if response.status_code in retryable and attempt < self.config.max_retries:
+                # Full jitter keeps a fleet of clients from retrying in lockstep.
+                time.sleep(random.uniform(0, self.config.retry_backoff * (2**attempt)))
                 attempt += 1
                 continue
             _raise_for_response(method, url, response)
@@ -109,7 +125,8 @@ class ExoscaleClient:
 
         Accepts an :class:`Operation`, a raw response dict, or an operation id.
         Raises :class:`OperationError` on failure and :class:`OperationTimeoutError`
-        if it does not complete within ``timeout`` (defaults to the client timeout).
+        if it does not complete within ``timeout`` (defaults to
+        ``config.operation_timeout``).
 
         A short run of transient poll failures (connection drops, timeouts, or a
         sporadic 404 while the operation is still propagating) is tolerated: up to
@@ -129,7 +146,9 @@ class ExoscaleClient:
             # Not every mutating endpoint returns an operation; nothing to wait on.
             return given or Operation()
 
-        deadline = time.time() + (timeout if timeout is not None else self.config.timeout)
+        deadline = time.time() + (
+            timeout if timeout is not None else self.config.operation_timeout
+        )
         last = given or Operation(id=operation_id)
         consecutive_failures = 0
         while time.time() < deadline:

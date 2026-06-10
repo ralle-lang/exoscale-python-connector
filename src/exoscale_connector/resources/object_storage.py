@@ -62,6 +62,9 @@ def _build_s3_client(config: ClientConfig, zone: str) -> Any:
         aws_access_key_id=config.api_key,
         aws_secret_access_key=config.api_secret,
         region_name=zone,
+        # Keep TLS behaviour governed by the one config flag (boto3 verifies by
+        # default, but the connector promises ``verify_tls`` controls all transports).
+        verify=config.verify_tls,
     )
 
 

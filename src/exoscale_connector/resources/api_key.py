@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Reference
 from ._base import ResourceClient
 
@@ -34,8 +36,11 @@ class ApiKey(ExoscaleModel):
     # Back-reference to the IAM role this key is scoped to.
     role_id: Optional[str] = None
     role: Optional[Reference] = None
-    # Populated only on create; absent (None) on all subsequent reads.
-    secret: Optional[str] = None
+    # Populated only on create; absent (None) on all subsequent reads. This is a
+    # live credential: it is excluded from repr so casual logging never echoes it,
+    # but it IS still part of model_dump()/serialisation — that is the caller's
+    # one chance to capture it. Don't log created ApiKey objects wholesale.
+    secret: Optional[str] = Field(default=None, repr=False)
 
 
 class ApiKeyClient(ResourceClient[ApiKey]):

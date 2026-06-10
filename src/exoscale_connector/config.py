@@ -8,6 +8,7 @@ can also be constructed directly for tests or programmatic use.
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -35,8 +36,10 @@ _ENDPOINT_TEMPLATE = "https://api-{zone}.exoscale.com/v2"
 class ClientConfig:
     """Connection settings for :class:`~exoscale_connector.client.ExoscaleClient`."""
 
-    api_key: str
-    api_secret: str
+    # Credentials are excluded from repr so that logging, tracebacks, and
+    # debugger output never echo them.
+    api_key: str = field(repr=False)
+    api_secret: str = field(repr=False)
     zone: Optional[str] = None
     # Optional full endpoint override (e.g. for a private gateway or test double).
     # When set, it takes precedence over the per-zone template.
@@ -49,7 +52,18 @@ class ClientConfig:
     # sporadic 404 while an operation is still propagating) the async-operation
     # poll loop tolerates before giving up. Reset on every successful poll.
     max_poll_failures: int = 3
-    _env: dict = field(default_factory=dict, repr=False)
+    # Default deadline for awaiting async operations. Deliberately much longer
+    # than the per-request ``timeout``: a single HTTP call should fail fast, but
+    # instance creates / SKS clusters routinely take minutes to settle.
+    operation_timeout: float = 600.0
+
+    def __post_init__(self) -> None:
+        if not self.verify_tls:
+            warnings.warn(
+                "TLS certificate verification is DISABLED for Exoscale API calls "
+                "(verify_tls=False / EXOSCALE_VERIFY_TLS)",
+                stacklevel=2,
+            )
 
     @classmethod
     def from_env(cls, *, zone: Optional[str] = None) -> "ClientConfig":

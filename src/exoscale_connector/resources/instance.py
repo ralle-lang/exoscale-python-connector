@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Operation, Reference
 from ._base import ResourceClient
 
@@ -30,7 +32,7 @@ class Instance(ExoscaleModel):
     public_ip: Optional[str] = None
     ipv6_address: Optional[str] = None
     ssh_key: Optional[SshKeyReference] = None
-    security_groups: List[Reference] = []
+    security_groups: List[Reference] = Field(default_factory=list)
     labels: Optional[dict] = None
     # manager carries pool/cluster membership ({"type": "...", "id": "..."})
     manager: Optional[Reference] = None

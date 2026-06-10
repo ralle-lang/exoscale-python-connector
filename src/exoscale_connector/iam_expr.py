@@ -19,7 +19,24 @@ Example::
 """
 from __future__ import annotations
 
+import re
 from typing import Iterable
+
+# Field/container names are developer-written constants like "resources.bucket".
+# They are interpolated into the expression verbatim, so they must never carry
+# untrusted input — enforce a conservative dotted-identifier shape to fail loudly
+# if one ever does.
+_FIELD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*\Z")
+
+
+def _check_field(field: str) -> str:
+    """Validate a field/container name; raise ``ValueError`` on anything unsafe."""
+    if not _FIELD_RE.match(field):
+        raise ValueError(
+            f"invalid IAM expression field name: {field!r} "
+            "(expected a dotted identifier like 'resources.bucket')"
+        )
+    return field
 
 
 def quote(value: str) -> str:
@@ -34,17 +51,17 @@ def quote(value: str) -> str:
 
 def eq(field: str, value: str) -> str:
     """``<field> == "<value>"`` with ``value`` safely quoted."""
-    return f"{field} == {quote(value)}"
+    return f"{_check_field(field)} == {quote(value)}"
 
 
 def ne(field: str, value: str) -> str:
     """``<field> != "<value>"`` with ``value`` safely quoted."""
-    return f"{field} != {quote(value)}"
+    return f"{_check_field(field)} != {quote(value)}"
 
 
 def has(container: str, key: str) -> str:
     """``<container>.has("<key>")`` — test for an optional field's presence."""
-    return f"{container}.has({quote(key)})"
+    return f"{_check_field(container)}.has({quote(key)})"
 
 
 def operation_in(operations: Iterable[str]) -> str:

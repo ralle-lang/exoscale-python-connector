@@ -15,6 +15,7 @@ API reference: https://openapi-v2.exoscale.com/#tag/DBaaS
 """
 from __future__ import annotations
 
+import random
 import time
 from typing import Any, Dict, List, Optional
 
@@ -209,7 +210,9 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
             except NotFoundError:
                 if time.time() >= deadline:
                     raise
-                time.sleep(2)
+                # Jittered so a fleet creating services concurrently doesn't
+                # hammer the endpoint in lockstep.
+                time.sleep(random.uniform(1.0, 3.0))
 
     def get_connection_info(
         self,
@@ -248,6 +251,10 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         Calls ``GET dbaas-{type}/{name}/user/{username}/password/reveal``.
         The response is returned as a raw dict (the schema is type-specific
         and varies between pg, mysql, etc.).
+
+        .. warning::
+           The returned dict contains a live password in clear text. Treat it
+           like any other secret — never log it or print it in CI output.
 
         Args:
             name: Service name.

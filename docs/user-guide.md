@@ -55,6 +55,12 @@ exoscale-<asset> create --file payload.json # create from a file ('-' = stdin)
 exoscale-<asset> delete --id <uuid>         # delete
 ```
 
+> **Secrets in payloads:** `--json` puts the payload on the command line, where it is
+> visible in the process list and lands in shell history. For payloads that carry
+> secrets (e.g. DBaaS passwords), prefer `--file payload.json` or `--file -` (stdin).
+> Likewise, `exoscale-api-key create` prints the one-time key secret to stdout —
+> avoid running it in CI steps whose output is logged.
+
 Mutating commands wait for the asynchronous operation to finish by default; pass
 `--no-wait` to return immediately. All output is JSON, so it composes with `jq`:
 

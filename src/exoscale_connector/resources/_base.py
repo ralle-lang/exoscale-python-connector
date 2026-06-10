@@ -44,7 +44,13 @@ class ResourceClient(Generic[ModelT]):
     # Read
     # ------------------------------------------------------------------ #
     def list(self, *, zone: Optional[str] = None) -> List[ModelT]:
-        """Return all resources of this type in the target zone."""
+        """Return all resources of this type in the target zone.
+
+        Assumes the APIv2 list endpoints return the full collection in one
+        response (they are unpaginated today). If Exoscale ever introduces
+        pagination, this method must grow cursor handling or it will silently
+        truncate results.
+        """
         payload = self.client.get(self.collection_path, zone=self._zone(zone))
         items = _extract_list(payload, self.list_key)
         return [self.model.model_validate(item) for item in items]

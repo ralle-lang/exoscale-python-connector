@@ -122,3 +122,11 @@ def test_secret_absent_on_list(client, base_url) -> None:
     )
     keys = ApiKeyClient(client).list()
     assert keys[0].secret is None
+
+
+def test_secret_is_masked_in_repr_but_kept_in_dump() -> None:
+    # repr must never echo the live credential, but model_dump() is the
+    # caller's one chance to capture it on create — it stays serialisable.
+    created = ApiKey(key="EXOabc123", name="ci", secret="topsecretvalue")
+    assert "topsecretvalue" not in repr(created)
+    assert created.model_dump()["secret"] == "topsecretvalue"

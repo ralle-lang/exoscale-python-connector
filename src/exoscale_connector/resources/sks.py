@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
@@ -60,7 +62,7 @@ class SksCluster(ExoscaleModel):
     # "starter" | "pro"
     service_level: Optional[str] = None
     addons: Optional[List[str]] = None
-    nodepools: List[SksNodepool] = []
+    nodepools: List[SksNodepool] = Field(default_factory=list)
     labels: Optional[Dict[str, str]] = None
     auto_upgrade: Optional[bool] = None
     created_at: Optional[str] = None

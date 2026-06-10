@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
@@ -34,7 +36,7 @@ class SecurityGroup(ExoscaleModel):
     id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    rules: List[SecurityGroupRule] = []
+    rules: List[SecurityGroupRule] = Field(default_factory=list)
     external_sources: Optional[List[str]] = None
 
 

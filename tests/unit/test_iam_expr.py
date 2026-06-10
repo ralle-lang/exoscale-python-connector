@@ -37,3 +37,18 @@ def test_and_or_parenthesise() -> None:
 def test_composed_expression_reads_naturally() -> None:
     expr = e.and_(e.has("parameters", "type"), e.ne("parameters.type", "TXT"))
     assert expr == '(parameters.has("type") && parameters.type != "TXT")'
+
+
+def test_field_names_accept_dotted_identifiers() -> None:
+    assert e.eq("resources", "x") == 'resources == "x"'
+    assert e.eq("a.b.c_d", "x") == 'a.b.c_d == "x"'
+
+
+def test_field_names_reject_expression_injection() -> None:
+    import pytest
+
+    for bad in ('resources.bucket) || (1==1', "a b", "a-b", ".a", "a.", "", 'x"y'):
+        with pytest.raises(ValueError):
+            e.eq(bad, "value")
+    with pytest.raises(ValueError):
+        e.has("params)(", "type")

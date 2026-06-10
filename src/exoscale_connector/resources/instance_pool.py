@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
@@ -24,11 +26,11 @@ class InstancePool(ExoscaleModel):
     instance_prefix: Optional[str] = None
     ipv6_enabled: Optional[bool] = None
     public_ip_assignment: Optional[str] = None
-    security_groups: List[Reference] = []
-    private_networks: List[Reference] = []
+    security_groups: List[Reference] = Field(default_factory=list)
+    private_networks: List[Reference] = Field(default_factory=list)
     labels: Optional[dict] = None
-    instances: List[Reference] = []
-    anti_affinity_groups: List[Reference] = []
+    instances: List[Reference] = Field(default_factory=list)
+    anti_affinity_groups: List[Reference] = Field(default_factory=list)
     deploy_target: Optional[Reference] = None
     ssh_key: Optional[Reference] = None
     created_at: Optional[str] = None
