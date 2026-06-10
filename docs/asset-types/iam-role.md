@@ -39,8 +39,10 @@ class IAMRole(ExoscaleModel):
 
 > Inline `policy` / `assume_role_policy` work on **create**. To change them on an
 > existing role, use `IAMRoleClient.set_policy(role_id, policy)` /
-> `set_assume_role_policy(role_id, policy)` — the generic `update()` only changes
-> the role's own attributes. See the
+> `set_assume_role_policy(role_id, policy)`. Under the hood the two are
+> asymmetric: `policy` has a dedicated `PUT :policy` sub-endpoint, while
+> `assume-role-policy` travels in the generic `PUT /iam-role/{id}` body — the
+> setters hide this. See the
 > [IAM policy cookbook](../iam-policy-cookbook.md).
 
 ## CLI
@@ -111,8 +113,14 @@ role = roles.create(IAMRole(
 - **`editable=false` roles are managed by Exoscale** (e.g. the built-in
   admin role) and cannot be modified or deleted; the API will reject the
   attempt with a 403/409.
-- **`assume_role_policy` is write-only-ish.** `set_assume_role_policy()` is
-  accepted by the API, but a `get()` on an ordinary role does **not** echo
+- **There is no `:assume-role-policy` sub-endpoint.** The API reference's
+  symmetry suggests one, but `PUT /iam-role/{id}:assume-role-policy` returns
+  **404** — confirmed live (2026-06-10). Assume-role-policy changes go through
+  the generic `PUT /iam-role/{id}` body instead (`{"assume-role-policy": ...}`),
+  which is what `set_assume_role_policy()` does. Only the permission `policy`
+  has a dedicated sub-endpoint (`PUT :policy`).
+- **`assume_role_policy` is write-only-ish.** The API accepts it on create and
+  update, but a `get()` on an ordinary role does **not** echo
   `assume-role-policy` back (it comes through as `None`) — confirmed live. The
   permission `policy`, by contrast, does round-trip on `get()`.
 

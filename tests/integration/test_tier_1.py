@@ -159,8 +159,9 @@ def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> Non
     after = roles.get(role_id)
     assert after.description == "updated by tier-1 smoke"
 
-    # Exercise the dedicated policy sub-endpoints (PUT :policy / :assume-role-policy)
-    # that the generic update() does not cover.
+    # Exercise both policy setters: set_policy uses the dedicated PUT :policy
+    # sub-endpoint; set_assume_role_policy goes through the generic role PUT
+    # (no :assume-role-policy sub-endpoint exists — it 404s, confirmed live).
     roles.set_policy(role_id, IAMPolicy.allow_services(["compute"]))
     with_policy = roles.get(role_id)
     assert with_policy.policy is not None

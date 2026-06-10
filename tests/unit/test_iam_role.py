@@ -250,10 +250,12 @@ def test_set_policy_puts_to_subendpoint(client, base_url) -> None:
 
 
 @responses.activate
-def test_set_assume_role_policy_puts_to_subendpoint(client, base_url) -> None:
+def test_set_assume_role_policy_puts_to_generic_update(client, base_url) -> None:
+    # No :assume-role-policy sub-endpoint exists (404s live); the policy goes
+    # nested under "assume-role-policy" in the generic PUT /iam-role/{id} body.
     responses.add(
         responses.PUT,
-        f"{base_url}/iam-role/role-1:assume-role-policy",
+        f"{base_url}/iam-role/role-1",
         json={"id": "op2", "state": "success"},
         status=200,
     )
@@ -262,7 +264,7 @@ def test_set_assume_role_policy_puts_to_subendpoint(client, base_url) -> None:
     )
     assert op.state == "success"
     sent = json.loads(responses.calls[0].request.body)
-    assert sent == {"default-service-strategy": "deny"}
+    assert sent == {"assume-role-policy": {"default-service-strategy": "deny"}}
 
 
 def test_policy_preserves_unknown_fields() -> None:

@@ -167,10 +167,12 @@ class IAMRoleClient(ResourceClient[IAMRole]):
     """Manage Exoscale IAM roles.
 
     Inline ``policy`` / ``assume_role_policy`` on :meth:`create` are accepted by
-    the API. Changing them on an *existing* role, however, goes through dedicated
-    sub-endpoints — the generic :meth:`update` only PUTs the role's own
-    attributes (name, description, permissions, labels). Use :meth:`set_policy`
-    and :meth:`set_assume_role_policy` for policy changes.
+    the API. On an *existing* role the two travel differently: the permission
+    ``policy`` has a dedicated ``PUT /iam-role/{id}:policy`` sub-endpoint, while
+    ``assume-role-policy`` is changed through the body of the generic
+    ``PUT /iam-role/{id}`` (there is no ``:assume-role-policy`` sub-endpoint —
+    it 404s; confirmed live). Use :meth:`set_policy` and
+    :meth:`set_assume_role_policy`; both hide the asymmetry.
     """
 
     collection_path = "iam-role"
@@ -196,8 +198,22 @@ class IAMRoleClient(ResourceClient[IAMRole]):
         zone: Optional[str] = None,
         wait: Optional[bool] = None,
     ) -> Operation:
-        """Replace the assume-role policy (``PUT /iam-role/{id}:assume-role-policy``)."""
-        return self._put_policy(role_id, "assume-role-policy", policy, zone=zone, wait=wait)
+        """Replace the assume-role policy.
+
+        Unlike the permission policy there is no dedicated sub-endpoint; the
+        API takes ``assume-role-policy`` in the generic ``PUT /iam-role/{id}``
+        body (the spec-suggested ``:assume-role-policy`` path returns 404).
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{role_id}",
+            zone=zone,
+            json={"assume-role-policy": to_api_payload(policy)},
+        )
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation
 
     def _put_policy(
         self,
