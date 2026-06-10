@@ -45,4 +45,7 @@ jobs:
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # Pinned to a commit SHA: this third-party action receives the OIDC
+      # token that authorizes publishing; a floating branch ref would let a
+      # compromised upstream publish on our behalf. Bump deliberately.
+      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1 as of 2026-02-18
