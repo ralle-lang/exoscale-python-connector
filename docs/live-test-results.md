@@ -244,3 +244,86 @@ after the fix passed (2 min 1 s, 0 leaked resources).
    never reached — leaking the actual server-side service. The Tier 4
    tests now register cleanup **before** calling `create()`, so any
    partial-create leak still gets swept.
+
+## Extensions validation run — 2026-06-10 (zone `at-vie-1`)
+
+**Context:** full ladder re-run (smoke → tier 4) validating the
+`fix/assessment-findings` + `feat/connector-extensions` branches, focused on
+the endpoints implemented from the API reference without live evidence
+("pending live verification"). All tiers ran with `EXOSCALE_RECORD=1`;
+the reviewed recordings now seed `tests/recorded/` and replay in CI.
+Credentials injected via the operator's vault tooling (machine-identity
+auth, no secrets on the CLI or in the transcript).
+
+**Outcome: all tiers green · 0 leaked resources after every run** (per-run
+tracker sweeps plus a final read-only tenant-wide scan for `conn-test-*`).
+
+| Tier | Flags (beyond master switches) | Result | Runtime |
+|------|-------------------------------|--------|---------|
+| 0 smoke | — | 21 passed (incl. 3 new catalogue tests: zones, templates, instance-types) | 6 s |
+| 1 | `EXOSCALE_TEST_TIER_1=1` | 7 passed, 1 skipped (api-key gate off) — after 1 fix, see below | 26 s |
+| 2 | `EXOSCALE_TEST_TIER_2=1` | 5 passed — after 2 fixes, see below | 19 s |
+| 3 | `EXOSCALE_TEST_TIER_3=1` | 4 passed, 1 skipped (volume-resize quota self-skip) | 11:26 |
+| 4 | `EXOSCALE_TEST_TIER_4_LB/DBAAS/SKS=1` | 3 passed | 22:30 |
+
+Tier 3 was run twice (the first run predated the recorder fix below, so it
+recorded nothing). The re-run hit an `OperationTimeoutError` on a plain
+instance **stop** — the operation did not settle within the 600 s
+`operation_timeout` (the zone was visibly slow that evening; the same run
+took 21 min vs 11 min earlier). A scale-only retry passed in 60 s once the
+zone recovered: infrastructure flake, not a connector bug — and evidence the
+operation-timeout guard works.
+
+### Bugs found and fixed in this run
+
+1. **iam-role — there is no `:assume-role-policy` sub-endpoint.**
+   `PUT /iam-role/{id}:assume-role-policy` returns **404**. The live API
+   takes `assume-role-policy` in the body of the generic
+   `PUT /iam-role/{id}` instead (confirmed against the published OpenAPI
+   spec: only `:policy` has a dedicated sub-endpoint).
+   **Fix** (`resources/iam_role.py`): `set_assume_role_policy()` now routes
+   through the generic update; signature and `Operation` return unchanged.
+
+2. **reverse-dns — set is a POST, not a PUT.**
+   `PUT /reverse-dns/{kind}/{id}` returns **404**; create/update of the PTR
+   record is **POST**. **Fix** (`resources/_reverse_dns.py`), applies to
+   both the elastic-ip and instance variants through the shared mixin;
+   live-exercised on elastic-ip (`test_elastic_ip_reverse_dns`).
+
+3. **SOS — unconfigured bucket lifecycle answers 200, not an error.**
+   AWS S3 raises `NoSuchLifecycleConfiguration`; Exoscale SOS returns 200
+   with no rules. **Fix** (`resources/object_storage.py`):
+   `get_lifecycle()` normalises both shapes to `None`.
+
+### Test-infrastructure fixes from this run
+
+4. **The extended-timeout tier-3/4 client recorded nothing.**
+   `tier_3_client` builds a fresh `ExoscaleClient`, so the wire recorder
+   attached to `live_client`'s session never saw tier 3/4 traffic. The
+   fixture now attaches its own recorder.
+
+5. **Recordings leaked PII from the shared tenant.** Real user emails
+   (inside security-group descriptions and IAM user lists) and Exoscale API
+   key ids (`EXO…`, the public half of a credential pair) survived
+   key-based redaction. The recorder now scrubs both patterns from every
+   string value; committed recordings were re-scrubbed and verified clean.
+
+6. **`release.yml` — publish action pinned to a commit SHA** (it receives
+   the OIDC token for PyPI trusted publishing; flagged by security review).
+
+### Verification status after this run
+
+| Surface | Status |
+|---|---|
+| zones / templates / instance-types catalogues | ✅ live-verified (smoke) |
+| `ensure()` idempotency | ✅ live-verified (tier 1) |
+| SOS object put/list/get/presign/delete + lifecycle/CORS read | ✅ live-verified (tier 2) |
+| Elastic IP reverse DNS | ✅ live-verified (tier 2) |
+| Instance reverse DNS | shared mixin verified via elastic-ip; instance-specific calls not exercised |
+| Instance vertical scaling (`:scale`) | ✅ live-verified (tier 3) |
+| DBaaS `update`, `create_user`, `delete_user` | ✅ live-verified (tier 4) |
+| DBaaS `reset_user_password` | not exercised (would disrupt `avnadmin` mid-test) |
+| Template `register` / `delete` | still pending — needs a hosted disk image; deliberately out of scope (see template.md gotcha) |
+
+**Cost:** well under €0.15 for the whole run (two tier-3 passes + retry +
+full tier 4).

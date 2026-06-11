@@ -136,10 +136,13 @@ assert pw["password"]
 dbaas.delete(name)
 ```
 
-## New surfaces (pending live verification)
+## Service updates and user management
 
-Service updates and user management, exercised by the extended Tier 4
-lifecycle test on the next run:
+`update()`, `create_user()` and `delete_user()` are live-verified (extended
+Tier 4 pg lifecycle, 2026-06-10). `reset_user_password()` is the one method
+still implemented from the API reference only — the live test doesn't call
+it (resetting `avnadmin`'s password mid-test would be disruptive for no
+extra wire-shape coverage):
 
 ```python
 # Plan change / maintenance window / type-specific settings.

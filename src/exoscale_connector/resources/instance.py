@@ -117,9 +117,8 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         is the target offering's UUID (resolve a ``family.size`` slug with
         :meth:`~exoscale_connector.resources.instance_type.InstanceTypeClient.find`).
 
-        .. warning::
-           Implemented from the API reference using the same colon-action
-           pattern as start/stop/reboot — pending live verification.
+        Live-verified 2026-06-10 (tier-3 ``test_instance_scale``:
+        ``standard.tiny`` → ``standard.small`` on a stopped instance).
         """
         zone = self._zone(zone)
         response = self.client.put(

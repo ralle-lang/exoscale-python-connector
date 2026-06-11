@@ -241,8 +241,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         API answers directly without an async operation; the service is
         re-fetched after the PUT for a consistently typed result.
 
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        Live-verified 2026-06-10 (tier-4 pg lifecycle, maintenance-window
+        update).
         """
         zone = self._zone(zone)
         body: Dict[str, Any] = {}
@@ -273,8 +273,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         password afterwards with :meth:`reveal_user_password` — and treat it
         as the secret it is.
 
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        Live-verified 2026-06-10 (tier-4 pg lifecycle).
         """
         return self.client.post(
             f"dbaas-{self._url_type(service_type)}/{name}/user",
@@ -292,8 +291,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     ) -> dict:
         """Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        Live-verified 2026-06-10 (tier-4 pg lifecycle).
         """
         return self.client.delete(
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}",

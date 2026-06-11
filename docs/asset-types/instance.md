@@ -115,10 +115,14 @@ wait_for_state(lambda: instances.get(inst.id), "running", timeout=300)
 instances.delete(inst.id)
 ```
 
-## New surfaces (pending live verification)
+## Vertical scaling and reverse DNS
 
-Added on the extensions branch; live tests are wired into Tier 3
-(`test_instance_scale`) but have not run yet.
+Vertical scaling is live-verified (Tier 3 `test_instance_scale`, 2026-06-10:
+`standard.tiny` → `standard.small` on a stopped instance). Reverse DNS shares
+its implementation with the elastic-ip variant, which is live-verified
+(Tier 2); the instance-specific calls themselves have not been exercised
+live — note the set call is a **POST** (the spec-suggested PUT 404s,
+confirmed live on the elastic-ip endpoint).
 
 ```python
 # Vertical scaling — instance must be STOPPED first.
