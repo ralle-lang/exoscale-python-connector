@@ -182,3 +182,24 @@ passing live test (see [live-test-results.md](live-test-results.md)).
 For building IAM role policies (the one area with real depth), see the
 **[IAM policy cookbook](iam-policy-cookbook.md)** — helper constructors plus
 copy-paste recipes for the common cases.
+
+## AI assistant help
+
+Two ways to give an AI assistant accurate, verified knowledge of Exoscale and
+this connector (both generated from the code and the live-tested docs, so they
+can't drift):
+
+- **Paste-anywhere bundle** — [`docs/llms.txt`](llms.txt) is one self-contained
+  context file: the full API surface plus every asset-type page with its
+  live-verified gotchas. Paste it into whatever LLM you already use.
+- **Editor skill** — if your AI-assisted editor discovers skills from a
+  `.claude/skills/` directory, install the bundled advisor skill into your
+  project (or user-wide with `--user`):
+
+  ```bash
+  exoscale-connector skill install
+  ```
+
+  Questions like "how do I give this instance more memory?" then get answered
+  ambiently during normal work, citing real methods. Re-run the command after
+  upgrading the package to refresh the skill.

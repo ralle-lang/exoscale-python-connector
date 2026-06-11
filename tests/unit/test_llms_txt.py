@@ -8,7 +8,7 @@ import importlib
 import inspect
 import pkgutil
 
-from scripts.generate_llms_txt import ASSET_PAGES_DIR, OUTPUT_PATH, generate_bundle
+from scripts.generate_llms_txt import ASSET_PAGES_DIR, SKILL_MD, artifacts, generate_bundle
 
 import exoscale_connector.resources as resources_pkg
 
@@ -25,16 +25,31 @@ def _all_client_class_names():
     return names
 
 
-def test_bundle_is_in_sync_with_code():
-    assert OUTPUT_PATH.exists(), "docs/llms.txt is missing — run scripts/generate_llms_txt.py"
-    assert OUTPUT_PATH.read_text(encoding="utf-8") == generate_bundle(), (
-        "docs/llms.txt is out of sync with the code/docs — "
-        "regenerate with: python scripts/generate_llms_txt.py"
-    )
+def test_all_artifacts_are_in_sync_with_code():
+    for path, content in artifacts().items():
+        assert path.exists(), f"{path} is missing — run scripts/generate_llms_txt.py"
+        assert path.read_text(encoding="utf-8") == content, (
+            f"{path} is out of sync with the code/docs — "
+            "regenerate with: python scripts/generate_llms_txt.py"
+        )
 
 
 def test_bundle_is_deterministic():
     assert generate_bundle() == generate_bundle()
+
+
+def test_skill_has_valid_frontmatter_and_points_at_reference():
+    assert SKILL_MD.startswith("---\n")
+    frontmatter = SKILL_MD.split("---\n")[1]
+    assert "name: exoscale-connector" in frontmatter
+    assert "description:" in frontmatter
+    assert "reference.md" in SKILL_MD
+    # Both skill copies ship a reference identical to the bundle.
+    paths = {p.name: p for p in artifacts()}
+    assert sorted(paths) == ["SKILL.md", "llms.txt", "reference.md"]
+    for path, content in artifacts().items():
+        if path.name == "reference.md":
+            assert content == generate_bundle()
 
 
 def test_bundle_covers_every_resource_client():

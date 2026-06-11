@@ -145,6 +145,20 @@ template. Steps:
    `tests/unit/test_security_group.py` — list/get/find/create(operation)/delete,
    all with mocked HTTP via `responses`. No network.
 
+5. **Write the asset-type doc page** `docs/asset-types/<asset>.md` (six
+   sections, see the [page template](asset-types/README.md)) and **regenerate
+   the AI artifacts**:
+
+   ```bash
+   python scripts/generate_llms_txt.py
+   ```
+
+   This rewrites `docs/llms.txt` and both skill copies
+   (`src/exoscale_connector/_skill/`, `.claude/skills/exoscale-connector/`)
+   from the code and docs. CI fails if they are out of sync
+   (`test_llms_txt.py` plus an explicit `--check` step), so commit the
+   regenerated files together with the change that caused them.
+
 ### Finding the right paths and fields
 
 The OpenAPI reference is the *starting* point but not the source of truth —

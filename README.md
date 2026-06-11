@@ -103,8 +103,11 @@ exoscale-security-group delete --id <uuid>
 - **[AI reference bundle](docs/llms.txt)** — one self-contained, generated
   context file (introspected API surface + all asset-type pages with their
   live-verified gotchas). Paste it into any LLM to get accurate guidance that
-  cites real methods. Regenerate with `python scripts/generate_llms_txt.py`;
-  CI fails if it drifts from the code.
+  cites real methods. The same content also ships inside the package as an
+  editor skill: `exoscale-connector skill install` copies it into your
+  project's `.claude/skills/` directory so questions are answered ambiently
+  during normal work. Regenerate with `python scripts/generate_llms_txt.py`;
+  CI fails if any copy drifts from the code.
 - **[Developer guide](docs/developer-guide.md)** — architecture, how to add a
   new asset type, and the testing strategy.
 - **[Live test plan](docs/live-test-plan.md)** — tiered per-asset live-test

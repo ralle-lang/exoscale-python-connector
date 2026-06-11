@@ -60,10 +60,17 @@ hallucination-free guidance citing real methods. No runtime AI, no new
 dependencies; CI check that the bundle is in sync with the code. Lives in
 this repo.
 
-### Rung 2 — editor/assistant skill packaging
-Package the rung-1 bundle as a skill for AI-assisted editors (e.g. a Claude
-Code skill), so "how do I give this instance more memory?" gets answered
-ambiently from verified docs during normal work. Thin wrapper around rung 1.
+### ✅ Rung 2 — editor/assistant skill packaging (issue #6)
+Shipped 2026-06-11: the generator now also emits the bundle as an agent skill
+(`SKILL.md` + `reference.md`) in two places — inside the wheel
+(`src/exoscale_connector/_skill/`, installed into any project via
+`exoscale-connector skill install [--user|--dest]`) and repo-local
+(`.claude/skills/exoscale-connector/`) for dogfooding. Same CI sync
+enforcement as rung 1.
+
+Package the rung-1 bundle as a skill for AI-assisted editors, so "how do I
+give this instance more memory?" gets answered ambiently from verified docs
+during normal work. Thin wrapper around rung 1.
 
 ### Rung 3 — read-only advisor MCP server (separate repo)
 An MCP server exposing docs search plus *list-only* live catalogue queries
