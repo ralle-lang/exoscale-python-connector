@@ -25,6 +25,8 @@ RECORDINGS_DIR = Path(__file__).resolve().parent.parent / "recorded"
 
 def _recorded_gets():
     params = []
+    if not RECORDINGS_DIR.is_dir():
+        return params
     for path in sorted(RECORDINGS_DIR.glob("*.jsonl")):
         for line_no, line in enumerate(path.read_text().splitlines(), start=1):
             if not line.strip():
