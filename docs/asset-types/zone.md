@@ -33,5 +33,5 @@ names = [z.name for z in zones]
 
 - **Read-only.** The inherited mutating verbs exist on the class but are not
   supported by the API.
-- **Live verification:** covered by a smoke test (`test_list_zones`); pending
-  its first recorded run.
+- **Live verification:** smoke test (`test_list_zones`) ran 2026-06-10
+  against `at-vie-1` (see [live-test-results](../live-test-results.md)).
