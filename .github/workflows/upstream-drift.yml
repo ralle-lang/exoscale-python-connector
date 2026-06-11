@@ -1,0 +1,151 @@
+name: upstream-drift
+
+# Weekly watch for upstream changes that could make this connector stale:
+# - the APIv2 OpenAPI spec (detailed, spec-aware oasdiff changelog)
+# - the official `exoscale` SDK version on PyPI (release-level cue only)
+#
+# On change it files an `upstream-drift` issue to EVALUATE — never to
+# auto-fix (decision D1, docs/roadmap.md: a spec diff is a prompt for
+# human+agent review; the spec is the starting point, not the truth) —
+# then refreshes the committed snapshots under .github/upstream/.
+#
+# Injection hygiene: upstream-controlled text (changelog, version strings)
+# reaches issues only via --body-file / env vars, never shell interpolation.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit refreshed snapshots
+  issues: write # file the drift issues
+
+concurrency:
+  group: upstream-drift
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # The oasdiff step runs in Docker with only the workspace mounted,
+      # so all working files live in ./.drift (never committed).
+      - name: Fetch and normalize the current APIv2 spec
+        run: |
+          mkdir -p .drift
+          curl -fsSL --retry 3 https://openapi-v2.exoscale.com/source.json -o .drift/spec-raw.json
+          jq -S . .drift/spec-raw.json > .drift/spec.json
+
+      - name: Detect spec drift
+        id: spec
+        run: |
+          if cmp -s .drift/spec.json .github/upstream/openapi-v2.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate spec changelog
+        if: steps.spec.outputs.changed == 'true'
+        uses: oasdiff/oasdiff-action/changelog@3530478ec30f84adedbfeb28f0d9527a290f50a9 # v0.0.57
+        with:
+          base: .github/upstream/openapi-v2.json
+          revision: .drift/spec.json
+          output-to-file: .drift/changelog.md
+
+      - name: Build spec drift issue body
+        if: steps.spec.outputs.changed == 'true'
+        run: |
+          python -m pip install --quiet -e .
+          {
+            echo "Automated drift report: the APIv2 OpenAPI spec changed upstream."
+            echo
+            echo "## Evaluation checklist"
+            echo "- [ ] Review the changelog; identify affected asset types via the mapping below"
+            echo "- [ ] New/changed **request** fields: compare against the pydantic models (response-side additions are tolerated by \`extra=\"allow\"\`)"
+            echo "- [ ] Check whether any documented gotcha on the affected asset pages still holds"
+            echo "- [ ] Decide live re-verification scope (tier flags, docs/live-test-plan.md)"
+            echo "- [ ] Update models/docs as needed; regenerate AI artifacts (\`python scripts/generate_llms_txt.py\`)"
+            echo
+            echo "The committed snapshot is refreshed automatically by this workflow run."
+            echo
+            echo "## Changelog (oasdiff)"
+            echo
+            head -c 60000 .drift/changelog.md
+            echo
+            echo
+            echo "## Spec path → connector module mapping"
+            echo
+            python scripts/upstream_drift_map.py
+          } > .drift/issue.md
+
+      - name: File or update spec drift issue
+        if: steps.spec.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Upstream drift: APIv2 OpenAPI spec changed"
+        run: |
+          existing="$(gh issue list --label upstream-drift --state open --json number,title \
+            --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file .drift/issue.md
+          else
+            gh issue create --title "$TITLE" --label upstream-drift --body-file .drift/issue.md
+          fi
+
+      - name: Check the official SDK version on PyPI
+        id: sdk
+        run: |
+          latest="$(curl -fsSL --retry 3 https://pypi.org/pypi/exoscale/json | jq -r .info.version)"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$latest" = "$(cat .github/upstream/python-exoscale-version.txt)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: File or update SDK release issue
+        if: steps.sdk.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.sdk.outputs.latest }}
+          TITLE: "Upstream drift: new official exoscale SDK release on PyPI"
+        run: |
+          {
+            echo "Automated drift report: a new version of the official \`exoscale\` SDK is on PyPI."
+            echo
+            printf 'Previous: `%s` — current: `%s`\n' \
+              "$(cat .github/upstream/python-exoscale-version.txt)" "$LATEST"
+            echo
+            echo "## Evaluation checklist"
+            echo "- [ ] Re-check that the README \"Relationship to the official Exoscale SDK\" paragraph still holds"
+            echo "- [ ] Skim the SDK changes for APIv2 surface hints the spec watch may have missed"
+          } > .drift/sdk-issue.md
+          existing="$(gh issue list --label upstream-drift --state open --json number,title \
+            --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file .drift/sdk-issue.md
+          else
+            gh issue create --title "$TITLE" --label upstream-drift --body-file .drift/sdk-issue.md
+          fi
+
+      # Last step on purpose: if issue filing fails, snapshots stay stale and
+      # the next run retries instead of silently swallowing the drift.
+      - name: Refresh committed snapshots
+        if: steps.spec.outputs.changed == 'true' || steps.sdk.outputs.changed == 'true'
+        env:
+          LATEST: ${{ steps.sdk.outputs.latest }}
+        run: |
+          if [ "${{ steps.spec.outputs.changed }}" = "true" ]; then
+            cp .drift/spec.json .github/upstream/openapi-v2.json
+          fi
+          if [ "${{ steps.sdk.outputs.changed }}" = "true" ]; then
+            printf '%s\n' "$LATEST" > .github/upstream/python-exoscale-version.txt
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/upstream
+          git commit -m "chore: refresh upstream drift snapshots"
+          git push

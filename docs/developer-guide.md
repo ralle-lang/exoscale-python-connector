@@ -229,6 +229,17 @@ mypy src                    # type-check
   [live-test-plan.md](live-test-plan.md) for the per-asset design and
   [live-test-results.md](live-test-results.md) for the actual run log.
 
+## Upstream drift watch
+
+A weekly workflow (`.github/workflows/upstream-drift.yml`) compares the live
+APIv2 OpenAPI spec against a committed snapshot (`.github/upstream/`) and
+watches the official `exoscale` SDK version on PyPI. On change it files an
+`upstream-drift` issue containing an oasdiff changelog, a spec-path →
+module/doc-page mapping (`scripts/upstream_drift_map.py`), and an evaluation
+checklist — then refreshes the snapshots. Drift issues are prompts to
+*evaluate*, never auto-fixes (decision D1 in the [roadmap](roadmap.md));
+where spec and live behaviour disagree, live behaviour still wins.
+
 ## Reference manual
 
 The [asset type reference](asset-types/README.md) carries one page per asset
