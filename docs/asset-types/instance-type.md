@@ -38,6 +38,6 @@ inst = instances.create({"instance-type": {"id": tiny.id}, ...})
 
 - **`authorized=False`** types appear in the list but cannot be used —
   filter on it before offering choices to users.
-- **Live verification:** the wire shape matches what the Tier 3 fixtures
-  (`resolve_instance_type`) have always exercised live; covered by a new
-  smoke test pending its first recorded run.
+- **Live verification:** smoke test (`test_list_instance_types_and_find_slug`)
+  ran 2026-06-10 against `at-vie-1`; the wire shape also matches what the
+  Tier 3 fixtures (`resolve_instance_type`) have always exercised live.
