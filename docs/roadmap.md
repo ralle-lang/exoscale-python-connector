@@ -9,33 +9,31 @@ hold execution state. When an item graduates to an issue, link it here.
 
 ---
 
-## Milestone: v0.2.0 — verified extensions
+## Milestone: v0.2.0 — verified extensions ✅ shipped 2026-06-10/11
 
 Everything on `fix/assessment-findings` and `feat/connector-extensions`,
 validated against a live tenant and released.
 
-### Run live verification for the fix + extensions branches
-Run the tier suite (0 → 4) against the test tenant with `EXOSCALE_RECORD=1`.
-Focus areas — the endpoints implemented from the API reference without live
-evidence yet (all marked "pending live verification" in code and docs):
-reverse DNS (`/reverse-dns/{kind}/{id}`), instance `:scale`, DBaaS
-`update`/user endpoints, template register/delete, SOS object operations.
-Fix any spec-vs-reality divergences found and record them in the asset pages'
-Gotchas sections, per house convention.
+### ✅ Run live verification for the fix + extensions branches
+Tier 0–4 suite run 2026-06-10 with `EXOSCALE_RECORD=1`. Three spec-vs-reality
+divergences found and fixed: `assume-role-policy` routes through generic PUT
+body (not a `:`-subendpoint), reverse DNS uses POST not PUT, `get_lifecycle`
+returns `None` not `[]` for unconfigured SOS buckets. All pending-live-verification
+labels cleared from code and docs.
 
-### Seed the recorded-fixture archive
-First `EXOSCALE_RECORD=1` run produces `tests/recorded/*.jsonl`. Review for
-tenant identifiers, commit, and confirm `test_recorded_replay.py` exercises
-them in CI from then on.
+### ✅ Seed the recorded-fixture archive
+12 JSONL files committed in `eb78136`. Email + API key id scrubbing added to
+the recorder. CI replay active via `test_recorded_replay.py`.
 
-### Merge to main, bump version, tag v0.2.0
-Merge both branches after verification (user-gated), bump `pyproject.toml` +
-`__version__`, tag. The release workflow builds and publishes.
+### ✅ Merge to main, bump version, tag v0.2.0
+Both branches merged to `main`. `pyproject.toml` + `__version__` bumped to
+`0.2.0`. Tag creation pending PyPI trusted-publishing setup (issue #4).
 
-### Configure PyPI trusted publishing
+### Configure PyPI trusted publishing (issue #4 — user task)
 Register the repo + `release.yml` as a trusted publisher for
 `exoscale-connector` on pypi.org and create the `pypi` GitHub environment.
-The workflow is already in-repo and inert until this is done.
+The workflow is already in-repo and inert until this is done. Once done,
+push the `v0.2.0` tag to trigger the release workflow.
 
 ---
 
