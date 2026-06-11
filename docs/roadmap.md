@@ -83,9 +83,12 @@ tools, by design, ever — see Decisions.
 
 ---
 
-## Planned: upstream drift watch (CI)
+## Planned: upstream drift watch (CI) (issue #10, Advisor milestone)
 
-Agreed 2026-06-11; design settled, not yet scheduled. A weekly GitHub Actions
+Agreed 2026-06-11; design settled, not yet scheduled. Mapped to the Advisor
+milestone: the bundle/skill promise verified knowledge that cannot drift —
+CI enforces code↔docs sync, and this watch closes the remaining gap
+(code+docs drifting from the live API). A weekly GitHub Actions
 workflow that detects upstream changes and files an `upstream-drift` issue to
 *evaluate* — never to auto-fix (consistent with D1: a spec diff is a prompt
 for human+agent review, and with the repo's stance that the spec is the
