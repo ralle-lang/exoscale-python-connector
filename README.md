@@ -128,6 +128,7 @@ to others, not as a supported product. Issues and pull requests are welcome and
 will be looked at when time allows, but there is **no guaranteed response time or
 release cadence**. The API surface it tracks can drift; if you depend on it,
 pin a version and don't hesitate to fork and adapt it — that's encouraged.
+
 A weekly CI job watches the upstream APIv2 spec and the official SDK for
 changes and files evaluation issues, so staleness is at least detected
 promptly even when maintenance is sporadic.
