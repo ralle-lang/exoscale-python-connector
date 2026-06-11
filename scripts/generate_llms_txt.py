@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Generate ``docs/llms.txt`` — the self-contained AI reference bundle.
+"""Generate the AI reference bundle and the editor skill built from it.
 
-The bundle is built from ground truth so it cannot drift from the code:
+Everything is built from ground truth so it cannot drift from the code:
 
 - the **introspected API surface**: every ``ResourceClient`` subclass with its
   method signatures and docstring summaries, every pydantic model with its
@@ -9,9 +9,16 @@ The bundle is built from ground truth so it cannot drift from the code:
 - the **distilled asset-type pages** (``docs/asset-types/*.md``) with their
   live-verified gotchas, embedded verbatim
 
+Artifacts written (all from the same bundle, so one sync check covers all):
+
+- ``docs/llms.txt`` — the paste-anywhere bundle
+- ``src/exoscale_connector/_skill/`` — skill shipped inside the wheel,
+  installed into a project via ``exoscale-connector skill install``
+- ``.claude/skills/exoscale-connector/`` — repo-local copy of the same skill
+
 Usage::
 
-    python scripts/generate_llms_txt.py            # (re)write docs/llms.txt
+    python scripts/generate_llms_txt.py            # (re)write all artifacts
     python scripts/generate_llms_txt.py --check    # exit 1 if out of sync (CI)
 
 Output is deterministic (sorted, no timestamps) so a plain diff is a reliable
@@ -33,6 +40,8 @@ from typing import Any, Callable, List, Optional, Tuple, Type
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = REPO_ROOT / "docs" / "llms.txt"
 ASSET_PAGES_DIR = REPO_ROOT / "docs" / "asset-types"
+PKG_SKILL_DIR = REPO_ROOT / "src" / "exoscale_connector" / "_skill"
+REPO_SKILL_DIR = REPO_ROOT / ".claude" / "skills" / "exoscale-connector"
 
 # Generate from the working tree, not from an installed copy of the package.
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -273,6 +282,39 @@ Conventions that apply everywhere:
 """
 
 
+SKILL_MD = """\
+---
+name: exoscale-connector
+description: >-
+  Use when working with Exoscale cloud resources or the exoscale-connector
+  Python package — answering questions about Exoscale APIv2 asset types
+  (instances, security groups, DNS, DBaaS, SKS, object storage, ...) or
+  writing provisioning code and CLI commands that use the connector.
+---
+
+# exoscale-connector advisor
+
+Read `reference.md` in this skill directory before answering. It is generated
+from the package source and live-verified docs: the full API surface (clients,
+method signatures, model field tables) plus one reference page per asset type
+with empirically verified gotchas.
+
+Rules:
+
+- **Cite only methods and fields that appear in the reference.** Do not invent
+  API surface; when something is not covered, say so.
+- **The gotchas override the OpenAPI spec** — they reflect observed live
+  behaviour (e.g. required-but-undocumented fields, unit-of-measure traps).
+- **Payload keys are kebab-case** (`flow-direction`); Python attributes are
+  snake_case. Models map between them automatically.
+- **Advise, don't operate**: produce explained, reviewable code or CLI
+  commands for the human to run — never execute mutations yourself. Prefer
+  idempotent patterns (`ensure()`, re-runnable scripts).
+- **Credentials are env-only** (`EXOSCALE_API_KEY` / `EXOSCALE_API_SECRET` /
+  `EXOSCALE_ZONE`): never hardcode them or read them from files in examples.
+"""
+
+
 def generate_bundle() -> str:
     lines: List[str] = [HEADER.format(version=exoscale_connector.__version__), ""]
 
@@ -309,30 +351,48 @@ def generate_bundle() -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def artifacts() -> "dict[Path, str]":
+    """Every generated file and its expected content, keyed by absolute path."""
+    bundle = generate_bundle()
+    return {
+        OUTPUT_PATH: bundle,
+        PKG_SKILL_DIR / "SKILL.md": SKILL_MD,
+        PKG_SKILL_DIR / "reference.md": bundle,
+        REPO_SKILL_DIR / "SKILL.md": SKILL_MD,
+        REPO_SKILL_DIR / "reference.md": bundle,
+    }
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument(
         "--check",
         action="store_true",
-        help="verify docs/llms.txt is in sync with the code; exit 1 if not",
+        help="verify the generated artifacts are in sync with the code; exit 1 if not",
     )
     args = parser.parse_args(argv)
 
-    bundle = generate_bundle()
     if args.check:
-        current = OUTPUT_PATH.read_text(encoding="utf-8") if OUTPUT_PATH.exists() else ""
-        if current != bundle:
+        stale = [
+            path
+            for path, content in artifacts().items()
+            if not path.exists() or path.read_text(encoding="utf-8") != content
+        ]
+        if stale:
+            names = ", ".join(str(p.relative_to(REPO_ROOT)) for p in stale)
             print(
-                "docs/llms.txt is out of sync with the code. "
+                f"Out of sync with the code: {names}. "
                 "Regenerate with: python scripts/generate_llms_txt.py",
                 file=sys.stderr,
             )
             return 1
-        print("docs/llms.txt is in sync.")
+        print("All generated artifacts are in sync.")
         return 0
 
-    OUTPUT_PATH.write_text(bundle, encoding="utf-8")
-    print(f"Wrote {OUTPUT_PATH.relative_to(REPO_ROOT)} ({len(bundle.splitlines())} lines).")
+    for path, content in artifacts().items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        print(f"Wrote {path.relative_to(REPO_ROOT)} ({len(content.splitlines())} lines).")
     return 0
 
 

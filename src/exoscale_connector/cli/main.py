@@ -48,11 +48,13 @@ COMMANDS = {
     "sks": "sks",
     # Platform
     "zone": "zone",
+    # Tooling (not an asset type)
+    "skill": "skill",
 }
 
 
 def _usage() -> str:
-    assets = "\n".join(f"  {name}" for name in COMMANDS)
+    assets = "\n".join(f"  {name}" for name in COMMANDS if name != "skill")
     return (
         "usage: exoscale-connector <asset> [args...]\n"
         "\n"
@@ -60,6 +62,9 @@ def _usage() -> str:
         "the asset's verbs and options.\n"
         "\n"
         f"assets:\n{assets}\n"
+        "\n"
+        "tooling:\n"
+        "  skill        install the bundled advisor skill (see 'skill --help')\n"
     )
 
 
