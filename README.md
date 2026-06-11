@@ -100,6 +100,11 @@ exoscale-security-group delete --id <uuid>
   runnable end-to-end example backed by a passing live test.
 - **[IAM policy cookbook](docs/iam-policy-cookbook.md)** — helper constructors
   and copy-paste recipes for IAM role policies (the one area with real depth).
+- **[AI reference bundle](docs/llms.txt)** — one self-contained, generated
+  context file (introspected API surface + all asset-type pages with their
+  live-verified gotchas). Paste it into any LLM to get accurate guidance that
+  cites real methods. Regenerate with `python scripts/generate_llms_txt.py`;
+  CI fails if it drifts from the code.
 - **[Developer guide](docs/developer-guide.md)** — architecture, how to add a
   new asset type, and the testing strategy.
 - **[Live test plan](docs/live-test-plan.md)** — tiered per-asset live-test
