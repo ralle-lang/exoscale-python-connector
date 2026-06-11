@@ -1,0 +1,9 @@
+# Keeps the SHA/major pins in .github/workflows current (including the
+# oasdiff action used by upstream-drift.yml). Runtime dependencies are
+# deliberately loose ranges in pyproject.toml and not managed here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
