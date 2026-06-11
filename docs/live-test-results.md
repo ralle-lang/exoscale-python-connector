@@ -323,7 +323,26 @@ operation-timeout guard works.
 | Instance vertical scaling (`:scale`) | ✅ live-verified (tier 3) |
 | DBaaS `update`, `create_user`, `delete_user` | ✅ live-verified (tier 4) |
 | DBaaS `reset_user_password` | not exercised (would disrupt `avnadmin` mid-test) |
-| Template `register` / `delete` | still pending — needs a hosted disk image; deliberately out of scope (see template.md gotcha) |
+| Template `register` / `delete` | ✅ live-verified 2026-06-11 (gated follow-up, see below) |
 
 **Cost:** well under €0.15 for the whole run (two tier-3 passes + retry +
 full tier 4).
+
+### Follow-up: template `register` / `delete` — 2026-06-11 (zone `at-vie-1`)
+
+**Context:** the last pending surface from the extensions run.
+`test_tier_1.py::test_template_register_delete` registers a private template
+from a hosted qcow2 image and deletes it again. Gated behind
+`EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM` because it
+needs a publicly downloadable disk image.
+
+**Spec-vs-reality findings (documented in template.md gotchas):**
+
+8. **`ssh-key-enabled` and `password-enabled` are required on registration** —
+   the API returns 400 `missing keys ...` when they are omitted, even though
+   both are optional on the model.
+9. **Virtual disk must be ≥ 10 GB** — the import operation ends in `failure`
+   for smaller images; qcow2 sparse images keep the hosted file tiny.
+
+The test image and its SOS bucket (`exo-connector-templates`, `at-vie-1`)
+were deleted after the run — no permanent fixtures remain.

@@ -194,10 +194,11 @@ not hardcoded).
      corrected).
   2. `get`; `list`; assert.
   3. `delete` snapshot.
-- **Not yet live-verified:** `export` (the action endpoint that returns a
-  pre-signed download URL) — exposed on the client, mocked-tested, but the
-  Tier 3 live test does not yet call it. Add to coverage in a follow-up if
-  needed.
+- **`export` live-verified 2026-06-02** (the action endpoint that returns a
+  pre-signed download URL) — the follow-up run surfaced and fixed the
+  `:export`-vs-`/export` path bug; the Tier 3 test now calls it and asserts
+  a non-empty presigned URL (see
+  [live-test-results.md](live-test-results.md)).
 - **Cost**: snapshot storage per GB-month; 10 GB for minutes ≈ €0.
 - **Risk**: snapshot creation takes 2–5 min on a 10 GB disk.
 
