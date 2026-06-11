@@ -83,6 +83,46 @@ tools, by design, ever — see Decisions.
 
 ---
 
+## Planned: upstream drift watch (CI)
+
+Agreed 2026-06-11; design settled, not yet scheduled. A weekly GitHub Actions
+workflow that detects upstream changes and files an `upstream-drift` issue to
+*evaluate* — never to auto-fix (consistent with D1: a spec diff is a prompt
+for human+agent review, and with the repo's stance that the spec is the
+starting point, not the truth).
+
+**Watch targets** (different granularity each):
+- **APIv2 OpenAPI spec** (`https://openapi-v2.exoscale.com/source.json`) —
+  the real drift source for models, paths, and wrapper keys. Diffed in detail.
+- **`python-exoscale` releases** — release-level only; a new release is the
+  cue to re-check that the README's "relationship to the official SDK"
+  paragraph still holds.
+
+**Mechanism:**
+- Commit a normalized snapshot (`jq -S`) of the spec under
+  `.github/upstream/`, plus the last-seen SDK release tag.
+- Weekly cron: fetch → normalize → diff with `oasdiff` (spec-aware,
+  markdown changelog, ignores cosmetic churn). On change: file the issue
+  via `--body-file` (injection hygiene — upstream text never interpolated
+  into shell), then commit the refreshed snapshot in the same run.
+- Dedup: append a comment to an existing open `upstream-drift` issue
+  instead of opening duplicates.
+- Issue body is agent-ready: oasdiff changelog + a changed-path →
+  module/doc-page mapping (derivable from `collection_path` introspection,
+  same machinery as `generate_llms_txt.py`) + a standing evaluation
+  checklist (models, gotcha pages, live re-verification scope, regenerate
+  AI artifacts).
+
+**Dependency handling:** `oasdiff` is CI-only tooling (a pinned third-party
+action, SHA-pinned) — it never touches `pyproject.toml`, so the
+"requests + pydantic only" package promise holds. Add a minimal
+`.github/dependabot.yml` (`github-actions` ecosystem, weekly) to keep the
+pinned actions current — this also closes the pre-existing gap that
+`checkout`/`setup-python` pins were never auto-updated. Renovate is not
+needed (Dependabot is GitHub-native; no extra infrastructure).
+
+---
+
 ## Backlog / deferred
 
 ### Async client (httpx) — deferred, decision pending
