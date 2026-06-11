@@ -38,8 +38,6 @@ with a live test that has run end-to-end against a real account, depends on just
 ## Install
 
 ```bash
-pip install -e ".[dev]"          # from this folder, for development
-# or, once published / vendored:
 pip install exoscale-connector
 ```
 
@@ -47,6 +45,12 @@ Object Storage (S3-compatible) support pulls in `boto3`:
 
 ```bash
 pip install "exoscale-connector[sos]"
+```
+
+For development from a local clone:
+
+```bash
+pip install -e ".[dev]"
 ```
 
 ## Quickstart (library)
