@@ -6,8 +6,8 @@ for templates you registered). Registering a custom template is a normal
 ``create`` with the template's source URL and checksum.
 
 The list/get wire shapes here match what the live test fixtures already
-exercise (``resolve_linux_template``); register/delete are pending live
-verification.
+exercise (``resolve_linux_template``); register/delete live-verified
+2026-06-11 (``test_template_register_delete``).
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-template
 """

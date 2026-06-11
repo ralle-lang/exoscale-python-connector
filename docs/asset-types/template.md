@@ -43,6 +43,12 @@ smallest_linux = templates.find_linux()        # smallest public Linux image
 
 - **`size` is in bytes**, unlike instance `disk-size` (GiB) — the same
   unit-of-measure trap as block volumes.
-- **Live verification:** list/get and `find_linux` mirror the selection logic
-  the Tier 3 fixtures have always used live; register/delete are implemented
-  from the API reference and **pending live verification**.
+- **`ssh-key-enabled` and `password-enabled` are required on registration** —
+  the API returns 400 `missing keys 'ssh-key-enabled', 'password-enabled'` if
+  omitted, even though both are optional on the model (they only exist on private
+  templates). Set both explicitly: `"ssh-key-enabled": False, "password-enabled": False`.
+- **Virtual disk must be ≥ 10 GB** — the import rejects images smaller than 10 GB
+  (operation ends in `failure`). qcow2 sparse images are fine; the on-disk file
+  stays ~200 KB even at 10 GB virtual size.
+- **register/delete live-verified 2026-06-11** via `test_template_register_delete`
+  (Tier 1, gated on `EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM`).

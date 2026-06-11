@@ -27,6 +27,7 @@ from exoscale_connector.resources.security_group import (
     SecurityGroupRule,
 )
 from exoscale_connector.resources.ssh_key import SSHKey, SSHKeyClient
+from exoscale_connector.resources.template import TemplateClient
 
 from ._fixtures import assert_safe_name, make_name
 
@@ -288,3 +289,43 @@ def test_ensure_is_idempotent(live_client, run_id, tracker, tier_1_enabled) -> N
 
     sgs.delete(created.id)
     tracker.unregister(created.id)
+
+
+def test_template_register_delete(
+    live_client, run_id, tracker, template_register_enabled
+) -> None:
+    """Template: register from a hosted qcow2 -> assert private list -> delete.
+
+    Gated behind EXOSCALE_TEST_TEMPLATE_URL + EXOSCALE_TEST_TEMPLATE_CHECKSUM
+    (set via template_register_enabled fixture). The image import is async and
+    can take a minute or two; the default operation timeout covers it.
+    """
+    url, checksum = template_register_enabled
+    templates = TemplateClient(live_client)
+
+    name = make_name(run_id, "tmpl")
+    assert_safe_name(name)
+
+    template = templates.create({
+        "name": name,
+        "url": url,
+        "checksum": checksum,
+        "boot-mode": "legacy",
+        "ssh-key-enabled": False,
+        "password-enabled": False,
+    })
+    assert template.id, "template register returned no id"
+    tracker.register("template", lambda: templates.delete(template.id), template.id)
+
+    private = templates.list(visibility="private")
+    assert any(t.id == template.id for t in private), (
+        f"registered template {template.id!r} not found in private list"
+    )
+
+    templates.delete(template.id)
+    tracker.unregister(template.id)
+
+    private_after = templates.list(visibility="private")
+    assert not any(t.id == template.id for t in private_after), (
+        "template still appears in private list after delete"
+    )

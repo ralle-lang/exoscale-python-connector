@@ -93,6 +93,25 @@ def tier_1_api_key_enabled(tier_1_enabled) -> None:
 
 
 @pytest.fixture
+def template_register_enabled(tier_1_enabled):
+    """Gate the template register/delete sub-test of Tier 1 separately.
+
+    Requires EXOSCALE_TEST_TEMPLATE_URL pointing to a publicly accessible
+    qcow2 image and EXOSCALE_TEST_TEMPLATE_CHECKSUM with its MD5 digest.
+    Skipped by default so a normal Tier 1 run does not attempt to import
+    a disk image (slow, tenant-quota dependent).
+    """
+    url = os.environ.get("EXOSCALE_TEST_TEMPLATE_URL", "").strip()
+    checksum = os.environ.get("EXOSCALE_TEST_TEMPLATE_CHECKSUM", "").strip()
+    if not url or not checksum:
+        pytest.skip(
+            "template register/delete test disabled "
+            "(set EXOSCALE_TEST_TEMPLATE_URL and EXOSCALE_TEST_TEMPLATE_CHECKSUM to enable)"
+        )
+    return url, checksum
+
+
+@pytest.fixture
 def tier_2_enabled(require_mutation_allowed) -> None:
     """Gate Tier 2 mutating tests behind their own opt-in switch.
 
