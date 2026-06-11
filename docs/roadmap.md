@@ -76,10 +76,19 @@ during normal work. Thin wrapper around rung 1.
 An MCP server exposing docs search plus *list-only* live catalogue queries
 (zones, instance types, templates) — so the advisor can answer "what exists
 in de-fra-1 right now" with live data while being structurally incapable of
-mutation. **Separate repository** (`exoscale-mcp-advisor` or similar): it
-adds an MCP framework dependency and a different risk/release profile, and
-the connector's "requests + pydantic only" promise must hold. No mutation
-tools, by design, ever — see Decisions.
+mutation. **Separate repository** because it adds an MCP framework dependency
+and a different risk/release profile, and the connector's "requests + pydantic
+only" promise must hold. No mutation tools, by design, ever — see Decisions.
+
+**Design + repo bootstrap shipped (issue #7, 2026-06-11):** the work lives in
+[`ralle-lang/exoscale-mcp-advisor`](https://github.com/ralle-lang/exoscale-mcp-advisor).
+The full design is its founding document,
+[`docs/mcp-advisor-design.md`](https://github.com/ralle-lang/exoscale-mcp-advisor/blob/main/docs/mcp-advisor-design.md)
+— tool surface (`search_docs`, `get_asset_page`, `list_zones`,
+`list_instance_types`, `list_templates`), knowledge sourced zero-duplication
+from this package's bundled `_skill/reference.md`, read-only enforced by a
+structural test, and a four-layer test strategy. Implementation is tracked by
+issues in that repo. Anything MCP-related lives there, not here.
 
 ---
 

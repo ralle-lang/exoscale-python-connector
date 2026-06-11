@@ -108,6 +108,12 @@ exoscale-security-group delete --id <uuid>
   project's `.claude/skills/` directory so questions are answered ambiently
   during normal work. Regenerate with `python scripts/generate_llms_txt.py`;
   CI fails if any copy drifts from the code.
+- **[Read-only advisor MCP server](https://github.com/ralle-lang/exoscale-mcp-advisor)**
+  (separate repo) — an MCP server that lets an agent search these docs and run
+  *list-only* live catalogue queries (zones, instance types, templates), while
+  being structurally incapable of mutating anything. It reads this package's
+  bundled reference, so its knowledge is exactly the installed connector
+  version. Advise, never operate.
 - **[Developer guide](docs/developer-guide.md)** — architecture, how to add a
   new asset type, and the testing strategy.
 - **[Live test plan](docs/live-test-plan.md)** — tiered per-asset live-test
