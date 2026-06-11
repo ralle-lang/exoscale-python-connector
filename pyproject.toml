@@ -82,6 +82,9 @@ select = ["E", "F", "I", "B", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Put the repo root on sys.path so `from tests.integration...` imports work
+# under a bare `pytest` invocation too (CI), not just `python -m pytest`.
+pythonpath = ["."]
 markers = [
     "integration: live tests that talk to a real Exoscale tenant (opt-in, see docs)",
 ]
