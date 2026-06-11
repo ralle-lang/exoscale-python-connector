@@ -30,9 +30,9 @@ source of truth — open an issue and the page will be corrected.
 | [load-balancer (+services)](load-balancer.md) | `exoscale-load-balancer` | ✅ | 4 |
 | [dbaas](dbaas.md) | `exoscale-dbaas` | ✅ | 4 |
 | [sks (cluster + nodepool)](sks.md) | `exoscale-sks` | ✅ | 4 |
-| [zone](zone.md) | `exoscale-zone` | pending (smoke test added) | 0 |
-| [template](template.md) | `exoscale-template` | pending (smoke test added) | 0 |
-| [instance-type](instance-type.md) | `exoscale-instance-type` | pending (smoke test added) | 0 |
+| [zone](zone.md) | `exoscale-zone` | ✅ read-only (list/get) | 0 |
+| [template](template.md) | `exoscale-template` | ✅ list/find; register+delete deferred (needs hosted image) | 0 |
+| [instance-type](instance-type.md) | `exoscale-instance-type` | ✅ read-only (list/find-slug) | 0 |
 
 Instance scale, reverse DNS, SOS objects, DBaaS users/update, and `ensure()`
 were all live-verified in the 2026-06-10 extensions validation run (see
