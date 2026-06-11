@@ -44,7 +44,13 @@ language in, **explained code out, human executes**. See Decisions below for
 why there is deliberately no AI execution layer. Rungs are ordered by
 value-per-effort; each stands alone.
 
-### Rung 1 — generated AI-ready reference bundle (`docs/llms.txt`)
+### ✅ Rung 1 — generated AI-ready reference bundle (`docs/llms.txt`) (issue #5)
+Shipped 2026-06-11: `scripts/generate_llms_txt.py` introspects the package
+(every `ResourceClient` subclass, method signatures, pydantic field tables)
+and embeds all asset-type pages; sync enforced in CI by
+`test_llms_txt.py::test_bundle_is_in_sync_with_code` plus an explicit
+`--check` step.
+
 A docs build step that generates one self-contained context file from ground
 truth: the introspected API surface (every `ResourceClient` subclass, method
 signatures, pydantic model fields — generated from code so it cannot drift)

@@ -20,10 +20,12 @@ jobs:
       - name: Install package with dev dependencies
         run: pip install -e '.[dev]'
       - name: Lint
-        run: ruff check src tests
+        run: ruff check src tests scripts
       - name: Type-check
         run: mypy src
       - name: Unit tests
         run: pytest tests/unit -q
+      - name: Check AI reference bundle is in sync
+        run: python scripts/generate_llms_txt.py --check
       # Integration tiers (tests/integration) need live tenant credentials and
       # are deliberately NOT run in CI — see docs/live-test-plan.md.
