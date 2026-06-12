@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `PrivateNetworkClient.attach_instance()` / `detach_instance()` — join and
+  remove compute instances to/from a private network (the colon-actions
+  `PUT private-network/{id}:attach` / `:detach`), with an optional static `ip`
+  lease for managed networks. Closes the gap where the connector could create a
+  private network but not actually wire instances into it (#12).
+
 ## [0.3.0] - 2026-06-11
 
 ### Added

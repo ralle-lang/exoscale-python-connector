@@ -771,6 +771,10 @@ API collection: `private-network`; resource model: `PrivateNetwork`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `attach_instance(network_id: str, instance_id: str, *, ip: Optional[str] = None, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Attach a compute instance to this private network.
+- `detach_instance(network_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Detach a compute instance from this private network.
 
 ### `exoscale_connector.resources.security_group`
 
@@ -2674,13 +2678,23 @@ network = pn.create({
 # Update + delete
 pn.update(network.id, {"description": "updated"})
 pn.delete(network.id)
+
+# Join / remove an instance (east-west networking)
+pn.attach_instance(network.id, instance_id)                 # DHCP / unmanaged
+pn.attach_instance(network.id, instance_id, ip="10.0.0.42") # static lease (managed)
+pn.detach_instance(network.id, instance_id)
 ```
 
 #### Gotchas
 
-- **Instance attach/detach is not exposed in the current connector** —
-  attaching an instance to a private network is done via the instance's
-  own update endpoint (not yet covered here). Tracked as a follow-up.
+- **Instance membership lives on the network, not the instance.** Join an
+  instance with `attach_instance(network_id, instance_id)` and remove it with
+  `detach_instance(network_id, instance_id)` — these wrap the colon-actions
+  `PUT private-network/{id}:attach` / `:detach`, not the instance's own update
+  endpoint. Both return the async operation and are awaited by default.
+- **Static leases are managed-network only.** Pass `ip=` to `attach_instance`
+  to pin a fixed address from the network's `start-ip`/`end-ip` range; omit it
+  for DHCP, and it has no effect on an unmanaged (shared-L2) network.
 - **Managed networks need all three of `start-ip`, `end-ip`, `netmask`**;
   unmanaged networks need none.
 
