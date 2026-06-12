@@ -1,10 +1,14 @@
-"""The packaged ``__version__`` must match the distribution version.
+"""The package version has a single source of truth.
 
-``pyproject.toml`` drives what PyPI publishes; ``exoscale_connector.__version__``
-drives the CLI ``--version`` output and the "Package version" line embedded in
-the generated AI bundle. They are kept in lockstep by hand at release time —
-this test fails CI on a mismatch instead of shipping a wheel whose embedded
-version disagrees with the published distribution.
+``exoscale_connector.__version__`` is the one place the version is declared;
+``pyproject.toml`` marks ``version`` as ``dynamic`` and resolves it from that
+literal at build time (``[tool.hatch.version]``). Keeping the literal in the code
+(rather than reading installed distribution metadata) means a *vendored* copy of
+the package — copied into another repo, not pip-installed — still reports the
+right version, which is an explicit design goal.
+
+These tests guard that wiring: that ``pyproject`` does not reintroduce a second,
+hand-synced version literal, and that ``__version__`` is a sane value.
 """
 from __future__ import annotations
 
@@ -16,11 +20,23 @@ import exoscale_connector
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 
 
-def test_package_version_matches_pyproject() -> None:
+def test_pyproject_version_is_dynamic_not_a_second_literal() -> None:
     text = PYPROJECT.read_text(encoding="utf-8")
-    match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
-    assert match, "no [project] version found in pyproject.toml"
-    assert match.group(1) == exoscale_connector.__version__, (
-        f"pyproject version {match.group(1)!r} != "
-        f"__version__ {exoscale_connector.__version__!r}"
+    # No static ``version = "..."`` under [project] — that would be a duplicate
+    # source of truth kept in lockstep by hand (the bug this setup removes).
+    assert re.search(r'(?m)^version\s*=\s*"', text) is None, (
+        "pyproject.toml declares a static version; it must stay `dynamic` and "
+        "resolve from exoscale_connector.__version__ via [tool.hatch.version]"
     )
+    assert re.search(r'(?m)^dynamic\s*=\s*\[[^\]]*"version"', text), (
+        "pyproject.toml must mark `version` as dynamic"
+    )
+    assert 'path = "src/exoscale_connector/__init__.py"' in text, (
+        "[tool.hatch.version] must source the version from the package __init__"
+    )
+
+
+def test_version_is_a_sane_pep440_release() -> None:
+    assert re.fullmatch(
+        r"\d+\.\d+\.\d+([._-]?(a|b|rc|dev|post)\d+)?", exoscale_connector.__version__
+    ), f"unexpected __version__ {exoscale_connector.__version__!r}"
