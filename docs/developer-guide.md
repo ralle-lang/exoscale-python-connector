@@ -314,6 +314,50 @@ The weekly drift workflow runs the same diff against the *incoming* spec
 (`--summary`) and embeds the result in the evaluation issue, so a model that will
 go red after the snapshot refresh is called out up front.
 
+## Stability & compatibility
+
+**Versioning.** This project follows [Semantic Versioning](https://semver.org),
+adapted for `0.x`: while the version is below `1.0`, a **MINOR** bump (`0.N.0`)
+may contain breaking changes to the public API, and **PATCH** bumps (`0.N.x`) are
+backward-compatible fixes only. Breaking changes are called out under a
+"Breaking" heading in `CHANGELOG.md`. Pin a version if you depend on the package.
+
+**Public API** — what the versioning promise above covers:
+
+1. The symbols exported from `exoscale_connector.__all__`.
+2. Each per-asset `*Client` class and its pydantic model(s), imported from
+   `exoscale_connector.resources.<asset>`.
+3. The shared `ResourceClient` CRUD contract — `list` / `get` / `find_by_name` /
+   `get_or_none` / `create` / `ensure` / `update` / `delete`.
+4. The IAM expression helpers in `exoscale_connector.iam_expr`.
+5. **The generated reference-bundle contract** — the *presence, install location,
+   and structure* of `docs/llms.txt` and the wheel-shipped
+   `exoscale_connector/_skill/reference.md` (+ `SKILL.md`). The
+   [exoscale-mcp-advisor](https://github.com/ralle-lang/exoscale-mcp-advisor)
+   consumes the bundled `_skill/reference.md`, so its shape is a deliberate
+   downstream contract: the bundle will keep existing at that path and stay
+   parseable as the introspected-API-surface-plus-asset-pages document it is
+   today. The *prose* is generated and not itself promised.
+
+**Internal** — not covered by the promise; may change in any release:
+
+- Anything underscore-prefixed (`resources._base`, `resources._reverse_dns`, the
+  `_skill` internals, the test recorder), and `auth.py`'s signer internals.
+- `scripts/`, the test suite, and CI machinery.
+- The exact wording of docstrings, log lines, and the bundle's generated prose.
+- The **per-asset CLI** is supported and documented, but its exact output text is
+  not a stability guarantee — script against the Python API for a stable contract.
+
+**Dependency floors.** The lowest supported `requests`, `pydantic`, and Python
+versions declared in `pyproject.toml` are part of the contract: CI installs the
+package against those exact minimums (`ci/constraints-min.txt`, exercised by the
+`min-deps` job and kept in lockstep by `tests/unit/test_min_constraints.py`) as
+well as against latest. **Raising a floor is a breaking change.**
+
+**Deprecation procedure.** A symbol slated for removal first emits a
+`DeprecationWarning` and is noted in `CHANGELOG.md`; it is removed no earlier than
+the following MINOR release, so consumers get at least one release of warning.
+
 ## Releasing
 
 Releases are **tag-driven and fully automated** — there is no manual `twine`

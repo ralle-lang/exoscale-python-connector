@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Stability & compatibility policy** (developer guide): defines the public API
+  — the exported Python symbols plus the `llms.txt` / skill bundle contract that
+  the advisor consumes — what `0.x` version bumps mean, and the deprecation
+  procedure. The README points to it rather than restating it.
+- CI **`min-deps` job** installs the package against its declared *minimum*
+  dependency versions (`ci/constraints-min.txt`) and runs the suite, so a too-low
+  floor fails mechanically. `tests/unit/test_min_constraints.py` keeps the pins
+  in lockstep with the `pyproject.toml` floors (a drifted/missing/stale pin fails).
+
+### Changed
+- **Breaking:** raised the `requests` floor from `>=2.28` to `>=2.30`. The old
+  floor was never a real lower bound — the test suite cannot run at it (the
+  `responses` harness requires `requests>=2.30`). Consumers on any recent
+  `requests` need no change.
+
 ## [0.4.0] - 2026-06-12
 
 ### Changed
