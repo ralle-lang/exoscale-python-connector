@@ -80,6 +80,17 @@ jobs:
             python scripts/drift_operations.py --affected \
               .github/upstream/openapi-v2.json .drift/spec.json
             echo
+            echo "## Model ↔ spec field drift"
+            echo
+            echo "Each pydantic resource model diffed against the **incoming** spec's"
+            echo "schema (renamed/removed/retyped fields and newly-required fields fail"
+            echo "unit CI; unmodelled optional fields are informational, tolerated by"
+            echo "\`extra=\"allow\"\`). A failing row here means \`tests/unit/test_model_schema_drift.py\`"
+            echo "will go red once the snapshot is refreshed — reconcile the model or"
+            echo "record an intentional divergence in \`scripts/model_schema_drift.py\`."
+            echo
+            python scripts/model_schema_drift.py --summary .drift/spec.json
+            echo
             echo "## Changelog (oasdiff)"
             echo
             head -c 60000 .drift/changelog.md
