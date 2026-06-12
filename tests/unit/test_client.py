@@ -5,7 +5,11 @@ import pytest
 import requests
 import responses
 
+from exoscale_connector.client import ExoscaleClient
+from exoscale_connector.config import ClientConfig
 from exoscale_connector.errors import APIError, NotFoundError, OperationError, OperationTimeoutError
+
+TEST_ZONE = "de-fra-1"
 
 
 @responses.activate
@@ -97,6 +101,69 @@ def test_delete_is_retried_on_transient_error(client, base_url) -> None:
     )
     assert client.delete("instance/abc") == {"id": "op2"}
     assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_get_retries_on_connection_error_then_succeeds(client, base_url) -> None:
+    # A dropped connection on an idempotent GET is transient — retry, don't die.
+    responses.add(
+        responses.GET, f"{base_url}/instance", body=requests.exceptions.ConnectionError("reset")
+    )
+    responses.add(responses.GET, f"{base_url}/instance", json={"instances": []}, status=200)
+    assert client.get("instance") == {"instances": []}
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_get_retries_on_read_timeout_then_succeeds(client, base_url) -> None:
+    responses.add(
+        responses.GET, f"{base_url}/instance/abc", body=requests.exceptions.ReadTimeout("slow")
+    )
+    responses.add(responses.GET, f"{base_url}/instance/abc", json={"id": "abc"}, status=200)
+    assert client.get("instance/abc") == {"id": "abc"}
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_post_is_not_retried_on_connection_error(client, base_url) -> None:
+    # A dropped connection mid-POST is ambiguous — the mutation may have landed.
+    # It must surface after exactly one attempt, never silently retried.
+    responses.add(
+        responses.POST, f"{base_url}/instance", body=requests.exceptions.ConnectionError("reset")
+    )
+    with pytest.raises(requests.exceptions.ConnectionError):
+        client.post("instance", json={"name": "vm-1"})
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_connection_error_surfaces_after_exhausting_retries(client, base_url) -> None:
+    # max_retries defaults to 3, so the 4th consecutive drop surfaces the error.
+    for _ in range(client.config.max_retries + 1):
+        responses.add(
+            responses.GET, f"{base_url}/instance", body=requests.exceptions.ConnectionError("reset")
+        )
+    with pytest.raises(requests.exceptions.ConnectionError):
+        client.get("instance")
+    assert len(responses.calls) == client.config.max_retries + 1
+
+
+@responses.activate
+def test_retryable_status_set_is_configurable(base_url) -> None:
+    # Drop 500 from the idempotent retry set: a 500 now fails fast, no retry.
+    config = ClientConfig(
+        api_key="EXOtestkey",
+        api_secret="testsecret",
+        zone=TEST_ZONE,
+        retry_backoff=0.0,
+        retryable_statuses_idempotent=frozenset({502, 503, 504}),
+    )
+    client = ExoscaleClient(config)
+    responses.add(responses.GET, f"{base_url}/instance", status=500)
+    with pytest.raises(APIError) as excinfo:
+        client.get("instance")
+    assert excinfo.value.status_code == 500
+    assert len(responses.calls) == 1
 
 
 @responses.activate
