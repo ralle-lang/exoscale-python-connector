@@ -1,11 +1,8 @@
 name: Release
 
-# Publishes to PyPI on version tags (v0.2.0, v1.0.0, ...).
-#
-# INERT UNTIL CONFIGURED: this uses PyPI "trusted publishing" (no API token in
-# the repo). Before the first release, register this repository + workflow as a
-# trusted publisher for the 'exoscale-connector' project on pypi.org, and create
-# the 'pypi' environment in the GitHub repo settings.
+# On version tags (v0.2.0, v1.0.0, ...) this builds the package, publishes it to
+# PyPI via trusted publishing (no API token in the repo), and creates a matching
+# GitHub Release whose notes come from the CHANGELOG section for that version.
 
 on:
   push:
@@ -49,3 +46,36 @@ jobs:
       # token that authorizes publishing; a floating branch ref would let a
       # compromised upstream publish on our behalf. Bump deliberately.
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1 as of 2026-02-18
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # create the GitHub Release on this tag
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Extract the CHANGELOG section for this tag
+        # TAG comes from the (maintainer-controlled) tag ref; pass it via env and
+        # reference it as a shell variable rather than interpolating into the
+        # script, so the tag string is never evaluated as code.
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" {flag=1; next}
+            flag && /^## \[/ {exit}
+            flag {print}
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then printf 'Release %s\n' "$TAG" > release-notes.md; fi
+      # Pinned to a commit SHA (this third-party action gets a contents:write
+      # token); bump deliberately.
+      - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3.0.0
+        with:
+          body_path: release-notes.md
+          files: dist/*
+          fail_on_unmatched_files: false
