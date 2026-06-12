@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-12
+
+### Changed
+- Upstream drift watch now maps a spec change to the **affected connector
+  modules** (`scripts/drift_operations.py`), so the weekly drift issue names
+  which modules to review instead of dumping the whole mapping table. The
+  module → operations map is self-enforcing: `test_drift_operations.py` fails if
+  the code calls an endpoint outside a module's collection path that isn't
+  declared.
+
 ### Documentation
 - SKS asset page now lists the valid cluster/nodepool `addons` values, **derived
   automatically from the committed OpenAPI spec** by `generate_llms_txt.py` (a
@@ -59,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ralle-lang/exoscale-python-connector/releases/tag/v0.2.0
