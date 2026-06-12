@@ -20,16 +20,23 @@ from .errors import APIError, NotFoundError, OperationError, OperationTimeoutErr
 from .models import Operation
 
 # Retry policy is split by HTTP method semantics. For idempotent verbs any
-# transient server / rate-limit status is safe to retry. POST is not idempotent:
-# a 500/502/504 does not guarantee the mutation was not applied server-side, so
-# blindly retrying can create duplicate resources. Only 429 — where the server
-# explicitly refused to process the request — is retried for mutations.
-_RETRYABLE_STATUSES_IDEMPOTENT = frozenset({429, 500, 502, 503, 504})
-_RETRYABLE_STATUSES_MUTATING = frozenset({429})
+# transient server / rate-limit status — or a connection-level failure — is safe
+# to retry. POST is not idempotent: a 500/502/504 or a dropped connection does not
+# guarantee the mutation was not applied server-side, so blindly retrying can
+# create duplicate resources. Only 429 — where the server explicitly refused to
+# process the request — is retried for mutations. The retryable *status* sets are
+# configurable per client (ClientConfig); the method split is fixed policy.
 _IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "DELETE", "PUT"})
 _SUCCESS_STATUSES = frozenset({200, 201, 202, 204})
 # Upper bound on how long a server-sent Retry-After may stall a single retry.
 _MAX_RETRY_AFTER = 60.0
+# Connection-level failures treated as transient (no HTTP response was received).
+# Retried for idempotent verbs only, on the same backoff/max_retries budget.
+_TRANSIENT_EXCEPTIONS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    requests.exceptions.ChunkedEncodingError,
+)
 
 # Debug logging for request/response tracing. Deliberately logs only
 # method/URL/status/duration — never headers (Authorization carries the
@@ -69,34 +76,54 @@ class ExoscaleClient:
         zone: Optional[str] = None,
         params: Optional[dict] = None,
         json: Any = None,
+        max_retries: Optional[int] = None,
     ) -> dict:
         """Send a signed request to ``<base>/<path>`` and return the parsed body.
 
         ``path`` is relative to the APIv2 base (e.g. ``"security-group"`` or
         ``"instance/<id>"``). Raises :class:`NotFoundError` on 404 and
         :class:`APIError` on any other non-success status. Retries transient
-        failures with jittered exponential backoff up to ``config.max_retries``;
-        non-idempotent verbs (POST) are only retried on 429, where the server
-        explicitly did not process the request.
+        failures — retryable HTTP statuses *and* connection-level errors (dropped
+        connections, read timeouts) — with jittered exponential backoff up to
+        ``config.max_retries``. Non-idempotent verbs (POST) are only retried on
+        429, where the server explicitly did not process the request; a 5xx or a
+        dropped connection on a POST surfaces immediately, since the mutation may
+        already have been applied and a blind retry could duplicate it.
+
+        ``max_retries`` overrides the config retry budget for this one call; pass
+        ``0`` to issue a single attempt (used by the operation poll loop, which
+        owns its own transient-failure tolerance via ``config.max_poll_failures``).
         """
         url = f"{self.config.base_url(zone)}/{path.lstrip('/')}"
         verb = method.upper()
+        idempotent = verb in _IDEMPOTENT_METHODS
+        budget = self.config.max_retries if max_retries is None else max_retries
         retryable = (
-            _RETRYABLE_STATUSES_IDEMPOTENT
-            if verb in _IDEMPOTENT_METHODS
-            else _RETRYABLE_STATUSES_MUTATING
+            self.config.retryable_statuses_idempotent
+            if idempotent
+            else self.config.retryable_statuses_mutating
         )
         attempt = 0
         while True:
             started = time.monotonic()
-            response = self._session.request(
-                verb,
-                url,
-                params=params,
-                json=json,
-                timeout=self.config.timeout,
-                verify=self.config.verify_tls,
-            )
+            try:
+                response = self._session.request(
+                    verb,
+                    url,
+                    params=params,
+                    json=json,
+                    timeout=self.config.timeout,
+                    verify=self.config.verify_tls,
+                )
+            except _TRANSIENT_EXCEPTIONS as exc:
+                # No response arrived. Safe to retry only for idempotent verbs;
+                # for POST the mutation may have landed, so surface the error.
+                if idempotent and attempt < budget:
+                    logger.debug("%s %s -> %s; retrying", verb, url, type(exc).__name__)
+                    time.sleep(_backoff_delay(attempt, self.config.retry_backoff))
+                    attempt += 1
+                    continue
+                raise
             logger.debug(
                 "%s %s -> %s (%.0f ms)",
                 verb,
@@ -106,7 +133,7 @@ class ExoscaleClient:
             )
             if response.status_code in _SUCCESS_STATUSES:
                 return _parse_body(response)
-            if response.status_code in retryable and attempt < self.config.max_retries:
+            if response.status_code in retryable and attempt < budget:
                 time.sleep(_retry_delay(response, attempt, self.config.retry_backoff))
                 attempt += 1
                 continue
@@ -169,7 +196,12 @@ class ExoscaleClient:
         consecutive_failures = 0
         while time.time() < deadline:
             try:
-                last = Operation.model_validate(self.get(f"operation/{operation_id}", zone=zone))
+                # Single attempt: this loop is itself the retry authority for
+                # polling (max_poll_failures, with reset-on-success), so it must
+                # not compound with the per-request retry budget.
+                last = Operation.model_validate(
+                    self.request("GET", f"operation/{operation_id}", zone=zone, max_retries=0)
+                )
             except (requests.exceptions.RequestException, NotFoundError):
                 # Tolerate a brief run of transient poll failures rather than
                 # aborting a long-running operation on a single hiccup.
@@ -203,18 +235,24 @@ class ExoscaleClient:
             )
 
 
+def _backoff_delay(attempt: int, backoff: float) -> float:
+    """Full-jitter exponential backoff, keeping a fleet from retrying in lockstep."""
+    return random.uniform(0, backoff * (2**attempt))
+
+
 def _retry_delay(response: requests.Response, attempt: int, backoff: float) -> float:
-    """Pick the sleep before the next retry.
+    """Pick the sleep before the next retry after an HTTP error response.
 
     A server-sent ``Retry-After`` (seconds form) wins over our own backoff —
     the server knows its rate-limit window better than we do — capped so a
-    pathological header can't stall the client. Otherwise full-jitter
-    exponential backoff keeps a fleet of clients from retrying in lockstep.
+    pathological header can't stall the client. Otherwise fall back to
+    full-jitter exponential backoff (the only option for connection-level
+    errors, where there is no response to read a header from).
     """
     header = response.headers.get("Retry-After", "")
     if header.strip().isdigit():
         return min(float(header.strip()), _MAX_RETRY_AFTER)
-    return random.uniform(0, backoff * (2**attempt))
+    return _backoff_delay(attempt, backoff)
 
 
 def _as_operation(operation: Union[Operation, dict, str]) -> Optional[Operation]:
