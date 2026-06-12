@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Documentation
+- dbaas asset page now documents `ip-filter` — it's settable today through the
+  create/update pass-through payload (a list of CIDRs) even without a typed
+  field, and since a managed DB can't join a private network, `ip-filter` + TLS
+  is the primary way to secure it. Added a create/update example and a security
+  gotcha (update replaces the whole list; empty means allow-all) (#15).
 - instance-pool asset page now documents `anti_affinity_groups` — the model
   block, a create example, and a gotcha explaining it spreads pool members
   across distinct hosts and is create-only. Previously invisible to readers

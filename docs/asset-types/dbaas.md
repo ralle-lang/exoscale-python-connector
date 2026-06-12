@@ -57,6 +57,16 @@ dbaas = DBaaSServiceClient(ExoscaleClient.from_env(zone="de-fra-1"))
 plan = "hobbyist-2"
 dbaas.create({"plan": plan}, service_type="pg", name="my-pg-1")
 
+# Lock the service down to an IP allow-list (CIDRs). DBaaS can't join a
+# private network, so ip-filter + TLS is the primary way to secure it.
+dbaas.create(
+    {"plan": plan, "ip-filter": ["203.0.113.0/24"]},
+    service_type="pg",
+    name="app-pg",
+)
+# Tighten or widen it later via update (replaces the whole list):
+dbaas.update("app-pg", {"ip-filter": ["203.0.113.0/24", "198.51.100.7/32"]}, service_type="pg")
+
 # Fetch (two-step lookup: list -> discover type -> type-specific GET)
 svc = dbaas.get("my-pg-1")
 print(svc.state)
@@ -104,6 +114,14 @@ plans = dbaas.list_service_types()
   response shape is type-specific (Postgres has `password`, MySQL/Valkey
   may carry additional fields like ports). Keeping it as a dict avoids
   forcing a tight schema that varies per backend.
+- **`ip-filter` is settable today via the create/update payload**, even
+  though `DBaaSService` has no typed field for it — `create()`/`update()`
+  pass arbitrary keys straight through. It is a list of CIDR strings, e.g.
+  `["203.0.113.0/24"]`. **A managed DB can't join a private network**, so an
+  `ip-filter` allow-list plus TLS (the CA cert lives in `connection_info.ca`)
+  is the primary way to keep the service from being reachable by the whole
+  internet. `update` **replaces** the entire list rather than merging, so pass
+  the full set each time. An empty/absent filter means *allow all*.
 
 ## End-to-end example
 
