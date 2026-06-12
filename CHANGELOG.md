@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **HTTP resilience hardening:** idempotent requests now retry connection-level
+  transient failures (dropped connections, read timeouts, chunked-encoding
+  errors) in addition to retryable HTTP statuses, on the same bounded
+  jittered-backoff budget — closing the gap where a single TCP reset could abort
+  a re-runnable provisioning script. The retryable status sets are configurable
+  per client (`ClientConfig.retryable_statuses_idempotent` / `_mutating`), and
+  `request(..., max_retries=)` overrides the budget for one call. `POST` is still
+  never retried on a 5xx or a dropped connection, preserving the
+  no-duplicate-mutation guarantee. The full policy is documented in the developer
+  guide (#21).
+- **Model↔spec field-drift gate:** `tests/unit/test_model_schema_drift.py` diffs
+  every pydantic resource model against the committed OpenAPI snapshot and fails
+  on renamed/removed/retyped fields and newly-required spec fields; intentional
+  divergences live in a self-policing allowlist. The weekly drift workflow embeds
+  the same diff against the incoming spec (#20).
 - **Stability & compatibility policy** (developer guide): defines the public API
   — the exported Python symbols plus the `llms.txt` / skill bundle contract that
   the advisor consumes — what `0.x` version bumps mean, and the deprecation
@@ -18,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in lockstep with the `pyproject.toml` floors (a drifted/missing/stale pin fails).
 
 ### Changed
+- **Release machinery hardened:** every GitHub Action across all workflows is now
+  pinned to a full commit SHA, and PyPI publishing emits PEP 740 build
+  attestations explicitly. Publishing already used Trusted Publishing (OIDC) with
+  no stored token; the tag-to-publish flow is now documented in the developer
+  guide (#24).
 - **Breaking:** raised the `requests` floor from `>=2.28` to `>=2.30`. The old
   floor was never a real lower bound — the test suite cannot run at it (the
   `responses` harness requires `requests>=2.30`). Consumers on any recent
