@@ -234,11 +234,17 @@ mypy src                    # type-check
 A weekly workflow (`.github/workflows/upstream-drift.yml`) compares the live
 APIv2 OpenAPI spec against a committed snapshot (`.github/upstream/`) and
 watches the official `exoscale` SDK version on PyPI. On change it files an
-`upstream-drift` issue containing an oasdiff changelog, a spec-path →
-module/doc-page mapping (`scripts/upstream_drift_map.py`), and an evaluation
-checklist — then refreshes the snapshots. Drift issues are prompts to
-*evaluate*, never auto-fixes (decision D1 in the [roadmap](roadmap.md));
-where spec and live behaviour disagree, live behaviour still wins.
+`upstream-drift` issue containing an oasdiff changelog, an **affected-modules
+summary** that maps the changed spec paths to the connector modules that call
+them (`scripts/drift_operations.py --affected`), a full spec-path →
+module/doc-page mapping legend (`scripts/upstream_drift_map.py`), and an
+evaluation checklist — then refreshes the snapshots. The affected-modules map is
+self-enforcing: `tests/unit/test_drift_operations.py` fails if a module calls an
+endpoint outside its collection path that isn't declared in
+`MODULE_SIBLING_OPERATIONS`, so the watcher can't quietly stop attributing a
+module. Drift issues are prompts to *evaluate*, never auto-fixes (decision D1 in
+the [roadmap](roadmap.md)); where spec and live behaviour disagree, live
+behaviour still wins.
 
 ## Reference manual
 
