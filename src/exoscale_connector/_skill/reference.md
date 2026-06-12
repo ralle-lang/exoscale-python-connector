@@ -279,6 +279,7 @@ An Exoscale managed database service.
 | `state` | `state` | Optional[str] |
 | `node_count` | `node-count` | Optional[int] |
 | `disk_size` | `disk-size` | Optional[int] |
+| `ip_filter` | `ip-filter` | Optional[List[str]] |
 | `created_at` | `created-at` | Optional[str] |
 | `uri_params` | `uri-params` | Optional[DBaaSConnectionInfo] |
 | `uri` | `uri` | Optional[str] |
@@ -1486,6 +1487,7 @@ class DBaaSService(ExoscaleModel):
     state: Optional[str]           # "rebuilding" -> "running"
     node_count: Optional[int]
     disk_size: Optional[int]
+    ip_filter: Optional[List[str]]  # allowed CIDRs; absent/empty = allow-all
     created_at: Optional[str]
     uri_params: Optional[DBaaSConnectionInfo]
     uri: Optional[str]
@@ -1574,10 +1576,10 @@ plans = dbaas.list_service_types()
   response shape is type-specific (Postgres has `password`, MySQL/Valkey
   may carry additional fields like ports). Keeping it as a dict avoids
   forcing a tight schema that varies per backend.
-- **`ip-filter` is settable today via the create/update payload**, even
-  though `DBaaSService` has no typed field for it — `create()`/`update()`
-  pass arbitrary keys straight through. It is a list of CIDR strings, e.g.
-  `["203.0.113.0/24"]`. **A managed DB can't join a private network**, so an
+- **`ip-filter` is a typed field (`DBaaSService.ip_filter`) and your main
+  security lever.** It's a list of CIDR strings, e.g. `["203.0.113.0/24"]`,
+  settable through the create/update payload (wire key `ip-filter`) and read
+  back as `svc.ip_filter`. **A managed DB can't join a private network**, so an
   `ip-filter` allow-list plus TLS (the CA cert lives in `connection_info.ca`)
   is the primary way to keep the service from being reachable by the whole
   internet. `update` **replaces** the entire list rather than merging, so pass
