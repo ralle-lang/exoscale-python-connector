@@ -28,6 +28,7 @@ from exoscale_connector.errors import APIError
 from exoscale_connector.resources.block_volume import BlockVolumeClient
 from exoscale_connector.resources.instance import InstanceClient
 from exoscale_connector.resources.instance_pool import InstancePoolClient
+from exoscale_connector.resources.private_network import PrivateNetworkClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
 from exoscale_connector.resources.snapshot import SnapshotClient
 from exoscale_connector.resources.ssh_key import SSHKey, SSHKeyClient
@@ -292,6 +293,69 @@ def test_block_volume_online_lifecycle(tier_3_client, run_id, tracker, tier_3_en
 
     instances.delete(inst_id)
     tracker.unregister(inst_id)
+
+
+def test_private_network_instance_attach_detach(
+    tier_3_client, run_id, tracker, tier_3_enabled
+) -> None:
+    """Private-network membership: attach an instance, verify, detach, verify gone.
+
+    Exercises PrivateNetworkClient.attach_instance / detach_instance (the
+    colon-actions PUT private-network/{id}:attach / :detach). Membership is
+    confirmed from the instance side — the instance GET echoes a
+    ``private-networks`` list — so this checks the wire effect, not just the
+    operation envelope.
+    """
+    sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
+    tiny_id = resolve_instance_type(tier_3_client, "standard.tiny")
+    template_id = resolve_linux_template(tier_3_client)
+
+    instances = InstanceClient(tier_3_client)
+    nets = PrivateNetworkClient(tier_3_client)
+
+    # Unmanaged (shared-L2) private network — no DHCP range required.
+    net_name = make_name(run_id, "pnet")
+    net = nets.create({"name": net_name, "description": "tier-3 attach/detach"})
+    net_id = net.id
+    assert net_id, "private-network create returned no id"
+    tracker.register("private-network", lambda: nets.delete(net_id), net_id)
+
+    payload = _instance_payload(run_id, "pn-inst", tiny_id, template_id, sg_id, key_name)
+    inst = instances.create(payload)
+    inst_id = inst.id
+    assert inst_id, "instance create returned no id"
+    tracker.register("instance", lambda: instances.delete(inst_id), inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "running", timeout=600)
+
+    def _attached_network_ids() -> list:
+        raw = tier_3_client.get(f"instance/{inst_id}")
+        return [p.get("id") for p in (raw.get("private-networks") or [])]
+
+    # Attach, then confirm membership surfaces on the instance.
+    attach_op = nets.attach_instance(net_id, inst_id)
+    assert (attach_op.state or "").lower() == "success", (
+        f"attach did not succeed (state={attach_op.state})"
+    )
+    deadline = time.time() + 120
+    while net_id not in _attached_network_ids() and time.time() < deadline:
+        time.sleep(5)
+    assert net_id in _attached_network_ids(), "network not attached to instance"
+
+    # Detach, then confirm it's gone again.
+    detach_op = nets.detach_instance(net_id, inst_id)
+    assert (detach_op.state or "").lower() == "success", (
+        f"detach did not succeed (state={detach_op.state})"
+    )
+    deadline = time.time() + 120
+    while net_id in _attached_network_ids() and time.time() < deadline:
+        time.sleep(5)
+    assert net_id not in _attached_network_ids(), "network still attached after detach"
+
+    assert_safe_name(net_name)
+    instances.delete(inst_id)
+    tracker.unregister(inst_id)
+    nets.delete(net_id)
+    tracker.unregister(net_id)
 
 
 def test_instance_scale(tier_3_client, run_id, tracker, tier_3_enabled) -> None:

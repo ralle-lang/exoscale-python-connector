@@ -165,13 +165,33 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
     # for the teardown sweep — DBaaS services are expensive enough that any
     # leak would matter.
     tracker.register("dbaas", lambda: dbaas.delete(name), name)
-    dbaas.create({"plan": plan}, service_type="pg", name=name)
+    # Create with an ip-filter allow-list so the typed field is exercised end to
+    # end. (This is a control-plane setting; it does not affect the API calls
+    # this test makes.)
+    dbaas.create(
+        {"plan": plan, "ip-filter": ["203.0.113.0/24"]},
+        service_type="pg",
+        name=name,
+    )
 
     # State path: rebuilding → running.
     wait_for_state(lambda: dbaas.get(name), "running", timeout=1800, interval=15)
     fetched = dbaas.get(name)
     assert fetched.name == name
     assert (fetched.type or "").lower() == "pg"
+
+    # ip-filter set at create round-trips onto the typed field; update replaces
+    # the whole list (it does not merge).
+    assert fetched.ip_filter == ["203.0.113.0/24"], (
+        f"ip_filter not set on create (got {fetched.ip_filter})"
+    )
+    dbaas.update(
+        name,
+        {"ip-filter": ["203.0.113.0/24", "198.51.100.7/32"]},
+        service_type="pg",
+    )
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    assert set(dbaas.get(name).ip_filter or []) == {"203.0.113.0/24", "198.51.100.7/32"}
 
     # Connection info — get_connection_info returns the full DBaaSService model
     # populated from the type-specific endpoint. Assert structure without ever
