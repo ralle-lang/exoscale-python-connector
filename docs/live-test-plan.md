@@ -53,7 +53,7 @@ enable exactly what you want; no flag = skipped.
 
 | Tier | Flag | Cost order | Examples |
 |------|------|-----------|----------|
-| 0 — read-only smoke | `EXOSCALE_RUN_LIVE_TESTS=1` | €0 | All 18 `list()` calls (already implemented) |
+| 0 — read-only smoke | `EXOSCALE_RUN_LIVE_TESTS=1` | €0 | Every asset-type `list()` call (already implemented) |
 | 1 — free mutations | `EXOSCALE_TEST_TIER_1=1` | €0 | security-group, private-network, anti-affinity-group, ssh-key, iam-role, dns |
 | 2 — cheap, no compute | `EXOSCALE_TEST_TIER_2=1` | < €0.01/run | bucket (S3), block-volume + snapshot (detached), elastic-ip |
 | 3 — compute, minutes-of-runtime | `EXOSCALE_TEST_TIER_3=1` | ~€0.01–0.05/run | instance(+lifecycle), instance-pool(+scale), compute-snapshot, block-volume attach/detach |

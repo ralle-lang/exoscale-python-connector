@@ -110,8 +110,8 @@ vendored by copying one folder.
   copy drifts from the code.
 - **[Read-only advisor MCP server](https://github.com/ralle-lang/exoscale-mcp-advisor)**
   (separate repo) — an MCP server that lets an agent search these docs and run
-  *list-only* live catalogue queries (zones, instance types, templates), while
-  being structurally incapable of mutating anything. It reads this package's
+  *list-only* live catalogue queries (e.g. zones, instance types, templates),
+  while being structurally incapable of mutating anything. It reads this package's
   bundled reference, so its knowledge matches the installed connector version.
   Advise, never operate.
 - **[Developer guide](docs/developer-guide.md)** — architecture, how to add a

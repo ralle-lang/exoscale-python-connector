@@ -374,8 +374,8 @@ trusts, so there is no long-lived credential to store or rotate.
 3. Commit, then push an annotated tag `vX.Y.Z`:
 
    ```bash
-   git tag -a v0.5.0 -m "v0.5.0"
-   git push origin v0.5.0
+   git tag -a vX.Y.Z -m "vX.Y.Z"   # e.g. v0.5.0
+   git push origin vX.Y.Z
    ```
 
 That tag push triggers `.github/workflows/release.yml`, which:

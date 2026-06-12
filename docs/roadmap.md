@@ -27,13 +27,13 @@ the recorder. CI replay active via `test_recorded_replay.py`.
 
 ### ✅ Merge to main, bump version, tag v0.2.0
 Both branches merged to `main`. `pyproject.toml` + `__version__` bumped to
-`0.2.0`. Tag creation pending PyPI trusted-publishing setup (issue #4).
+`0.2.0`, tagged, and published via the trusted-publishing workflow (issue #4).
 
-### Configure PyPI trusted publishing (issue #4 — user task)
-Register the repo + `release.yml` as a trusted publisher for
-`exoscale-connector` on pypi.org and create the `pypi` GitHub environment.
-The workflow is already in-repo and inert until this is done. Once done,
-push the `v0.2.0` tag to trigger the release workflow.
+### ✅ Configure PyPI trusted publishing (issue #4)
+Done: the repo + `release.yml` are registered as a trusted publisher for
+`exoscale-connector` on pypi.org, with the `pypi` GitHub environment. Releases
+from `v0.2.0` onward publish over OIDC with no stored token. See the
+[Releasing section](developer-guide.md#releasing) for the current flow.
 
 ---
 
