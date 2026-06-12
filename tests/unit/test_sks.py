@@ -33,6 +33,29 @@ def test_list_clusters_returns_typed_models(client, base_url) -> None:
 
 
 @responses.activate
+def test_list_versions_returns_string_list(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/sks-cluster-version",
+        json={"sks-cluster-versions": ["1.31.0", "1.30.4", "1.29.8"]},
+        status=200,
+    )
+    versions = SksClusterClient(client).list_versions()
+    assert versions == ["1.31.0", "1.30.4", "1.29.8"]
+
+
+@responses.activate
+def test_list_versions_handles_missing_key(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/sks-cluster-version",
+        json={},
+        status=200,
+    )
+    assert SksClusterClient(client).list_versions() == []
+
+
+@responses.activate
 def test_get_cluster_returns_typed_model(client, base_url) -> None:
     responses.add(
         responses.GET,

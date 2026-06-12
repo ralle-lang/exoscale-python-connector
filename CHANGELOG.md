@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can't guarantee host spread (#13).
 
 ### Added
+- `SksClusterClient.list_versions()` — discover the Kubernetes versions a new
+  SKS cluster may use (wraps `GET /sks-cluster-version`). Lets callers ground a
+  cluster's `version` against what the API currently accepts instead of
+  hardcoding a literal like `"1.30"` that breaks once Exoscale retires it.
+  Mirrors `DBaaSServiceClient.list_service_types()` (#14).
 - `PrivateNetworkClient.attach_instance()` / `detach_instance()` — join and
   remove compute instances to/from a private network (the colon-actions
   `PUT private-network/{id}:attach` / `:detach`), with an optional static `ip`

@@ -63,11 +63,16 @@ from exoscale_connector.resources.sks import SksClusterClient, SksNodepool
 
 sks = SksClusterClient(ExoscaleClient.from_env(zone="de-fra-1"))
 
+# Discover valid Kubernetes versions instead of hardcoding one — the accepted
+# set changes as Exoscale adds/retires releases. The API returns them
+# newest-first, so [0] is the latest.
+versions = sks.list_versions()        # e.g. ["1.31.0", "1.30.4", ...]
+
 # Cluster
 cluster = sks.create({
     "name": "prod-k8s",
     "description": "production cluster",
-    "version": "1.30",
+    "version": versions[0],            # latest; or pick a specific supported one
     "cni": "calico",
     "level": "starter",            # field is "level", not "service-level"
 })
@@ -98,6 +103,11 @@ sks.delete(cluster.id)
 
 ## Gotchas
 
+- **Don't hardcode the Kubernetes `version` — discover it.** Call
+  `list_versions()` (wraps `GET /sks-cluster-version`) and pick from the
+  returned list. The accepted set shifts over time as Exoscale ships new
+  Kubernetes releases and retires old ones, so a literal like `"1.30"` that
+  works today can later be rejected at create. The list is newest-first.
 - **Cluster create field is `level`, not `service-level`.** An initial test
   payload used `service-level` and the API responded with
   `400: missing keys 'level'`. Allowed values: `starter` (free control
