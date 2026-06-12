@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Documentation
+- SKS asset page now lists the valid cluster/nodepool `addons` values, **derived
+  automatically from the committed OpenAPI spec** by `generate_llms_txt.py` (a
+  marker-fenced, generated block) rather than hand-maintained. Addons are a
+  spec-only enum with no runtime list endpoint, so this keeps them honest: the
+  upstream drift watch refreshes the spec, the generator re-injects, and the
+  `--check` gate enforces sync (#16).
 - instance-pool asset page now documents `anti_affinity_groups` — the model
   block, a create example, and a gotcha explaining it spreads pool members
   across distinct hosts and is create-only. Previously invisible to readers

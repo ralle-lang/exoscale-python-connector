@@ -42,6 +42,21 @@ class SksCluster(ExoscaleModel):
     nodepools: Optional[List[SksNodepool]]       # embedded in detail responses
 ```
 
+## Addons
+
+Addons are optional components Exoscale installs into the cluster (or nodepool).
+Enable them by passing `addons: [...]` at create. The valid values below are
+**generated from the committed OpenAPI spec** and kept current by the upstream
+drift watch — don't hand-edit them. Notably,
+`exoscale-container-storage-interface` installs the Exoscale CSI driver needed
+for block-volume-backed PersistentVolumeClaims.
+
+<!-- BEGIN GENERATED:sks-addons -->
+<!-- Generated from .github/upstream/openapi-v2.json by scripts/generate_llms_txt.py — do not edit by hand. -->
+- **Cluster** (`SksCluster.addons`): `exoscale-cloud-controller`, `exoscale-container-storage-interface`, `metrics-server`, `karpenter`
+- **Nodepool** (`SksNodepool.addons`): `storage-lvm`
+<!-- END GENERATED:sks-addons -->
+
 ## CLI
 
 ```bash
