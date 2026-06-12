@@ -57,19 +57,58 @@ Operation polling has its own deadline, `ClientConfig.operation_timeout`
 (default 60 s), since instance creates or SKS clusters routinely take minutes
 to settle. Pass `timeout=` to `wait_operation()` to override per call.
 
-### Retry policy
+### Resilience: timeouts & retries
 
-Transient failures are retried with jittered exponential backoff up to
-`ClientConfig.max_retries` (default 3), but the retryable statuses depend on
-the HTTP method:
+The retry policy exists to protect the **re-runnable provisioning** promise: a
+single transient hiccup (a rate-limit, a flaky 5xx, a dropped connection) must
+not abort a script that is otherwise safe to re-run. The policy is on by default
+and is built into `ExoscaleClient.request()`, so every `list` / `get` / `create`
+/ `update` / `delete` inherits it.
 
-- **Idempotent verbs** (`GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`) are retried
-  on 429, 500, 502, 503 and 504.
-- **`POST` is retried on 429 only.** A 5xx on a POST is ambiguous — the
-  mutation may have been applied server-side, and a blind retry could create
-  duplicate resources (or, for API keys, a duplicate live credential whose
-  secret is never seen). Callers who want to recover from a 5xx on create
-  should re-check resource existence (e.g. `find_by_name`) before retrying.
+**Timeouts.** Each HTTP call has a per-request `ClientConfig.timeout` (default
+60 s) so a hung socket fails fast. Async operations get a separate, much longer
+deadline, `operation_timeout` (default 600 s) — see the request flow above.
+
+**What is retried.** Up to `ClientConfig.max_retries` times (default 3), with
+**full-jitter exponential backoff** (`retry_backoff` base 0.5 s) so a fleet of
+clients doesn't retry in lockstep:
+
+- **Retryable HTTP statuses** — `429` plus transient `5xx`. The exact sets are
+  configurable per client: `retryable_statuses_idempotent` (default
+  `{429, 500, 502, 503, 504}`) and `retryable_statuses_mutating` (default
+  `{429}`).
+- **Connection-level errors** — dropped connections, read timeouts, and chunked
+  encoding errors (no HTTP response arrived). These are retried for idempotent
+  verbs on the same budget. This closes the gap where a single TCP reset on a
+  read used to kill a provisioning run.
+
+**The method split (the no-duplicate-mutation guarantee).** Retry behaviour
+depends on idempotency:
+
+- **Idempotent verbs** (`GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`) retry on the
+  retryable statuses *and* connection-level errors — re-issuing them is safe.
+- **`POST` is retried on `429` only.** A 5xx *or a dropped connection* on a POST
+  is ambiguous — the mutation may have been applied server-side, and a blind
+  retry could create duplicate resources (or, for API keys, a duplicate live
+  credential whose secret is never seen). Callers who want to recover from such
+  an error on create should re-check resource existence (e.g. `find_by_name`)
+  before retrying.
+
+**`Retry-After`.** When the server sends `Retry-After` (delta-seconds form) on a
+retryable response it overrides our backoff — the server knows its rate-limit
+window best — capped at 60 s so a pathological header can't stall the client.
+
+**Polling owns its own retries.** `wait_operation()` issues single-attempt polls
+(`max_retries=0`) because the poll loop is itself the retry authority for
+operations, tolerating up to `max_poll_failures` (default 3) *consecutive*
+transient failures with the counter resetting on every successful poll — so the
+two layers don't compound. Pass `max_retries=` to `request()` to override the
+budget for a single call.
+
+**Pagination.** APIv2 list endpoints are unpaginated today, so `list()` reads the
+whole collection in one call (see the note in `resources/_base.py`); if Exoscale
+ever introduces pagination this is the spot that must grow cursor handling rather
+than silently truncate.
 
 ### Zones
 

@@ -10,9 +10,17 @@ from __future__ import annotations
 import os
 import warnings
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import FrozenSet, Optional
 
 from .errors import ConfigError
+
+# Default retryable HTTP statuses, split by request idempotency. Idempotent verbs
+# can safely retry any transient server / rate-limit status. A non-idempotent POST
+# is only retried on 429 — where the server explicitly refused to process the
+# request — because a 5xx (or a dropped connection) may mean the mutation was
+# applied server-side, and a blind retry could duplicate a resource.
+DEFAULT_RETRYABLE_STATUSES_IDEMPOTENT = frozenset({429, 500, 502, 503, 504})
+DEFAULT_RETRYABLE_STATUSES_MUTATING = frozenset({429})
 
 # Well-known Exoscale zones, used only for friendly hints — never to restrict,
 # since new zones are added over time.
@@ -48,6 +56,12 @@ class ClientConfig:
     verify_tls: bool = True
     max_retries: int = 3
     retry_backoff: float = 0.5
+    # Retryable HTTP statuses, tunable per client. Idempotent verbs use the first
+    # set; non-idempotent POST uses the second (429-only by default) to keep the
+    # no-duplicate-mutation guarantee. Connection-level failures (drops, read
+    # timeouts) follow the same split: retried for idempotent verbs, never for POST.
+    retryable_statuses_idempotent: FrozenSet[int] = DEFAULT_RETRYABLE_STATUSES_IDEMPOTENT
+    retryable_statuses_mutating: FrozenSet[int] = DEFAULT_RETRYABLE_STATUSES_MUTATING
     # How many *consecutive* transient failures (connection drops, timeouts, a
     # sporadic 404 while an operation is still propagating) the async-operation
     # poll loop tolerates before giving up. Reset on every successful poll.

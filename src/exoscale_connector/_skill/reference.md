@@ -59,7 +59,7 @@ A thin, signed HTTP client for one set of Exoscale credentials.
 - `get(path: str, *, zone: Optional[str] = None, params: Optional[dict] = None) -> dict`
 - `post(path: str, *, zone: Optional[str] = None, json: Any = None) -> dict`
 - `put(path: str, *, zone: Optional[str] = None, json: Any = None) -> dict`
-- `request(method: str, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, json: Any = None) -> dict`
+- `request(method: str, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, json: Any = None, max_retries: Optional[int] = None) -> dict`
   Send a signed request to ``<base>/<path>`` and return the parsed body.
 - `wait_operation(operation: Union[Operation, dict, str], *, zone: Optional[str] = None, timeout: Optional[float] = None, poll_interval: float = 2.0) -> Operation`
   Poll an async operation until it succeeds, then return the final state.
@@ -74,6 +74,8 @@ A thin, signed HTTP client for one set of Exoscale credentials.
 - `verify_tls`: bool
 - `max_retries`: int
 - `retry_backoff`: float
+- `retryable_statuses_idempotent`: FrozenSet[int]
+- `retryable_statuses_mutating`: FrozenSet[int]
 - `max_poll_failures`: int
 - `operation_timeout`: float
 
