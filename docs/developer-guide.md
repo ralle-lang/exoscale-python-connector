@@ -285,6 +285,35 @@ module. Drift issues are prompts to *evaluate*, never auto-fixes (decision D1 in
 the [roadmap](roadmap.md)); where spec and live behaviour disagree, live
 behaviour still wins.
 
+### Model ↔ spec field drift gate
+
+A live test proves the connector *behaves* against the real API; it does not
+prove each pydantic model's field set still lines up with the published OpenAPI
+contract. Because `extra="allow"` silently keeps unknown response keys, a model
+wired to a renamed wire key can still round-trip green while quietly leaving its
+typed field `None`. `scripts/model_schema_drift.py` closes that gap: it diffs
+every resource model against its `components/schemas` entry in the committed
+snapshot and **fails on drift** — renamed, removed/deprecated, or retyped fields,
+and newly *required* spec fields. Optional spec fields the models deliberately
+omit are reported as informational only (the models are a curated subset).
+
+It is self-enforcing like the two maps above
+(`tests/unit/test_model_schema_drift.py`):
+
+- the model→schema mapping is inferred from each client's `collection_path`, with
+  only a small `SCHEMA_ALIASES` map for names the inference can't reach (e.g.
+  `block-storage` → `block-storage-volume`) and an `EXEMPT_MODELS` list for models
+  with no 1:1 schema (object storage is S3, not APIv2; `DBaaSService` is a
+  flattened union). A new asset type with no mapping fails the test;
+- intentional, live-verified divergences (the documented gotchas — e.g. the
+  flattened load-balancer `healthcheck`, SKS `level`) live in
+  `ALLOWED_DIVERGENCES` with a reason, and a *stale* allowlist entry that
+  suppresses nothing also fails the test.
+
+The weekly drift workflow runs the same diff against the *incoming* spec
+(`--summary`) and embeds the result in the evaluation issue, so a model that will
+go red after the snapshot refresh is called out up front.
+
 ## Reference manual
 
 The [asset type reference](asset-types/README.md) carries one page per asset
