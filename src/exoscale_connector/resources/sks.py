@@ -86,6 +86,24 @@ class SksClusterClient(ResourceClient[SksCluster]):
     # Cluster helpers
     # ------------------------------------------------------------------ #
 
+    def list_versions(self, *, zone: Optional[str] = None) -> List[str]:
+        """Return the Kubernetes versions a new SKS cluster may be created with.
+
+        Wraps ``GET /sks-cluster-version`` (response key
+        ``sks-cluster-versions``). The set changes over time as Exoscale adds new
+        Kubernetes releases and retires old ones, so resolve a cluster's
+        ``version`` against this list rather than hardcoding a literal like
+        ``"1.30"`` — a value that is valid today can be rejected after an
+        upstream retirement. Mirrors
+        :meth:`~.dbaas.DBaaSServiceClient.list_service_types`.
+
+        Versions are returned as raw strings, newest-first as the API orders
+        them (e.g. ``["1.31.0", "1.30.4", ...]``).
+        """
+        payload = self.client.get("sks-cluster-version", zone=self._zone(zone))
+        versions = payload.get("sks-cluster-versions") or []
+        return [v for v in versions if isinstance(v, str)]
+
     def generate_kubeconfig(
         self,
         cluster_id: str,

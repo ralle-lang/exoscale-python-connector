@@ -87,6 +87,50 @@ def test_get_fetches_service_by_name(client, base_url) -> None:
 
 
 @responses.activate
+def test_get_parses_typed_ip_filter(client, base_url) -> None:
+    """ip-filter (wire key) deserialises onto the typed ip_filter field."""
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-service",
+        json={"dbaas-services": [{"name": "pg-prod", "type": "pg"}]},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-postgres/pg-prod",
+        json={"name": "pg-prod", "type": "pg", "ip-filter": ["203.0.113.0/24", "198.51.100.7/32"]},
+        status=200,
+    )
+    svc = DBaaSServiceClient(client).get("pg-prod")
+    assert svc.ip_filter == ["203.0.113.0/24", "198.51.100.7/32"]
+
+
+@responses.activate
+def test_create_sends_ip_filter_in_payload(client, base_url) -> None:
+    """A typed/dict ip-filter is forwarded on the create payload."""
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-postgres/locked-db",
+        json={},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-postgres/locked-db",
+        json={"name": "locked-db", "type": "pg", "ip-filter": ["203.0.113.0/24"]},
+        status=200,
+    )
+    svc = DBaaSServiceClient(client).create(
+        {"plan": "hobbyist-2", "ip-filter": ["203.0.113.0/24"]},
+        service_type="pg",
+        name="locked-db",
+    )
+    sent = responses.calls[0].request.body
+    assert b'"ip-filter"' in sent and b'"203.0.113.0/24"' in sent
+    assert svc.ip_filter == ["203.0.113.0/24"]
+
+
+@responses.activate
 def test_get_preserves_extra_type_specific_fields(client, base_url) -> None:
     """Unknown/type-specific fields survive via extra='allow'."""
     responses.add(

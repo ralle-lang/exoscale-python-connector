@@ -30,6 +30,7 @@ import argparse
 import dataclasses
 import importlib
 import inspect
+import json
 import pkgutil
 import re
 import sys
@@ -42,6 +43,12 @@ OUTPUT_PATH = REPO_ROOT / "docs" / "llms.txt"
 ASSET_PAGES_DIR = REPO_ROOT / "docs" / "asset-types"
 PKG_SKILL_DIR = REPO_ROOT / "src" / "exoscale_connector" / "_skill"
 REPO_SKILL_DIR = REPO_ROOT / ".claude" / "skills" / "exoscale-connector"
+# Committed upstream OpenAPI snapshot — ground truth for spec-only enums (e.g.
+# SKS addons) that have no runtime list endpoint to wrap. Refreshed by the
+# weekly upstream drift watch; this generator injects values from it into the
+# docs so they never have to be hand-maintained.
+UPSTREAM_SPEC = REPO_ROOT / ".github" / "upstream" / "openapi-v2.json"
+SKS_PAGE = ASSET_PAGES_DIR / "sks.md"
 
 # Generate from the working tree, not from an installed copy of the package.
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -217,12 +224,79 @@ def _demote_headings(text: str, levels: int = 2) -> str:
     return "\n".join(out)
 
 
+# Marker fence for the spec-derived SKS addon block embedded in sks.md. The
+# content between the markers is owned by this generator; everything else on the
+# page is hand-written.
+ADDON_BLOCK_BEGIN = "<!-- BEGIN GENERATED:sks-addons -->"
+ADDON_BLOCK_END = "<!-- END GENERATED:sks-addons -->"
+
+
+def _spec_addon_enum(spec: dict, schema: str) -> List[str]:
+    """Pull the ``addons`` enum for a schema out of the OpenAPI spec, or []."""
+    items = (
+        spec.get("components", {})
+        .get("schemas", {})
+        .get(schema, {})
+        .get("properties", {})
+        .get("addons", {})
+        .get("items", {})
+    )
+    enum = items.get("enum")
+    return [v for v in enum if isinstance(v, str)] if isinstance(enum, list) else []
+
+
+def _sks_addons_block() -> str:
+    """Render the marker-fenced SKS addon list from the committed OpenAPI spec.
+
+    SKS addons are a static enum in the spec with no runtime list endpoint, so
+    they are sourced here rather than wrapped as a client method. Refreshing the
+    committed spec (via the drift watch) regenerates this block.
+    """
+    spec = json.loads(UPSTREAM_SPEC.read_text(encoding="utf-8"))
+    cluster = ", ".join(f"`{a}`" for a in _spec_addon_enum(spec, "sks-cluster"))
+    nodepool = ", ".join(f"`{a}`" for a in _spec_addon_enum(spec, "sks-nodepool"))
+    return "\n".join(
+        [
+            ADDON_BLOCK_BEGIN,
+            "<!-- Generated from .github/upstream/openapi-v2.json by "
+            "scripts/generate_llms_txt.py — do not edit by hand. -->",
+            f"- **Cluster** (`SksCluster.addons`): {cluster or '_(none in spec)_'}",
+            f"- **Nodepool** (`SksNodepool.addons`): {nodepool or '_(none in spec)_'}",
+            ADDON_BLOCK_END,
+        ]
+    )
+
+
+def _inject_sks_addons(text: str) -> str:
+    """Replace the marker-fenced block in sks.md with freshly generated content.
+
+    Idempotent: re-running with an unchanged spec yields identical text. If the
+    markers are absent the page is returned untouched.
+    """
+    pattern = re.compile(
+        re.escape(ADDON_BLOCK_BEGIN) + r".*?" + re.escape(ADDON_BLOCK_END),
+        re.DOTALL,
+    )
+    if not pattern.search(text):
+        return text
+    block = _sks_addons_block()
+    return pattern.sub(lambda _: block, text)
+
+
+def _load_asset_page(path: Path) -> str:
+    """Read an asset page, applying any spec-derived injections it declares."""
+    text = path.read_text(encoding="utf-8")
+    if path.name == "sks.md":
+        text = _inject_sks_addons(text)
+    return text
+
+
 def _asset_page_sections() -> List[str]:
     pages = sorted(p for p in ASSET_PAGES_DIR.glob("*.md") if p.name != "README.md")
     ordered = [ASSET_PAGES_DIR / "README.md"] + pages
     lines: List[str] = []
     for page in ordered:
-        lines += [_demote_headings(page.read_text(encoding="utf-8").rstrip()), ""]
+        lines += [_demote_headings(_load_asset_page(page).rstrip()), ""]
     return lines
 
 
@@ -356,6 +430,9 @@ def artifacts() -> "dict[Path, str]":
     bundle = generate_bundle()
     return {
         OUTPUT_PATH: bundle,
+        # sks.md carries a spec-derived addon block, so it is partly generated:
+        # keep its injected form under the same sync gate as everything else.
+        SKS_PAGE: _load_asset_page(SKS_PAGE),
         PKG_SKILL_DIR / "SKILL.md": SKILL_MD,
         PKG_SKILL_DIR / "reference.md": bundle,
         REPO_SKILL_DIR / "SKILL.md": SKILL_MD,

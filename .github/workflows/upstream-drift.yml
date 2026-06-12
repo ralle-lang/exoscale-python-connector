@@ -63,7 +63,7 @@ jobs:
             echo "Automated drift report: the APIv2 OpenAPI spec changed upstream."
             echo
             echo "## Evaluation checklist"
-            echo "- [ ] Review the changelog; identify affected asset types via the mapping below"
+            echo "- [ ] Review the changelog and the **Affected connector modules** section below; focus on the modules it names"
             echo "- [ ] New/changed **request** fields: compare against the pydantic models (response-side additions are tolerated by \`extra=\"allow\"\`)"
             echo "- [ ] Check whether any documented gotcha on the affected asset pages still holds"
             echo "- [ ] Decide live re-verification scope (tier flags, docs/live-test-plan.md)"
@@ -71,12 +71,21 @@ jobs:
             echo
             echo "The committed snapshot is refreshed automatically by this workflow run."
             echo
+            echo "## Affected connector modules"
+            echo
+            echo "Changed spec paths mapped to the modules that call them. The base"
+            echo "(\`.github/upstream/openapi-v2.json\`) is still the pre-change snapshot at"
+            echo "this step, so this diff reflects exactly what changed this run."
+            echo
+            python scripts/drift_operations.py --affected \
+              .github/upstream/openapi-v2.json .drift/spec.json
+            echo
             echo "## Changelog (oasdiff)"
             echo
             head -c 60000 .drift/changelog.md
             echo
             echo
-            echo "## Spec path → connector module mapping"
+            echo "## Spec path → connector module mapping (full legend)"
             echo
             python scripts/upstream_drift_map.py
           } > .drift/issue.md

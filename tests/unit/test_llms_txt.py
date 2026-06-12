@@ -6,9 +6,18 @@ CI run. Regenerate with ``python scripts/generate_llms_txt.py``.
 """
 import importlib
 import inspect
+import json
 import pkgutil
 
-from scripts.generate_llms_txt import ASSET_PAGES_DIR, SKILL_MD, artifacts, generate_bundle
+from scripts.generate_llms_txt import (
+    ASSET_PAGES_DIR,
+    SKILL_MD,
+    SKS_PAGE,
+    UPSTREAM_SPEC,
+    _load_asset_page,
+    artifacts,
+    generate_bundle,
+)
 
 import exoscale_connector.resources as resources_pkg
 
@@ -44,12 +53,29 @@ def test_skill_has_valid_frontmatter_and_points_at_reference():
     assert "name: exoscale-connector" in frontmatter
     assert "description:" in frontmatter
     assert "reference.md" in SKILL_MD
-    # Both skill copies ship a reference identical to the bundle.
+    # Both skill copies ship a reference identical to the bundle. sks.md is also
+    # a (partly) generated artifact — its spec-derived addon block is injected.
     paths = {p.name: p for p in artifacts()}
-    assert sorted(paths) == ["SKILL.md", "llms.txt", "reference.md"]
+    assert sorted(paths) == ["SKILL.md", "llms.txt", "reference.md", "sks.md"]
     for path, content in artifacts().items():
         if path.name == "reference.md":
             assert content == generate_bundle()
+
+
+def test_sks_addons_injected_from_spec():
+    """The sks.md addon block is sourced from the committed OpenAPI spec, not hand-typed."""
+    spec = json.loads(UPSTREAM_SPEC.read_text(encoding="utf-8"))
+    cluster_enum = (
+        spec["components"]["schemas"]["sks-cluster"]["properties"]["addons"]["items"]["enum"]
+    )
+    page = _load_asset_page(SKS_PAGE)
+    assert "BEGIN GENERATED:sks-addons" in page
+    # Every addon advertised by the spec must appear in the rendered page.
+    for addon in cluster_enum:
+        assert f"`{addon}`" in page, f"{addon} from spec missing in sks.md"
+    # And the rendered set is exactly the spec's (no stale hand-added extras).
+    rendered = page.split("BEGIN GENERATED:sks-addons")[1].split("END GENERATED:sks-addons")[0]
+    assert "exoscale-cloud-controller" in rendered
 
 
 def test_bundle_covers_every_resource_client():

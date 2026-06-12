@@ -104,3 +104,15 @@ def test_list_instance_types_and_find_slug(live_client) -> None:
     assert listed, "instance-type list came back empty"
     tiny = types.find("standard.tiny")
     assert tiny is not None and tiny.id, "standard.tiny not resolvable"
+
+
+def test_list_sks_versions(live_client) -> None:
+    """SksClusterClient.list_versions() returns the live, non-empty version set.
+
+    Read-only, so it lives with the smoke suite rather than the expensive SKS
+    tier. Grounds the connector's version discovery against what the API
+    actually accepts instead of a hardcoded literal.
+    """
+    versions = SksClusterClient(live_client).list_versions()
+    assert isinstance(versions, list) and versions, "no SKS versions returned"
+    assert all(isinstance(v, str) and v for v in versions)

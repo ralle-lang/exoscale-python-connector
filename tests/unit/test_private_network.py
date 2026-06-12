@@ -129,3 +129,65 @@ def test_labels_field_parses(client, base_url) -> None:
     )
     net = PrivateNetworkClient(client).get("pn1")
     assert net.labels == {"zone": "de-fra-1"}
+
+
+@responses.activate
+def test_attach_instance_puts_colon_action(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/private-network/pn1:attach",
+        json={"id": "op-attach", "state": "success"},
+        status=200,
+    )
+    op = PrivateNetworkClient(client).attach_instance("pn1", "i-abc")
+    assert op.state == "success"
+    sent = responses.calls[0].request.body
+    assert b'"instance"' in sent and b'"i-abc"' in sent
+    # No static lease requested -> no ip key in the body.
+    assert b'"ip"' not in sent
+
+
+@responses.activate
+def test_attach_instance_with_static_ip(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/private-network/pn1:attach",
+        json={"id": "op-attach2", "state": "success"},
+        status=200,
+    )
+    op = PrivateNetworkClient(client).attach_instance("pn1", "i-abc", ip="10.0.0.42")
+    assert op.state == "success"
+    sent = responses.calls[0].request.body
+    assert b'"ip"' in sent and b'"10.0.0.42"' in sent
+
+
+@responses.activate
+def test_attach_instance_awaits_pending_operation(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/private-network/pn1:attach",
+        json={"id": "op-attach3", "state": "pending"},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/operation/op-attach3",
+        json={"id": "op-attach3", "state": "success"},
+        status=200,
+    )
+    op = PrivateNetworkClient(client).attach_instance("pn1", "i-abc")
+    assert op.state == "success"
+
+
+@responses.activate
+def test_detach_instance_puts_colon_action(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/private-network/pn1:detach",
+        json={"id": "op-detach", "state": "success"},
+        status=200,
+    )
+    op = PrivateNetworkClient(client).detach_instance("pn1", "i-abc")
+    assert op.state == "success"
+    sent = responses.calls[0].request.body
+    assert b'"instance"' in sent and b'"i-abc"' in sent

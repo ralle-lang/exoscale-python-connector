@@ -61,6 +61,11 @@ class DBaaSService(ExoscaleModel):
     node_count: Optional[int] = None
     # Allocated disk size in megabytes.
     disk_size: Optional[int] = None
+    # IP allow-list (CIDR strings) for incoming connections. Settable via the
+    # create/update payload and returned on the type-specific GET for every
+    # service type. Absent or empty means allow-all. Since a managed DB can't
+    # join a private network, this plus TLS is the primary way to secure it.
+    ip_filter: Optional[List[str]] = None
     # ISO-8601 creation timestamp.
     created_at: Optional[str] = None
     # Structured connection parameters (full item endpoint only).
