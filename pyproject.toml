@@ -19,7 +19,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "requests>=2.28",
+    "requests>=2.30",
     "pydantic>=2.5,<3",
 ]
 

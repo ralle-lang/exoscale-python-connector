@@ -29,3 +29,22 @@ jobs:
         run: python scripts/generate_llms_txt.py --check
       # Integration tiers (tests/integration) need live tenant credentials and
       # are deliberately NOT run in CI — see docs/live-test-plan.md.
+
+  min-deps:
+    # Install against the DECLARED MINIMUM dependency versions (the floors in
+    # pyproject.toml, pinned in ci/constraints-min.txt and kept honest by
+    # tests/unit/test_min_constraints.py) on the floor Python. A too-low floor —
+    # code relying on a newer requests/pydantic API than declared — fails here
+    # rather than in a user's environment. The `test` job above covers latest.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.9"  # floor Python + floor deps = the tightest combo
+      - name: Install at minimum dependency versions
+        run: pip install -e '.[dev]' -c ci/constraints-min.txt
+      - name: Type-check
+        run: mypy src
+      - name: Unit tests
+        run: pytest tests/unit -q

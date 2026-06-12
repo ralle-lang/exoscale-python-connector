@@ -1,0 +1,11 @@
+# CI-only pip constraints: pin the runtime dependencies to their *declared
+# minimum* versions — the lower bounds in pyproject.toml [project.dependencies].
+# The min-deps CI job installs with `-c ci/constraints-min.txt` so those floors
+# are exercised by the full suite; if the code starts relying on a newer API
+# than a floor allows, that job fails here instead of in a user's environment.
+#
+# Kept honest by tests/unit/test_min_constraints.py: every runtime dependency
+# must have exactly one exact (==) pin whose major.minor matches the declared
+# pyproject floor — a missing, drifted, or stale pin fails the build.
+requests==2.30.0
+pydantic==2.5.0

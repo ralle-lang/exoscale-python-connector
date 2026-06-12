@@ -133,7 +133,9 @@ than full-time or on a fixed schedule. It is shared because it may be useful to
 others, not as a supported product. Issues and pull requests are welcome and will
 be looked at when time allows, but there is no guaranteed response time or release
 cadence. The API surface it tracks can drift; if you depend on it, pin a version,
-and feel free to fork and adapt it.
+and feel free to fork and adapt it. What counts as the public API, what `0.x`
+version bumps mean, and the deprecation procedure are defined in the
+[stability & compatibility policy](docs/developer-guide.md#stability--compatibility).
 
 A weekly CI job watches the upstream APIv2 spec and the official SDK for changes
 and files evaluation issues, so staleness is detected promptly even when
