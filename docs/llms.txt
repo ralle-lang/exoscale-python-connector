@@ -2068,6 +2068,10 @@ class InstancePool(ExoscaleModel):
     instance_prefix: Optional[str]
     ipv6_enabled: Optional[bool]
     public_ip_assignment: Optional[str]
+    security_groups: List[Reference]
+    private_networks: List[Reference]
+    anti_affinity_groups: List[Reference]   # spread members across distinct hosts
+    instances: List[Reference]              # current pool members
     labels: Optional[dict]
     deploy_target: Optional[Reference]
     ssh_key: Optional[Reference]
@@ -2100,6 +2104,8 @@ pool = pools.create({
     "disk-size": 10,
     "ssh-key": {"name": "laptop"},
     "security-groups": [{"id": "<sg-id>"}],
+    # Spread members across distinct physical hosts for HA. Set at create only.
+    "anti-affinity-groups": [{"id": "<aag-id>"}],
 })
 
 pools.scale(pool.id, 3)        # async — wait until state == "running" and size == 3
@@ -2119,6 +2125,10 @@ pools.delete(pool.id)          # cascade-deletes member instances
 - **Pool members are visible via the `instance` API**, with `manager`
   populated. Don't delete them individually if you want the pool's desired
   size to stay correct.
+- **Pass `anti-affinity-groups: [{"id": ...}]` at create to spread members
+  across distinct physical hosts** — this is the supported way an instance pool
+  guarantees host spread for HA. Like anti-affinity groups generally, it is
+  **create-only**: it can't be changed on an existing pool, so decide up front.
 
 #### End-to-end example
 

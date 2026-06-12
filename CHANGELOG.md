@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- instance-pool asset page now documents `anti_affinity_groups` — the model
+  block, a create example, and a gotcha explaining it spreads pool members
+  across distinct hosts and is create-only. Previously invisible to readers
+  (and to LLMs reading the page), which led to the wrong conclusion that pools
+  can't guarantee host spread (#13).
+
 ### Added
 - `PrivateNetworkClient.attach_instance()` / `detach_instance()` — join and
   remove compute instances to/from a private network (the colon-actions
