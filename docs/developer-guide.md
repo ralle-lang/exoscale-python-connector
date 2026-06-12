@@ -314,6 +314,60 @@ The weekly drift workflow runs the same diff against the *incoming* spec
 (`--summary`) and embeds the result in the evaluation issue, so a model that will
 go red after the snapshot refresh is called out up front.
 
+## Releasing
+
+Releases are **tag-driven and fully automated** — there is no manual `twine`
+step and no PyPI API token anywhere in the repo. Publishing uses **PyPI Trusted
+Publishing (OIDC)**: GitHub Actions mints a short-lived identity token that PyPI
+trusts, so there is no long-lived credential to store or rotate.
+
+### Cutting a release
+
+1. Bump the version in `src/exoscale_connector/__init__.py` (the single source of
+   truth — `pyproject.toml` reads it via `[tool.hatch.version]`).
+2. Add the matching `## [x.y.z]` section to `CHANGELOG.md`; its body becomes the
+   GitHub Release notes verbatim.
+3. Commit, then push an annotated tag `vX.Y.Z`:
+
+   ```bash
+   git tag -a v0.5.0 -m "v0.5.0"
+   git push origin v0.5.0
+   ```
+
+That tag push triggers `.github/workflows/release.yml`, which:
+
+- **`build`** — runs the full check suite (ruff, mypy, unit tests), builds the
+  sdist + wheel, and uploads them as an artifact.
+- **`publish`** — downloads the artifact and publishes to PyPI via Trusted
+  Publishing through the `pypi` GitHub Environment, emitting **PEP 740 build
+  attestations** (`attestations: true`) so each artifact is verifiably tied to
+  this workflow run.
+- **`github-release`** — slices the `CHANGELOG.md` section for the tag and creates
+  the GitHub Release with the built artifacts attached.
+
+### Trusted-publisher configuration (set once, on PyPI)
+
+The PyPI project `exoscale-connector` has a GitHub trusted publisher registered
+with these exact values — they must stay in lockstep with the workflow:
+
+| PyPI field | Value |
+|---|---|
+| Owner | `ralle-lang` |
+| Repository | `exoscale-python-connector` |
+| Workflow filename | `release.yml` |
+| Environment | `pypi` |
+
+If the workflow filename or the environment name ever changes, update the trusted
+publisher on PyPI to match or the publish step will fail authentication.
+
+### Action pinning
+
+Every GitHub Action in every workflow is **pinned to a full commit SHA** (with a
+trailing `# vX` comment for readability), not a moving tag — a tag can be
+repointed by a compromised upstream, a SHA cannot. Dependabot
+(`.github/dependabot.yml`) watches the `github-actions` ecosystem and opens PRs to
+bump the pins deliberately.
+
 ## Reference manual
 
 The [asset type reference](asset-types/README.md) carries one page per asset
