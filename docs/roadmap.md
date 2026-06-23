@@ -141,6 +141,28 @@ needed (Dependabot is GitHub-native; no extra infrastructure).
 
 ---
 
+## Backlog: APIv2 additive coverage (drift-fed)
+
+Additive upstream changes (new optional request params worth promoting to
+first-class, new endpoints, new asset types) accrue here as they surface in
+`upstream-drift` issues. These are **not** per-item GitHub issues — they wait
+until the pile is worth a focused session (see D3 for the triage rule and the
+effort-based graduation trigger). Each item carries a first-pass effort
+estimate including a full test run; when the running total crosses ~8–16h
+(1–2 days), the batch graduates to one GitHub issue on the active milestone and
+gets implemented together.
+
+| Item | Source | First-pass estimate (impl + full test run) |
+|---|---|---|
+| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34 | ~1 day (new asset type, nested sub-resources, live verify) |
+| **DBaaS Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` (update) as a first-class param | drift #34 | ~1–2h |
+| **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34 | ~1–2h |
+
+_Running total: ~1.5 days. Estimates are first-pass, refined per drift during
+Claude Code evaluation._
+
+---
+
 ## Backlog / deferred
 
 ### Async client (httpx) — deferred, decision pending
@@ -177,6 +199,31 @@ idempotent via `ensure()`) and a more capable engineer: the AI's job ends at
 the moment of understanding. Consequences: rung 3 is read-only by
 construction; no agent-orchestration features in the connector; anything
 AI-flavored beyond generated docs lives outside this repo.
+
+### D3 — Drift triage: breaking fixes now, additive batches by effort (2026-06-22)
+Every `upstream-drift` issue is evaluated with Claude Code when it lands, and
+each change is sorted into one of three buckets:
+
+- **Breaking → fix now, own PR.** Renamed/removed/retyped/newly-required request
+  fields (turns `test_model_schema_drift.py` red). Edge case: a new enum value on
+  a field pinned with `Literal` is also breaking — `iam_role.py` is the only such
+  model today, so plain-`str` enum additions elsewhere are tolerated/additive.
+- **Doc-gotcha invalidation → fix now, trivial.** A drift that makes a documented
+  gotcha wrong (changed default, an "always null" field that starts returning
+  data) without breaking a model. Correcting misinformation is cheaper than
+  carrying it; it does not wait in the backlog.
+- **Additive → backlog above, batched.** New optional first-class params, new
+  endpoints, new asset types. Harvested into the backlog table before the drift
+  issue is closed (the snapshot refreshes on every run, so unharvested additive
+  content is lost otherwise).
+
+**Graduation is effort-based, not count- or time-based.** Each additive item gets
+a rough impl + full-test-run estimate during evaluation. When the accumulated
+backlog crosses ~8–16h (1–2 days), it graduates as a single GitHub issue on the
+active milestone and is implemented in one focused session. Rationale: no
+appetite for tiny per-drift updates; breaking changes stay immediate while
+additive work accrues until it justifies a session, keeping GitHub clean and
+matching this file's "one heading = one issue, graduate when ripe" model.
 
 ### D2 — Catalogue knowledge is discovered, never hardcoded (2026-06-10)
 No enums of zones, instance types, families/sizes, templates, or DBaaS plans
