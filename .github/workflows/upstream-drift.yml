@@ -54,6 +54,9 @@ jobs:
           base: .github/upstream/openapi-v2.json
           revision: .drift/spec.json
           output-to-file: .drift/changelog.md
+          # Cron-only workflow with no PR context: suppress the v0.1.x
+          # side-by-side review feature (external ciphertext upload + notices).
+          review: false
 
       - name: Build spec drift issue body
         if: steps.spec.outputs.changed == 'true'
