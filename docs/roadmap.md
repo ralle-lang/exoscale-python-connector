@@ -154,9 +154,10 @@ gets implemented together.
 
 | Item | Source | First-pass estimate (impl + full test run) |
 |---|---|---|
-| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34 | ~1 day (new asset type, nested sub-resources, live verify) |
-| **DBaaS Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` (update) as a first-class param | drift #34 | ~1–2h |
-| **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34 | ~1–2h |
+| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34, re-confirmed #40 | ~1 day (new asset type, nested sub-resources, live verify) |
+| **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
+| **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
+| **InstancePool `error-reason` + `error` state** — surface the new optional response property (`error-reason`, explains a pool entering the new `error` state) as a first-class model field; the `error` state value is already tolerated (plain-`str` field, not `Literal`). Same `error-reason` also surfaces nested under load-balancer service `instance-pool` | drift #40 | ~1h |
 
 _Running total: ~1.5 days. Estimates are first-pass, refined per drift during
 Claude Code evaluation._
