@@ -122,7 +122,11 @@ starting point, not the truth).
 - Weekly cron: fetch → normalize → diff with `oasdiff` (spec-aware,
   markdown changelog, ignores cosmetic churn). On change: file the issue
   via `--body-file` (injection hygiene — upstream text never interpolated
-  into shell), then commit the refreshed snapshot in the same run.
+  into shell). The bot does **not** push the refreshed snapshot — main is
+  protection-ruled and, per D1, the baseline should move only after a human
+  triages the drift. The snapshot under `.github/upstream/` is advanced
+  inside the reviewed triage PR instead (see the `exoscale-drift-triage`
+  skill); re-runs before triage append a dedup comment.
 - Dedup: append a comment to an existing open `upstream-drift` issue
   instead of opening duplicates.
 - Issue body is agent-ready: oasdiff changelog + a changed-path →
