@@ -496,13 +496,16 @@
       "create-kms-key-request": {
         "properties": {
           "description": {
+            "description": "An optional detailed description providing additional context about the key's intended use case.",
             "type": "string"
           },
           "multi-zone": {
             "default": false,
+            "description": "True if this is a multi-zone key.",
             "type": "boolean"
           },
           "name": {
+            "description": "A human-readable display name uniquely identifying the KMS key within the tenant space.",
             "type": "string"
           },
           "usage": {
@@ -521,23 +524,29 @@
       "create-kms-key-response": {
         "properties": {
           "created-at": {
+            "description": "The UTC timestamp showing when the KMS key was originally provisioned.",
             "format": "date-time",
             "type": "string"
           },
           "description": {
+            "description": "An optional detailed description providing additional context about the key's intended use case.",
             "type": "string"
           },
           "id": {
+            "description": "The globally unique identifier (UUID) assigned to the newly created KMS key.",
             "format": "uuid",
             "type": "string"
           },
           "multi-zone": {
+            "description": "True if this is a multi-zone key.",
             "type": "boolean"
           },
           "name": {
+            "description": "The display name assigned to the KMS key.",
             "type": "string"
           },
           "origin-zone": {
+            "description": "The creation zone of the KMS key.",
             "type": "string"
           },
           "revision": {
@@ -558,17 +567,18 @@
             "type": "string"
           },
           "status-since": {
+            "description": "The timestamp indicating exactly when the current key status was last transitioned.",
             "format": "date-time",
             "type": "string"
           },
           "usage": {
+            "description": "The cryptographic operation constraints allowed on this key.",
             "type": "string"
           }
         },
         "required": [
           "id",
           "name",
-          "description",
           "usage",
           "source",
           "status",
@@ -4859,10 +4869,12 @@
       "decrypt-request": {
         "properties": {
           "ciphertext": {
+            "description": "The Base64-encoded ciphertext payload to be decrypted.",
             "format": "byte",
             "type": "string"
           },
           "encryption-context": {
+            "description": "The exact Base64-encoded Additional Authenticated Data (AAD) used during encryption to verify data integrity.",
             "format": "byte",
             "nullable": true,
             "type": "string"
@@ -4876,6 +4888,7 @@
       "decrypt-response": {
         "properties": {
           "plaintext": {
+            "description": "The recovered Base64-encoded original plaintext payload.",
             "format": "byte",
             "type": "string"
           }
@@ -5198,6 +5211,7 @@
         "properties": {
           "rotation-period": {
             "default": 365,
+            "description": "The number of days between each automatic key rotation.",
             "maximum": 2560,
             "minimum": 90,
             "type": "integer"
@@ -5219,11 +5233,13 @@
       "encrypt-request": {
         "properties": {
           "encryption-context": {
+            "description": "Base64-encoded bytes to be used as the Additional Authenticated Data (AAD) for encryption integrity.",
             "format": "byte",
             "nullable": true,
             "type": "string"
           },
           "plaintext": {
+            "description": "The Base64-encoded plaintext data you wish to encrypt.",
             "format": "byte",
             "type": "string"
           }
@@ -5236,6 +5252,7 @@
       "encrypt-response": {
         "properties": {
           "ciphertext": {
+            "description": "The resulting Base64-encoded ciphertext after encryption.",
             "format": "byte",
             "type": "string"
           }
@@ -5487,30 +5504,7 @@
         "description": "RFC 9457 Problem Details error response",
         "properties": {
           "detail": {
-            "type": "string"
-          },
-          "errors": {
-            "items": {
-              "properties": {
-                "detail": {
-                  "type": "string"
-                },
-                "location": {
-                  "type": "string"
-                },
-                "path": {
-                  "type": "string"
-                },
-                "pointer": {
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "instance": {
-            "format": "uri-reference",
+            "description": "A highly contextual, readable explanation breaking down explicitly what triggered this error scenario.",
             "type": "string"
           },
           "status": {
@@ -5519,9 +5513,11 @@
             "type": "integer"
           },
           "title": {
+            "description": "A brief summary defining the class of failure, optimal for quick user interface groupings.",
             "type": "string"
           },
           "type": {
+            "description": "An absolute or relative URI reference pointing to human-readable documentation concerning the specific problem type encountered.",
             "format": "uri-reference",
             "type": "string"
           }
@@ -5615,6 +5611,7 @@
             "type": "integer"
           },
           "encryption-context": {
+            "description": "Base64-encoded Additional Authenticated Data binding key generation parameters securely to operational scope.",
             "format": "byte",
             "nullable": true,
             "type": "string"
@@ -5631,10 +5628,12 @@
       "generate-data-key-response": {
         "properties": {
           "ciphertext": {
+            "description": "The identical symmetric data key, returned safely wrapped/encrypted using the designated root parent KMS key.",
             "format": "byte",
             "type": "string"
           },
           "plaintext": {
+            "description": "The Base64-encoded raw symmetric data key payload. Expose only securely during active application setups.",
             "format": "byte",
             "type": "string"
           }
@@ -5865,13 +5864,16 @@
       "get-kms-key-response": {
         "properties": {
           "created-at": {
+            "description": "The UTC timestamp showing when the KMS key was originally provisioned.",
             "format": "date-time",
             "type": "string"
           },
           "description": {
+            "description": "An optional detailed description providing additional context about the key's intended use case.",
             "type": "string"
           },
           "id": {
+            "description": "The globally unique identifier (UUID) of the retrieved KMS key.",
             "format": "uuid",
             "type": "string"
           },
@@ -5879,21 +5881,26 @@
             "$ref": "#/components/schemas/key-material"
           },
           "multi-zone": {
+            "description": "True if this is a multi-zone key.",
             "type": "boolean"
           },
           "name": {
+            "description": "The display name of the KMS key.",
             "type": "string"
           },
           "origin-zone": {
+            "description": "The creation zone of the KMS key.",
             "type": "string"
           },
           "replicas": {
+            "description": "A list of availability zones where this specific key has active replica mirrors.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "replicas-status": {
+            "description": "Detailed synchronization metrics for each regional replica mirror.",
             "items": {
               "$ref": "#/components/schemas/replica-state"
             },
@@ -5920,17 +5927,18 @@
             "type": "string"
           },
           "status-since": {
+            "description": "The timestamp indicating exactly when the current key status was last transitioned.",
             "format": "date-time",
             "type": "string"
           },
           "usage": {
+            "description": "The cryptographic operation constraints allowed on this key.",
             "type": "string"
           }
         },
         "required": [
           "id",
           "name",
-          "description",
           "usage",
           "source",
           "status",
@@ -5939,7 +5947,6 @@
           "rotation",
           "multi-zone",
           "origin-zone",
-          "replicas",
           "created-at",
           "revision"
         ],
@@ -6238,7 +6245,7 @@
         "type": "object"
       },
       "inference-engine-version": {
-        "default": "0.22.1",
+        "default": "0.23.0",
         "description": "Inference engine version",
         "enum": [
           "0.12.0",
@@ -6254,7 +6261,8 @@
           "0.20.2",
           "0.21.0",
           "0.22.0",
-          "0.22.1"
+          "0.22.1",
+          "0.23.0"
         ],
         "type": "string"
       },
@@ -6519,6 +6527,20 @@
             },
             "type": "array"
           },
+          "error-reason": {
+            "description": "Instance Pool Error Reason",
+            "properties": {
+              "cause": {
+                "description": "Error cause",
+                "type": "string"
+              },
+              "job-id": {
+                "description": "Job ID at the origin of error",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
           "id": {
             "description": "Instance Pool ID",
             "format": "uuid",
@@ -6614,7 +6636,8 @@
               "creating",
               "suspended",
               "running",
-              "updating"
+              "updating",
+              "error"
             ],
             "readOnly": true,
             "type": "string"
@@ -9907,13 +9930,16 @@
       "key-material": {
         "properties": {
           "automatic": {
+            "description": "A boolean flag indicating whether this specific material version was created during an automated system rotation window.",
             "type": "boolean"
           },
           "created-at": {
+            "description": "The UTC date-time indicating when this particular generation of physical cryptographic material was seeded.",
             "format": "date-time",
             "type": "string"
           },
           "version": {
+            "description": "The incremental index tracing internal key rotation cycles for the key material.",
             "type": "integer"
           }
         },
@@ -9927,16 +9953,20 @@
       "key-rotation-config": {
         "properties": {
           "automatic": {
+            "description": "When set to true, dictates that the system automatically rotates material periodically.",
             "type": "boolean"
           },
           "manual-count": {
+            "description": "Total running tally of manual key rotation tasks executed by users over this key resource's lifecycle.",
             "type": "integer"
           },
           "next-at": {
+            "description": "Scheduled deadline calculation pinpointing the next automated rotational iteration target date.",
             "format": "date-time",
             "type": "string"
           },
           "rotation-period": {
+            "description": "The set frequency period (measured in days) for triggers monitoring auto-rotation loops.",
             "type": "integer"
           }
         },
@@ -10165,6 +10195,7 @@
       "list-kms-key-rotations-response": {
         "properties": {
           "rotations": {
+            "description": "A chronologically ordered collection tracking historical rotation lifecycle occurrences for this resource.",
             "items": {
               "$ref": "#/components/schemas/list-kms-key-rotations-response-entry"
             },
@@ -10179,13 +10210,16 @@
       "list-kms-key-rotations-response-entry": {
         "properties": {
           "automatic": {
+            "description": "Flag stating whether an automation run handled this historic mutation or if manual actor keys initiated it.",
             "type": "boolean"
           },
           "rotated-at": {
+            "description": "The UTC timestamp tracking precisely when this historical adjustment pass finished processing.",
             "format": "date-time",
             "type": "string"
           },
           "version": {
+            "description": "The absolute increment index referencing this specific historical structural material setup.",
             "type": "integer"
           }
         },
@@ -10199,6 +10233,7 @@
       "list-kms-keys-response": {
         "properties": {
           "kms-keys": {
+            "description": "An array containing metadata entries for all available keys for your organization in the requested zone.",
             "items": {
               "$ref": "#/components/schemas/list-kms-keys-response-entry"
             },
@@ -10213,13 +10248,16 @@
       "list-kms-keys-response-entry": {
         "properties": {
           "created-at": {
+            "description": "The UTC timestamp showing when the KMS key was originally provisioned.",
             "format": "date-time",
             "type": "string"
           },
           "description": {
+            "description": "An optional detailed description providing additional context about the key's intended use case.",
             "type": "string"
           },
           "id": {
+            "description": "The globally unique identifier (UUID) tracking this key entity.",
             "format": "uuid",
             "type": "string"
           },
@@ -10227,15 +10265,19 @@
             "$ref": "#/components/schemas/key-material"
           },
           "multi-zone": {
+            "description": "True if this is a multi-zone key.",
             "type": "boolean"
           },
           "name": {
+            "description": "The display name of the KMS key.",
             "type": "string"
           },
           "origin-zone": {
+            "description": "The creation zone of the KMS key.",
             "type": "string"
           },
           "replicas": {
+            "description": "Array tracking target zones currently maintaining copies of this item.",
             "items": {
               "type": "string"
             },
@@ -10262,17 +10304,18 @@
             "type": "string"
           },
           "status-since": {
+            "description": "The precise time when the key entered its current configuration phase.",
             "format": "date-time",
             "type": "string"
           },
           "usage": {
+            "description": "The cryptographic operation constraints allowed on this key.",
             "type": "string"
           }
         },
         "required": [
           "id",
           "name",
-          "description",
           "usage",
           "source",
           "status",
@@ -10281,7 +10324,6 @@
           "rotation",
           "multi-zone",
           "origin-zone",
-          "replicas",
           "created-at",
           "revision"
         ],
@@ -10356,7 +10398,89 @@
         ],
         "type": "object"
       },
-      "list-vpc-response-entry": {
+      "list-route-entry": {
+        "description": "Route",
+        "properties": {
+          "description": {
+            "description": "Route description",
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "destination": {
+            "description": "Route destination CIDR",
+            "type": "string"
+          },
+          "id": {
+            "description": "Route ID",
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Route kind",
+            "enum": [
+              "Subnet",
+              "Vpc"
+            ],
+            "type": "string"
+          },
+          "target": {
+            "description": "Route target",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "list-subnet-entry": {
+        "description": "Subnet",
+        "properties": {
+          "address-space": {
+            "description": "Subnet address space",
+            "enum": [
+              "private"
+            ],
+            "type": "string"
+          },
+          "addressfamily": {
+            "description": "Subnet address family",
+            "enum": [
+              "inet4",
+              "dual"
+            ],
+            "type": "string"
+          },
+          "created-at": {
+            "description": "Subnet creation date",
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "description": "Subnet description",
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "id": {
+            "description": "Subnet ID",
+            "format": "uuid",
+            "type": "string"
+          },
+          "ipv4-block": {
+            "description": "Subnet ipv4 CIDR",
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/labels",
+            "description": "Resource labels"
+          },
+          "name": {
+            "description": "Subnet name",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "list-vpc-entry": {
         "description": "VPC",
         "properties": {
           "created-at": {
@@ -10696,22 +10820,62 @@
             "type": "string"
           },
           "node-cidr-mask-size-ipv4": {
-            "description": "Mask size for node cidr in cluster. It must be larger than the Pod CIDR subnet mask. Defaults to 24",
+            "description": "Mask size for node cidr in cluster. It must be larger than, and at most 16 bits longer than, the Pod CIDR subnet mask. Defaults to 24",
             "exclusiveMinimum": true,
             "format": "int64",
             "minimum": 0,
             "type": "integer"
           },
           "node-cidr-mask-size-ipv6": {
-            "description": "Mask size for node cidr in cluster. It must be larger than the Pod CIDR subnet mask. Defaults to 64",
+            "description": "Mask size for node cidr in cluster. It must be larger than, and at most 16 bits longer than, the Pod CIDR subnet mask. Defaults to 64",
             "exclusiveMinimum": true,
             "format": "int64",
             "minimum": 0,
             "type": "integer"
           },
           "service-cluster-ip-range": {
-            "description": "CIDR range for service cluster IPs. This must not overlap with any IP ranges assigned to nodes or pods. Max of two, comma-separated, dual-stack CIDRs is allowed.\n              If not specified, defaults to 10.96.0.0/12.",
+            "description": "CIDR range for service cluster IPs. This must not overlap with any IP ranges assigned to nodes or pods. Max of two, comma-separated, dual-stack CIDRs is allowed. The IPv6 range must be no larger than a /108 (upstream Kubernetes apiserver limit).\n              If not specified, defaults to 10.96.0.0/12.",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "nvidia-mig-profile-a30.24gb": {
+        "enum": [
+          "2g.12gb",
+          "1g.6gb+me",
+          "1g.6gb",
+          "2g.12gb+me",
+          "4g.24gb"
+        ],
+        "type": "string"
+      },
+      "nvidia-mig-profile-rtxpro6000.96gb": {
+        "enum": [
+          "1g.24gb-me",
+          "1g.24gb",
+          "2g.48gb-me",
+          "2g.48gb",
+          "4g.96gb+gfx",
+          "1g.24gb+me",
+          "2g.48gb+me.all",
+          "1g.24gb+gfx",
+          "1g.24gb+me.all",
+          "4g.96gb",
+          "2g.48gb+gfx"
+        ],
+        "type": "string"
+      },
+      "nvidia-mig-profiles": {
+        "description": "Nvidia MIG Profiles enabled",
+        "properties": {
+          "a30.24gb": {
+            "$ref": "#/components/schemas/nvidia-mig-profile-a30.24gb",
+            "description": "Nvidia A30 MIG Profile"
+          },
+          "rtxpro6000.96gb": {
+            "$ref": "#/components/schemas/nvidia-mig-profile-rtxpro6000.96gb",
+            "description": "Nvidia RTXPRO6000 MIG Profile"
           }
         },
         "type": "object"
@@ -10781,25 +10945,6 @@
             "type": "string"
           }
         },
-        "type": "object"
-      },
-      "operation-resource-ref": {
-        "properties": {
-          "command": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "link": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "command"
-        ],
         "type": "object"
       },
       "org-consumption-quota-response": {
@@ -11083,13 +11228,13 @@
           "destination": {
             "properties": {
               "encryption-context": {
-                "description": "Optional encryption context appended to the AAD.",
+                "description": "Optional new Base64-encoded encryption context to apply under the target destination envelope.",
                 "format": "byte",
                 "nullable": true,
                 "type": "string"
               },
               "key": {
-                "description": "The ID of the target key.",
+                "description": "The ID of the target key chosen to encapsulate the newly shifted data translation.",
                 "format": "uuid",
                 "type": "string"
               }
@@ -11102,17 +11247,18 @@
           "source": {
             "properties": {
               "ciphertext": {
+                "description": "The Base64-encoded encrypted payload package ready to undergo source-side key decryption.",
                 "format": "byte",
                 "type": "string"
               },
               "encryption-context": {
-                "description": "Optional encryption context appended to the AAD.",
+                "description": "Optional Base64-encoded encryption context originally appended to the AAD to confirm package validation rules.",
                 "format": "byte",
                 "nullable": true,
                 "type": "string"
               },
               "key": {
-                "description": "The ID of the source key.",
+                "description": "The ID of the source key currently protecting the data payload.",
                 "format": "uuid",
                 "type": "string"
               }
@@ -11133,6 +11279,7 @@
       "re-encrypt-response": {
         "properties": {
           "ciphertext": {
+            "description": "The new Base64-encoded ciphertext block safely wrapped by the chosen destination key parameters.",
             "format": "byte",
             "type": "string"
           }
@@ -11158,12 +11305,15 @@
       "replica-failure": {
         "properties": {
           "attempted-watermark": {
+            "description": "The target sync sequence watermark that triggered the replication failure.",
             "type": "integer"
           },
           "error": {
+            "description": "A descriptive message containing error logs or system details regarding the sync failure.",
             "type": "string"
           },
           "failed-at": {
+            "description": "The UTC timestamp showing exactly when the replication sync window failed.",
             "format": "date-time",
             "type": "string"
           }
@@ -11178,12 +11328,14 @@
       "replica-state": {
         "properties": {
           "last-applied-watermark": {
+            "description": "The latest logical sequence number or state watermark successfully synced to this regional replica.",
             "type": "integer"
           },
           "last-failure": {
             "$ref": "#/components/schemas/replica-failure"
           },
           "zone": {
+            "description": "The destination target zone tracking this specific replica instance.",
             "type": "string"
           }
         },
@@ -11196,6 +11348,7 @@
       "replicate-kms-key-request": {
         "properties": {
           "zone": {
+            "description": "The targeted cloud zone where the KMS key should be replicated.",
             "type": "string"
           }
         },
@@ -11256,10 +11409,12 @@
       "revision-stamp": {
         "properties": {
           "at": {
+            "description": "The timestamp recording exactly when this specific revision iteration occurred.",
             "format": "date-time",
             "type": "string"
           },
           "seq": {
+            "description": "Monotonically increasing sequencing value utilized for optimistic concurrency control locks.",
             "minimum": 0,
             "type": "integer"
           }
@@ -11292,6 +11447,38 @@
         "required": [
           "rotation"
         ],
+        "type": "object"
+      },
+      "route": {
+        "description": "Route",
+        "properties": {
+          "description": {
+            "description": "Route description",
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "destination": {
+            "description": "Route destination CIDR",
+            "type": "string"
+          },
+          "id": {
+            "description": "Route ID",
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Route kind",
+            "enum": [
+              "Subnet",
+              "Vpc"
+            ],
+            "type": "string"
+          },
+          "target": {
+            "description": "Route target",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "scale-deployment-request": {
@@ -11853,6 +12040,10 @@
             "minLength": 1,
             "type": "string"
           },
+          "nvidia-mig-profiles": {
+            "$ref": "#/components/schemas/nvidia-mig-profiles",
+            "description": "Nvidia MIG Profiles"
+          },
           "private-networks": {
             "description": "Nodepool Private Networks",
             "items": {
@@ -12161,6 +12352,56 @@
         "properties": {
           "name": {
             "description": "SSH key name",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "subnet": {
+        "description": "Subnet",
+        "properties": {
+          "address-space": {
+            "description": "Subnet address space",
+            "enum": [
+              "private"
+            ],
+            "type": "string"
+          },
+          "addressfamily": {
+            "description": "Subnet address family",
+            "enum": [
+              "inet4",
+              "dual"
+            ],
+            "type": "string"
+          },
+          "created-at": {
+            "description": "Subnet creation date",
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "description": "Subnet description",
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "id": {
+            "description": "Subnet ID",
+            "format": "uuid",
+            "type": "string"
+          },
+          "ipv4-block": {
+            "description": "Subnet ipv4 CIDR",
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/labels",
+            "description": "Resource labels"
+          },
+          "name": {
+            "description": "Subnet name",
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
@@ -12533,7 +12774,7 @@
             "description": "403"
           }
         },
-        "summary": "List AI API Keys",
+        "summary": "[BETA] List AI API Keys",
         "tags": [
           "ai-api-key"
         ]
@@ -12594,7 +12835,7 @@
             "description": "404"
           }
         },
-        "summary": "Create AI API Key",
+        "summary": "[BETA] Create AI API Key",
         "tags": [
           "ai-api-key"
         ]
@@ -12616,6 +12857,16 @@
           }
         ],
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          },
           "403": {
             "content": {
               "application/json": {
@@ -12637,7 +12888,7 @@
             "description": "404"
           }
         },
-        "summary": "Delete AI API Key",
+        "summary": "[BETA] Delete AI API Key",
         "tags": [
           "ai-api-key"
         ]
@@ -12688,7 +12939,7 @@
             "description": "404"
           }
         },
-        "summary": "Get AI API Key",
+        "summary": "[BETA] Get AI API Key",
         "tags": [
           "ai-api-key"
         ]
@@ -12759,7 +13010,7 @@
             "description": "404"
           }
         },
-        "summary": "Update AI API Key",
+        "summary": "[BETA] Update AI API Key",
         "tags": [
           "ai-api-key"
         ]
@@ -12802,7 +13053,7 @@
             "description": "404"
           }
         },
-        "summary": "Reveal AI API Key",
+        "summary": "[BETA] Reveal AI API Key",
         "tags": [
           "ai-api-key"
         ]
@@ -12855,7 +13106,7 @@
             "description": "404"
           }
         },
-        "summary": "Rotate AI API Key",
+        "summary": "[BETA] Rotate AI API Key",
         "tags": [
           "ai-api-key"
         ]
@@ -13614,7 +13865,7 @@
             "description": "404"
           }
         },
-        "summary": "Get Organization Consumption Quota",
+        "summary": "[BETA] Get Organization Consumption Quota",
         "tags": [
           "ai-api-key"
         ]
@@ -17539,6 +17790,10 @@
                   "termination-protection": {
                     "description": "Service is protected against termination and powering off",
                     "type": "boolean"
+                  },
+                  "version": {
+                    "description": "MySQL version",
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -21384,6 +21639,11 @@
                   "valkey-settings": {
                     "$ref": "#/components/schemas/json-schema-valkey",
                     "description": "Valkey.conf settings"
+                  },
+                  "version": {
+                    "description": "Valkey major version",
+                    "minLength": 1,
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -24799,7 +25059,7 @@
     },
     "/kms-key": {
       "get": {
-        "description": "List KMS Keys details for an organization in a given zone.",
+        "description": "Lists all KMS Keys in your organization in a given zone.",
         "operationId": "list-kms-keys",
         "parameters": [],
         "responses": {
@@ -24830,7 +25090,7 @@
         ]
       },
       "post": {
-        "description": "Create a KMS Key in a given zone with a given name.",
+        "description": "Create a customer-managed unique KMS Key in your organization. A KMS Key is a logical represention of a cryptographic key material. It also includes metadata such as a UUID, a name and its state.",
         "operationId": "create-kms-key",
         "parameters": [],
         "requestBody": {
@@ -24863,16 +25123,6 @@
               }
             },
             "description": "400"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            },
-            "description": "409"
           }
         },
         "summary": "[BETA] Create KMS Key",
@@ -24916,16 +25166,6 @@
               }
             },
             "description": "400"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            },
-            "description": "404"
           }
         },
         "summary": "[BETA] Get KMS Key",
@@ -24936,7 +25176,7 @@
     },
     "/kms-key/{id}/cancel-deletion": {
       "post": {
-        "description": "Cancel the scheduled deletion of a KMS Key.",
+        "description": "Cancels the scheduled deletion of a KMS Key.",
         "operationId": "cancel-kms-key-deletion",
         "parameters": [
           {
@@ -24979,7 +25219,7 @@
     },
     "/kms-key/{id}/decrypt": {
       "post": {
-        "description": "Decrypt a ciphertext.",
+        "description": "Decrypts a ciphertext.",
         "operationId": "decrypt",
         "parameters": [
           {
@@ -25032,7 +25272,7 @@
     },
     "/kms-key/{id}/disable": {
       "post": {
-        "description": "Disable a KMS Key",
+        "description": "Disables a KMS Key by setting its state to \"disabled\". This prevents the use of the KMS key for cryptographic and key lifecycle operations.",
         "operationId": "disable-kms-key",
         "parameters": [
           {
@@ -25118,7 +25358,7 @@
     },
     "/kms-key/{id}/enable": {
       "post": {
-        "description": "Enable a KMS Key\"",
+        "description": "Enables a KMS Key by setting its stated to \"enabled\". It restores the ability to fully use the KMS key for cryptographic operations and key lifecycle operations.",
         "operationId": "enable-kms-key",
         "parameters": [
           {
@@ -25214,7 +25454,7 @@
     },
     "/kms-key/{id}/encrypt": {
       "post": {
-        "description": "Encrypt a plaintext.",
+        "description": "Encrypts a plaintext.",
         "operationId": "encrypt",
         "parameters": [
           {
@@ -25312,7 +25552,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Generate Data Key",
+        "summary": "[BETA] Generate Data Encryption Key",
         "tags": [
           "crypto"
         ]
@@ -25469,7 +25709,7 @@
     },
     "/kms-key/{id}/rotate": {
       "post": {
-        "description": "Perform a manual rotation of the key material for a symmetric key.",
+        "description": "Performs an immediate rotation of the key material for a symmetric key.",
         "operationId": "rotate-kms-key",
         "parameters": [
           {
@@ -25512,7 +25752,7 @@
     },
     "/kms-key/{id}/schedule-deletion": {
       "post": {
-        "description": "Schedule a KMS key for deletion after a delay.",
+        "description": "Schedules a KMS key for deletion after a delay. You can specify a delay of 7-30 days.",
         "operationId": "schedule-kms-key-deletion",
         "parameters": [
           {
@@ -28211,6 +28451,10 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "nvidia-mig-profiles": {
+                    "$ref": "#/components/schemas/nvidia-mig-profiles",
+                    "description": "Nvidia MIG Profiles"
+                  },
                   "private-networks": {
                     "description": "Nodepool Private Networks",
                     "items": {
@@ -28439,6 +28683,11 @@
                     "maxLength": 255,
                     "minLength": 1,
                     "type": "string"
+                  },
+                  "nvidia-mig-profiles": {
+                    "$ref": "#/components/schemas/nvidia-mig-profiles",
+                    "description": "Nvidia MIG Profiles",
+                    "nullable": true
                   },
                   "private-networks": {
                     "description": "Nodepool Private Networks",
@@ -29883,7 +30132,7 @@
                   "properties": {
                     "vpcs": {
                       "items": {
-                        "$ref": "#/components/schemas/list-vpc-response-entry"
+                        "$ref": "#/components/schemas/list-vpc-entry"
                       },
                       "type": "array"
                     }
@@ -30072,6 +30321,502 @@
           }
         },
         "summary": "[BETA] Update a VPC",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
+    "/vpc/{vpc-id}/route": {
+      "get": {
+        "description": "",
+        "operationId": "list-vpc-routes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "routes": {
+                      "items": {
+                        "$ref": "#/components/schemas/list-route-entry"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] List VPC routes",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
+    "/vpc/{vpc-id}/subnet": {
+      "get": {
+        "description": "",
+        "operationId": "list-subnets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "subnets": {
+                      "items": {
+                        "$ref": "#/components/schemas/list-subnet-entry"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] List Subnets",
+        "tags": [
+          "vpc"
+        ]
+      },
+      "post": {
+        "description": "",
+        "operationId": "create-subnet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "address-space": {
+                    "description": "Subnet address space",
+                    "enum": [
+                      "private"
+                    ],
+                    "type": "string"
+                  },
+                  "addressfamily": {
+                    "description": "Subnet address family",
+                    "enum": [
+                      "inet4"
+                    ],
+                    "type": "string"
+                  },
+                  "description": {
+                    "description": "Subnet description",
+                    "maxLength": 4096,
+                    "type": "string"
+                  },
+                  "ipv4-block": {
+                    "description": "Subnet ipv4 CIDR",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "$ref": "#/components/schemas/labels",
+                    "description": "Resource labels"
+                  },
+                  "name": {
+                    "description": "Subnet name",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "addressfamily",
+                  "address-space"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Create a Subnet",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
+    "/vpc/{vpc-id}/subnet/{id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete-subnet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Delete a Subnet",
+        "tags": [
+          "vpc"
+        ]
+      },
+      "get": {
+        "description": "",
+        "operationId": "get-subnet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/subnet"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Retrieve Subnet details",
+        "tags": [
+          "vpc"
+        ]
+      },
+      "put": {
+        "description": "",
+        "operationId": "update-subnet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "description": "Subnet description",
+                    "maxLength": 4096,
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "ipv4-block": {
+                    "description": "Subnet CIDR",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "labels": {
+                    "$ref": "#/components/schemas/labels",
+                    "description": "Resource labels",
+                    "nullable": true
+                  },
+                  "name": {
+                    "description": "Subnet name",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "nullable": true,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/subnet"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Update a Subnet",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
+    "/vpc/{vpc-id}/subnet/{subnet-id}/route": {
+      "get": {
+        "description": "",
+        "operationId": "list-routes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subnet-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "routes": {
+                      "items": {
+                        "$ref": "#/components/schemas/list-route-entry"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] List Subnet routes",
+        "tags": [
+          "vpc"
+        ]
+      },
+      "post": {
+        "description": "",
+        "operationId": "create-route",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subnet-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "description": "Route description",
+                    "maxLength": 4096,
+                    "type": "string"
+                  },
+                  "destination": {
+                    "description": "Route destination CIDR",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Route name",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "target": {
+                    "description": "Route target",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "destination",
+                  "target"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/route"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Create a route",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
+    "/vpc/{vpc-id}/subnet/{subnet-id}/route/{id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete-route",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subnet-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/route"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Delete a route",
         "tags": [
           "vpc"
         ]
