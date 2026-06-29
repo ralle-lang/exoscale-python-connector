@@ -22,8 +22,12 @@ The issue body already contains the analysis: an evaluation checklist, an
 **Affected connector modules** map, a **Model ↔ spec field drift** table, and
 the oasdiff changelog. Do not re-derive these — read them, then decide and act.
 
-The committed snapshot (`.github/upstream/openapi-v2.json`) is refreshed by the
-bot *in the same run*, so local drift checks already reflect the new spec.
+The committed snapshots under `.github/upstream/` are **not** touched by the
+bot — main is protection-ruled, and per D1 the baseline should move only once a
+human has accepted the drift. You advance them yourself as the final part of
+triage, inside the reviewed triage PR (step 7). Until then the committed
+snapshot is the pre-change baseline, so fetch the current spec to a temp file
+for the ground-truth checks (step 3).
 
 ## Governing decisions (do not override)
 
@@ -42,9 +46,17 @@ bot *in the same run*, so local drift checks already reflect the new spec.
 2. **Read the prepared analysis** in the issue body — focus on the
    **Affected connector modules** and **Model ↔ spec field drift** sections.
 
-3. **Confirm against ground truth** (don't trust the prose alone):
-   - `python scripts/model_schema_drift.py --check` — red rows = breaking model
-     drift (renamed/removed/retyped, or newly-required fields).
+3. **Confirm against ground truth** (don't trust the prose alone). First fetch
+   the current spec to a temp file (the same source the bot diffed) — keep it
+   out of the worktree, since `.drift/` is not git-ignored:
+   ```
+   SPEC="$(mktemp -d)/spec.json"
+   curl -fsSL --retry 3 https://openapi-v2.exoscale.com/source.json | jq -S . > "$SPEC"
+   ```
+   - `python scripts/model_schema_drift.py --summary "$SPEC"` — any
+     renamed/removed/retyped or newly-required field is breaking model drift
+     (it turns `test_model_schema_drift.py` red once the snapshot advances);
+     unmodelled optional fields are informational, tolerated by `extra="allow"`.
    - `python -m pytest tests/unit/test_model_schema_drift.py tests/unit/test_drift_operations.py`
    - Re-read the gotchas on each affected `docs/asset-types/*.md` page; a spec
      change can invalidate a documented gotcha.
@@ -71,7 +83,19 @@ bot *in the same run*, so local drift checks already reflect the new spec.
      naming the affected modules/docs from the issue's map. If a backlog batch
      now totals ~8–16h, note it as ready to graduate to an issue.
 
-7. **Wrap up — STOP at the gates.**
+7. **Advance the committed snapshot (both paths, on the triage branch).**
+   This is what moves the baseline so the next weekly run diffs against the
+   accepted spec instead of re-reporting the whole accumulated backlog. Do it
+   only after every additive change is harvested into the roadmap (otherwise
+   unharvested additive content is lost when the baseline moves):
+   - Spec drift: `cp "$SPEC" .github/upstream/openapi-v2.json`
+   - SDK drift: write the new version into
+     `.github/upstream/python-exoscale-version.txt`
+   - Re-run `python -m pytest tests/unit/test_model_schema_drift.py` against the
+     refreshed snapshot (must stay green) and commit it with the rest of the
+     triage change. The baseline advances only when this PR merges — D1.
+
+8. **Wrap up — STOP at the gates.**
    - Open the PR (`gh pr create`) for the branch; comment the triage decision
      and classification on the drift issue; propose closing it if fully handled.
    - **Do not push, merge, or pull without explicit approval** (global rule).
