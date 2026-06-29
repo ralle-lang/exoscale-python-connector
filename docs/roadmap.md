@@ -122,7 +122,11 @@ starting point, not the truth).
 - Weekly cron: fetch → normalize → diff with `oasdiff` (spec-aware,
   markdown changelog, ignores cosmetic churn). On change: file the issue
   via `--body-file` (injection hygiene — upstream text never interpolated
-  into shell), then commit the refreshed snapshot in the same run.
+  into shell). The bot does **not** push the refreshed snapshot — main is
+  protection-ruled and, per D1, the baseline should move only after a human
+  triages the drift. The snapshot under `.github/upstream/` is advanced
+  inside the reviewed triage PR instead (see the `exoscale-drift-triage`
+  skill); re-runs before triage append a dedup comment.
 - Dedup: append a comment to an existing open `upstream-drift` issue
   instead of opening duplicates.
 - Issue body is agent-ready: oasdiff changelog + a changed-path →
@@ -154,9 +158,10 @@ gets implemented together.
 
 | Item | Source | First-pass estimate (impl + full test run) |
 |---|---|---|
-| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34 | ~1 day (new asset type, nested sub-resources, live verify) |
-| **DBaaS Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` (update) as a first-class param | drift #34 | ~1–2h |
-| **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34 | ~1–2h |
+| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34, re-confirmed #40 | ~1 day (new asset type, nested sub-resources, live verify) |
+| **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
+| **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
+| **InstancePool `error-reason` + `error` state** — surface the new optional response property (`error-reason`, explains a pool entering the new `error` state) as a first-class model field; the `error` state value is already tolerated (plain-`str` field, not `Literal`). Same `error-reason` also surfaces nested under load-balancer service `instance-pool` | drift #40 | ~1h |
 
 _Running total: ~1.5 days. Estimates are first-pass, refined per drift during
 Claude Code evaluation._

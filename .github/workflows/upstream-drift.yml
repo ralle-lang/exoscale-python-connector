@@ -6,8 +6,11 @@ name: upstream-drift
 #
 # On change it files an `upstream-drift` issue to EVALUATE — never to
 # auto-fix (decision D1, docs/roadmap.md: a spec diff is a prompt for
-# human+agent review; the spec is the starting point, not the truth) —
-# then refreshes the committed snapshots under .github/upstream/.
+# human+agent review; the spec is the starting point, not the truth).
+# The committed snapshots under .github/upstream/ are advanced during
+# triage, inside the reviewed triage PR — NOT pushed by this bot. That
+# keeps main's branch protection intact and moves the baseline only once a
+# human has accepted the drift (consistent with D1).
 #
 # Injection hygiene: upstream-controlled text (changelog, version strings)
 # reaches issues only via --body-file / env vars, never shell interpolation.
@@ -18,7 +21,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # commit refreshed snapshots
+  contents: read # checkout only; snapshots are advanced during triage, not here
   issues: write # file the drift issues
 
 concurrency:
@@ -72,7 +75,7 @@ jobs:
             echo "- [ ] Decide live re-verification scope (tier flags, docs/live-test-plan.md)"
             echo "- [ ] Update models/docs as needed; regenerate AI artifacts (\`python scripts/generate_llms_txt.py\`)"
             echo
-            echo "The committed snapshot is refreshed automatically by this workflow run."
+            echo "The committed snapshot is advanced during triage (in the reviewed triage PR), not by this bot, so it still reflects the pre-change baseline below."
             echo
             echo "## Affected connector modules"
             echo
@@ -154,21 +157,10 @@ jobs:
             gh issue create --title "$TITLE" --label upstream-drift --body-file .drift/sdk-issue.md
           fi
 
-      # Last step on purpose: if issue filing fails, snapshots stay stale and
-      # the next run retries instead of silently swallowing the drift.
-      - name: Refresh committed snapshots
-        if: steps.spec.outputs.changed == 'true' || steps.sdk.outputs.changed == 'true'
-        env:
-          LATEST: ${{ steps.sdk.outputs.latest }}
-        run: |
-          if [ "${{ steps.spec.outputs.changed }}" = "true" ]; then
-            cp .drift/spec.json .github/upstream/openapi-v2.json
-          fi
-          if [ "${{ steps.sdk.outputs.changed }}" = "true" ]; then
-            printf '%s\n' "$LATEST" > .github/upstream/python-exoscale-version.txt
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/upstream
-          git commit -m "chore: refresh upstream drift snapshots"
-          git push
+      # Note: the committed snapshots under .github/upstream/ are intentionally
+      # NOT refreshed here. main is protection-ruled (PR + status checks), so a
+      # bot push is rejected; more importantly D1 says the baseline should move
+      # only once a human has triaged the drift. The snapshot is therefore
+      # advanced inside the reviewed triage PR (see the exoscale-drift-triage
+      # skill). Until then this issue stays open and re-runs append a dedup
+      # comment instead of opening duplicates.
