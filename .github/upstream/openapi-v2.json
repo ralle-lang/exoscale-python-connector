@@ -667,6 +667,129 @@
         },
         "type": "object"
       },
+      "dbaas-clickhouse-acl-config": {
+        "properties": {
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-user-acl-config"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "dbaas-clickhouse-user": {
+        "properties": {
+          "required": {
+            "type": "boolean"
+          },
+          "username": {
+            "$ref": "#/components/schemas/dbaas-user-username",
+            "description": "Username"
+          },
+          "uuid": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "dbaas-clickhouse-user-acl-config": {
+        "properties": {
+          "privileges": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-user-privilege"
+            },
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-user-role"
+            },
+            "type": "array"
+          },
+          "username": {
+            "$ref": "#/components/schemas/dbaas-user-username",
+            "description": "Username"
+          },
+          "uuid": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "dbaas-clickhouse-user-privilege": {
+        "properties": {
+          "access-type": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "database": {
+            "type": "string"
+          },
+          "grant-option": {
+            "type": "boolean"
+          },
+          "partial-revoke": {
+            "type": "boolean"
+          },
+          "table": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "dbaas-clickhouse-user-role": {
+        "properties": {
+          "default": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "with-admin-option": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "dbaas-clickhouse-user-role-input": {
+        "properties": {
+          "uuid": {
+            "description": "Role UUID",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uuid"
+        ],
+        "type": "object"
+      },
+      "dbaas-clickhouse-users": {
+        "properties": {
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-user"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "dbaas-database-name": {
         "maxLength": 40,
         "minLength": 1,
@@ -2351,6 +2474,221 @@
           "backup-name",
           "backup-time",
           "data-size"
+        ],
+        "type": "object"
+      },
+      "dbaas-service-clickhouse": {
+        "properties": {
+          "backups": {
+            "description": "List of backups for the service",
+            "items": {
+              "$ref": "#/components/schemas/dbaas-service-backup"
+            },
+            "type": "array"
+          },
+          "clickhouse-settings": {
+            "$ref": "#/components/schemas/json-schema-clickhouse",
+            "description": "ClickHouse-specific settings"
+          },
+          "components": {
+            "description": "Service component information objects",
+            "items": {
+              "properties": {
+                "component": {
+                  "description": "Service component name",
+                  "type": "string"
+                },
+                "host": {
+                  "description": "DNS name for connecting to the service component",
+                  "type": "string"
+                },
+                "port": {
+                  "description": "Port number for connecting to the service component",
+                  "exclusiveMaximum": false,
+                  "exclusiveMinimum": false,
+                  "format": "int64",
+                  "maximum": 65535,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "route": {
+                  "$ref": "#/components/schemas/enum-component-route",
+                  "description": "Network access route"
+                },
+                "ssl": {
+                  "description": "Whether the endpoint is encrypted or accepts plaintext.\n             By default endpoints are always encrypted and\n             this property is only included for service components that may disable encryption.",
+                  "type": "boolean"
+                },
+                "usage": {
+                  "$ref": "#/components/schemas/enum-component-usage",
+                  "description": "DNS usage name"
+                }
+              },
+              "required": [
+                "component",
+                "host",
+                "port",
+                "route",
+                "usage"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "connection-info": {
+            "description": "ClickHouse connection information properties",
+            "properties": {
+              "arrowflight-uri": {
+                "type": "string"
+              },
+              "mysql-uri": {
+                "type": "string"
+              },
+              "uri": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "created-at": {
+            "description": "Service creation timestamp (ISO 8601)",
+            "format": "date-time",
+            "type": "string"
+          },
+          "disk-size": {
+            "description": "TODO UNIT disk space for data storage",
+            "exclusiveMinimum": false,
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "integrations": {
+            "description": "Service integrations",
+            "items": {
+              "$ref": "#/components/schemas/dbaas-integration"
+            },
+            "type": "array"
+          },
+          "ip-filter": {
+            "description": "Allowed CIDR address blocks for incoming connections",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "maintenance": {
+            "$ref": "#/components/schemas/dbaas-service-maintenance",
+            "description": "Automatic maintenance settings"
+          },
+          "name": {
+            "$ref": "#/components/schemas/dbaas-service-name",
+            "description": "Service name"
+          },
+          "node-count": {
+            "description": "Number of service nodes in the active plan",
+            "exclusiveMinimum": false,
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "node-cpu-count": {
+            "description": "Number of CPUs for each node",
+            "exclusiveMinimum": false,
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "node-memory": {
+            "description": "TODO UNIT of memory for each node",
+            "exclusiveMinimum": false,
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "node-states": {
+            "description": "State of individual service nodes",
+            "items": {
+              "$ref": "#/components/schemas/dbaas-node-state"
+            },
+            "type": "array"
+          },
+          "notifications": {
+            "description": "Service notifications",
+            "items": {
+              "$ref": "#/components/schemas/dbaas-service-notification"
+            },
+            "type": "array"
+          },
+          "plan": {
+            "description": "Subscription plan",
+            "type": "string"
+          },
+          "prometheus-uri": {
+            "description": "Prometheus integration URI",
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "exclusiveMaximum": false,
+                "exclusiveMinimum": false,
+                "format": "int64",
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "state": {
+            "$ref": "#/components/schemas/enum-service-state",
+            "description": "State of the service"
+          },
+          "termination-protection": {
+            "description": "Service is protected against termination and powering off",
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/dbaas-service-type-name",
+            "description": "Service type code"
+          },
+          "updated-at": {
+            "description": "Service last update timestamp (ISO 8601)",
+            "format": "date-time",
+            "type": "string"
+          },
+          "uri": {
+            "description": "URI for connecting to the service (may be absent)",
+            "type": "string"
+          },
+          "uri-params": {
+            "description": "service_uri parameterized into key-value pairs",
+            "type": "object"
+          },
+          "users": {
+            "description": "List of ClickHouse users",
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-user"
+            },
+            "type": "array"
+          },
+          "version": {
+            "description": "ClickHouse version",
+            "type": "string"
+          },
+          "zone": {
+            "description": "The zone where the service is running",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "plan",
+          "type",
+          "prometheus-uri"
         ],
         "type": "object"
       },
@@ -4670,6 +5008,20 @@
         },
         "type": "object"
       },
+      "dbaas-user-clickhouse-secrets": {
+        "description": "ClickHouse User secrets",
+        "properties": {
+          "password": {
+            "description": "ClickHouse password",
+            "type": "string"
+          },
+          "username": {
+            "description": "ClickHouse username",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "dbaas-user-grafana-secrets": {
         "description": "Grafana User secrets",
         "properties": {
@@ -5205,6 +5557,10 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "empty": {
+        "description": "An empty map response",
         "type": "object"
       },
       "enable-kms-key-rotation-request": {
@@ -5868,6 +6224,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "delete-at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "description": {
             "description": "An optional detailed description providing additional context about the key's intended use case.",
             "type": "string"
@@ -6245,7 +6605,7 @@
         "type": "object"
       },
       "inference-engine-version": {
-        "default": "0.23.0",
+        "default": "0.24.0",
         "description": "Inference engine version",
         "enum": [
           "0.12.0",
@@ -6262,7 +6622,8 @@
           "0.21.0",
           "0.22.0",
           "0.22.1",
-          "0.23.0"
+          "0.23.0",
+          "0.24.0"
         ],
         "type": "string"
       },
@@ -6527,20 +6888,6 @@
             },
             "type": "array"
           },
-          "error-reason": {
-            "description": "Instance Pool Error Reason",
-            "properties": {
-              "cause": {
-                "description": "Error cause",
-                "type": "string"
-              },
-              "job-id": {
-                "description": "Job ID at the origin of error",
-                "type": "string"
-              }
-            },
-            "type": "object"
-          },
           "id": {
             "description": "Instance Pool ID",
             "format": "uuid",
@@ -6636,8 +6983,7 @@
               "creating",
               "suspended",
               "running",
-              "updating",
-              "error"
+              "updating"
             ],
             "readOnly": true,
             "type": "string"
@@ -6805,6 +7151,29 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "json-schema-clickhouse": {
+        "properties": {
+          "server_settings": {
+            "additionalProperties": false,
+            "description": "ClickHouse server settings, which can be found in the `system.server_settings` table.",
+            "properties": {
+              "vector_similarity_index_cache_size": {
+                "default": 0.07,
+                "description": "Fraction of total server memory allocated to the vector similarity index cache. 0 disables the cache. Default is 0.07 (7% of server memory). Only effective on ClickHouse 25.8+.",
+                "example": 0.07,
+                "maximum": 0.5,
+                "minimum": 0,
+                "title": "vector_similarity_index_cache_size",
+                "type": "number"
+              }
+            },
+            "title": "ClickHouse server settings",
+            "type": "object"
+          }
+        },
+        "title": "ClickHouse settings",
         "type": "object"
       },
       "json-schema-grafana": {
@@ -10252,6 +10621,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "delete-at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "description": {
             "description": "An optional detailed description providing additional context about the key's intended use case.",
             "type": "string"
@@ -10813,7 +11186,7 @@
         "type": "object"
       },
       "networking": {
-        "description": "Cluster networking configuration.",
+        "description": "EXPERIMENTAL: Cluster networking configuration.",
         "properties": {
           "cluster-cidr": {
             "description": "CIDR Range for Pods in cluster. This must not overlap with any IP ranges assigned to pods. Max of two, comma-separated, dual-stack CIDRs is allowed.\n              If not specified, defaults to 192.168.0.0/16.",
@@ -10842,29 +11215,49 @@
       },
       "nvidia-mig-profile-a30.24gb": {
         "enum": [
-          "2g.12gb",
-          "1g.6gb+me",
           "1g.6gb",
+          "1g.6gb+me",
+          "2g.12gb",
           "2g.12gb+me",
           "4g.24gb"
         ],
-        "type": "string"
+        "type": "string",
+        "x-go-enum-varnames": [
+          "1G6Gb",
+          "1G6GbMe",
+          "2G12Gb",
+          "2G12GbMe",
+          "4G24Gb"
+        ]
       },
       "nvidia-mig-profile-rtxpro6000.96gb": {
         "enum": [
-          "1g.24gb-me",
           "1g.24gb",
-          "2g.48gb-me",
-          "2g.48gb",
-          "4g.96gb+gfx",
           "1g.24gb+me",
-          "2g.48gb+me.all",
           "1g.24gb+gfx",
           "1g.24gb+me.all",
+          "1g.24gb-me",
+          "2g.48gb",
+          "2g.48gb+gfx",
+          "2g.48gb+me.all",
+          "2g.48gb-me",
           "4g.96gb",
-          "2g.48gb+gfx"
+          "4g.96gb+gfx"
         ],
-        "type": "string"
+        "type": "string",
+        "x-go-enum-varnames": [
+          "1G24Gb",
+          "1G24GbMe",
+          "1G24GbGfx",
+          "1G24GbMeAll",
+          "1G24GbNoMe",
+          "2G48Gb",
+          "2G48GbGfx",
+          "2G48GbMeAll",
+          "2G48GbNoMe",
+          "4G96Gb",
+          "4G96GbGfx"
+        ]
       },
       "nvidia-mig-profiles": {
         "description": "Nvidia MIG Profiles enabled",
@@ -11508,6 +11901,16 @@
         },
         "type": "object"
       },
+      "schedule-kms-key-deletion-response": {
+        "properties": {
+          "delete-at": {
+            "description": "Timestamp of the key deletion",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "security-group": {
         "description": "Security Group",
         "properties": {
@@ -11867,6 +12270,11 @@
             "readOnly": true,
             "type": "array",
             "uniqueItems": true
+          },
+          "oidc": {
+            "$ref": "#/components/schemas/sks-oidc",
+            "description": "Cluster OpenID configmap",
+            "nullable": true
           },
           "state": {
             "description": "Cluster state",
@@ -14777,6 +15185,568 @@
           }
         },
         "summary": "Get DBaaS CA Certificate",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{name}": {
+      "delete": {
+        "description": null,
+        "operationId": "delete-dbaas-service-clickhouse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Delete a ClickHouse service",
+        "tags": [
+          "dbaas"
+        ]
+      },
+      "get": {
+        "description": null,
+        "operationId": "get-dbaas-service-clickhouse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbaas-service-clickhouse"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Get a DBaaS ClickHouse service",
+        "tags": [
+          "dbaas"
+        ]
+      },
+      "post": {
+        "description": null,
+        "operationId": "create-dbaas-service-clickhouse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "clickhouse-settings": {
+                    "$ref": "#/components/schemas/json-schema-clickhouse",
+                    "description": "ClickHouse-specific settings"
+                  },
+                  "fork-from-service": {
+                    "$ref": "#/components/schemas/dbaas-service-name",
+                    "description": "Service to fork from"
+                  },
+                  "ip-filter": {
+                    "description": "Allow incoming connections from CIDR address block, e.g. '10.20.0.0/16'",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "maintenance": {
+                    "description": "Automatic maintenance settings",
+                    "properties": {
+                      "dow": {
+                        "description": "Day of week for installing updates",
+                        "enum": [
+                          "saturday",
+                          "tuesday",
+                          "never",
+                          "wednesday",
+                          "sunday",
+                          "friday",
+                          "monday",
+                          "thursday"
+                        ],
+                        "type": "string"
+                      },
+                      "time": {
+                        "description": "Time for installing updates, UTC",
+                        "maxLength": 8,
+                        "minLength": 8,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "dow",
+                      "time"
+                    ],
+                    "type": "object"
+                  },
+                  "plan": {
+                    "description": "Subscription plan",
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "recovery-backup-name": {
+                    "description": "Name of a backup to recover from for services that support backup names",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "termination-protection": {
+                    "description": "Service is protected against termination and powering off",
+                    "type": "boolean"
+                  },
+                  "version": {
+                    "description": "ClickHouse major version",
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "plan"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Create a DBaaS ClickHouse service",
+        "tags": [
+          "dbaas"
+        ]
+      },
+      "put": {
+        "description": null,
+        "operationId": "update-dbaas-service-clickhouse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "clickhouse-settings": {
+                    "$ref": "#/components/schemas/json-schema-clickhouse",
+                    "description": "ClickHouse-specific settings"
+                  },
+                  "ip-filter": {
+                    "description": "Allow incoming connections from CIDR address block, e.g. '10.20.0.0/16'",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "maintenance": {
+                    "description": "Automatic maintenance settings",
+                    "properties": {
+                      "dow": {
+                        "description": "Day of week for installing updates",
+                        "enum": [
+                          "saturday",
+                          "tuesday",
+                          "never",
+                          "wednesday",
+                          "sunday",
+                          "friday",
+                          "monday",
+                          "thursday"
+                        ],
+                        "type": "string"
+                      },
+                      "time": {
+                        "description": "Time for installing updates, UTC",
+                        "maxLength": 8,
+                        "minLength": 8,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "dow",
+                      "time"
+                    ],
+                    "type": "object"
+                  },
+                  "plan": {
+                    "description": "Subscription plan",
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "termination-protection": {
+                    "description": "Service is protected against termination and powering off",
+                    "type": "boolean"
+                  },
+                  "version": {
+                    "description": "ClickHouse major version",
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Update a DBaaS ClickHouse service",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{name}/maintenance/start": {
+      "put": {
+        "description": null,
+        "operationId": "start-dbaas-clickhouse-maintenance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Initiate ClickHouse maintenance update",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/acl-config": {
+      "get": {
+        "description": null,
+        "operationId": "get-dbaas-clickhouse-acl-config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbaas-clickhouse-acl-config"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Get DBaaS ClickHouse ACL configuration",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/user": {
+      "get": {
+        "description": null,
+        "operationId": "list-dbaas-clickhouse-users",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbaas-clickhouse-users"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] List DBaaS ClickHouse users",
+        "tags": [
+          "dbaas"
+        ]
+      },
+      "post": {
+        "description": null,
+        "operationId": "create-dbaas-clickhouse-user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "password": {
+                    "$ref": "#/components/schemas/dbaas-user-password",
+                    "description": "Password"
+                  },
+                  "roles": {
+                    "description": "ClickHouse roles to grant to the user",
+                    "items": {
+                      "$ref": "#/components/schemas/dbaas-clickhouse-user-role-input"
+                    },
+                    "type": "array"
+                  },
+                  "username": {
+                    "$ref": "#/components/schemas/dbaas-user-username",
+                    "description": "Username"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Create a DBaaS ClickHouse user",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/user/{username}": {
+      "delete": {
+        "description": null,
+        "operationId": "delete-dbaas-clickhouse-user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-user-username"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Delete a DBaaS ClickHouse user",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/user/{username}/password/reset": {
+      "put": {
+        "description": null,
+        "operationId": "reset-dbaas-clickhouse-user-password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-user-username"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "password": {
+                    "$ref": "#/components/schemas/dbaas-user-password",
+                    "description": "New password"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Reset the credentials of a DBaaS ClickHouse user",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/user/{username}/password/reveal": {
+      "get": {
+        "description": null,
+        "operationId": "reveal-dbaas-clickhouse-user-password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          },
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-user-username"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbaas-user-clickhouse-secrets"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Reveal the secrets of a DBaaS ClickHouse user",
         "tags": [
           "dbaas"
         ]
@@ -20415,6 +21385,54 @@
         ]
       }
     },
+    "/dbaas-settings-clickhouse": {
+      "get": {
+        "description": null,
+        "operationId": "get-dbaas-settings-clickhouse",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "settings": {
+                      "properties": {
+                        "clickhouse": {
+                          "description": "ClickHouse configuration values",
+                          "properties": {
+                            "additionalProperties": {
+                              "type": "boolean"
+                            },
+                            "properties": {
+                              "type": "object"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Get DBaaS ClickHouse settings",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
     "/dbaas-settings-grafana": {
       "get": {
         "description": "Get DBaaS Grafana settings",
@@ -25084,7 +26102,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] List KMS Keys",
+        "summary": "List KMS Keys",
         "tags": [
           "kms-key"
         ]
@@ -25125,7 +26143,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Create KMS Key",
+        "summary": "Create KMS Key",
         "tags": [
           "kms-key"
         ]
@@ -25168,7 +26186,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Get KMS Key",
+        "summary": "Get KMS Key",
         "tags": [
           "kms-key"
         ]
@@ -25211,7 +26229,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Cancel KMS Key Deletion",
+        "summary": "Cancel KMS Key Deletion",
         "tags": [
           "kms-key"
         ]
@@ -25264,7 +26282,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Decrypt",
+        "summary": "Decrypt",
         "tags": [
           "crypto"
         ]
@@ -25307,7 +26325,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Disable KMS Key",
+        "summary": "Disable KMS Key",
         "tags": [
           "kms-key"
         ]
@@ -25350,7 +26368,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Disable Key Rotation",
+        "summary": "Disable Key Rotation",
         "tags": [
           "kms-key"
         ]
@@ -25393,7 +26411,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Enable KMS Key",
+        "summary": "Enable KMS Key",
         "tags": [
           "kms-key"
         ]
@@ -25446,7 +26464,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Enable Key Rotation",
+        "summary": "Enable Key Rotation",
         "tags": [
           "kms-key"
         ]
@@ -25499,7 +26517,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Encrypt",
+        "summary": "Encrypt",
         "tags": [
           "crypto"
         ]
@@ -25552,7 +26570,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Generate Data Encryption Key",
+        "summary": "Generate Data Encryption Key",
         "tags": [
           "crypto"
         ]
@@ -25595,7 +26613,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] List KMS Key Rotations",
+        "summary": "List KMS Key Rotations",
         "tags": [
           "kms-key"
         ]
@@ -25648,7 +26666,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Re-encrypt",
+        "summary": "Re-encrypt",
         "tags": [
           "crypto"
         ]
@@ -25701,7 +26719,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Replicate KMS Key",
+        "summary": "Replicate KMS Key",
         "tags": [
           "kms-key"
         ]
@@ -25744,7 +26762,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Rotate Key",
+        "summary": "Rotate Key",
         "tags": [
           "kms-key"
         ]
@@ -25780,7 +26798,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/success-response"
+                  "$ref": "#/components/schemas/schedule-kms-key-deletion-response"
                 }
               }
             },
@@ -25797,7 +26815,7 @@
             "description": "400"
           }
         },
-        "summary": "[BETA] Schedule KMS Key Deletion",
+        "summary": "Schedule KMS Key Deletion",
         "tags": [
           "kms-key"
         ]
@@ -30221,7 +31239,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/operation"
+                  "$ref": "#/components/schemas/empty"
                 }
               }
             },
@@ -30518,7 +31536,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/operation"
+                  "$ref": "#/components/schemas/empty"
                 }
               }
             },
@@ -30646,6 +31664,128 @@
         ]
       }
     },
+    "/vpc/{vpc-id}/subnet/{subnet-id}/attach": {
+      "put": {
+        "description": "",
+        "operationId": "attach-instance-to-subnet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subnet-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "instance": {
+                    "$ref": "#/components/schemas/instance-ref",
+                    "description": "Compute instance"
+                  }
+                },
+                "required": [
+                  "instance"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Attach a Compute instance to a Subnet",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
+    "/vpc/{vpc-id}/subnet/{subnet-id}/detach": {
+      "put": {
+        "description": "",
+        "operationId": "detach-instance-from-subnet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vpc-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subnet-id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "instance": {
+                    "$ref": "#/components/schemas/instance-ref",
+                    "description": "Compute instance"
+                  }
+                },
+                "required": [
+                  "instance"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Detach a Compute instance from a Subnet",
+        "tags": [
+          "vpc"
+        ]
+      }
+    },
     "/vpc/{vpc-id}/subnet/{subnet-id}/route": {
       "get": {
         "description": "",
@@ -30732,12 +31872,6 @@
                     "description": "Route destination CIDR",
                     "type": "string"
                   },
-                  "name": {
-                    "description": "Route name",
-                    "maxLength": 255,
-                    "minLength": 1,
-                    "type": "string"
-                  },
                   "target": {
                     "description": "Route target",
                     "type": "string"
@@ -30809,7 +31943,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/route"
+                  "$ref": "#/components/schemas/empty"
                 }
               }
             },

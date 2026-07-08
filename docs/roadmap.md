@@ -158,13 +158,20 @@ gets implemented together.
 
 | Item | Source | First-pass estimate (impl + full test run) |
 |---|---|---|
-| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34, re-confirmed #40 | ~1 day (new asset type, nested sub-resources, live verify) |
+| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification. Subnet ops now include `PUT /vpc/{}/subnet/{}/attach` + `.../detach` (instance↔subnet membership); `POST .../route` dropped its `name` request property | drift #34, re-confirmed #40, subnet attach/detach + route-`name` drop #43 | ~1 day (new asset type, nested sub-resources, live verify) |
 | **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
 | **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
-| **InstancePool `error-reason` + `error` state** — surface the new optional response property (`error-reason`, explains a pool entering the new `error` state) as a first-class model field; the `error` state value is already tolerated (plain-`str` field, not `Literal`). Same `error-reason` also surfaces nested under load-balancer service `instance-pool` | drift #40 | ~1h |
+| **ClickHouse DBaaS engine** — the new `/dbaas-clickhouse/*` endpoints. Basic lifecycle (create/get/update/delete) and user + password management already work through the engine-generic `DBaaSServiceClient` via `service_type="clickhouse"` (no `_url_type` alias needed). Genuinely unmodelled sub-resources, none engine-specific: `GET /dbaas-settings-clickhouse` (settings discovery), `GET /dbaas-clickhouse/{}/acl-config`, `PUT /dbaas-clickhouse/{}/maintenance/start` — the settings/maintenance-start/acl patterns exist for other engines too and are unmodelled across the board, so promote them as generic DBaaS methods rather than ClickHouse-only. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #43 | ~1–2h |
 
-_Running total: ~1.5 days. Estimates are first-pass, refined per drift during
-Claude Code evaluation._
+_Running total: ~1.5 days (~12h) — within the ~8–16h graduation window; ready
+to graduate this batch to a GitHub issue on the active milestone. Estimates are
+first-pass, refined per drift during Claude Code evaluation._
+
+_drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
+(harvested from drift #40) was **retracted** — #43 reverses it upstream,
+removing `error-reason` from the instance-pool / load-balancer-service responses
+and dropping the `error` enum value from `state`. Nothing was ever modelled, so
+no code change is needed; the item is simply gone._
 
 ---
 
