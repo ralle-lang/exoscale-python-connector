@@ -175,28 +175,6 @@ no code change is needed; the item is simply gone._
 
 ---
 
-## Backlog / deferred
-
-### Async client (httpx) — deferred, decision pending
-Doubles the maintenance surface and strains the "self-contained, requests +
-pydantic" portability promise. Revisit only with a concrete consumer that
-needs high-concurrency fan-out; would likely live as an optional extra or
-sibling package.
-
-### Size-ordering / scale-to-slug helpers — declined for now
-A `scale_to_slug()` or "next size up" helper implies a size-ordering table in
-the package; catalogue knowledge stays server-side (discovered, never
-assumed). Callers can derive ordering from the numeric `cpus`/`memory`
-fields. Reopen if a real consumer needs it badly enough to justify the
-maintenance trap.
-
-### Pagination support — contingent on the API
-APIv2 list endpoints are unpaginated today; `ResourceClient.list()` documents
-that assumption. If Exoscale introduces cursors, `list()` grows cursor
-handling. Nothing to do until then.
-
----
-
 ## Decisions
 
 ### D1 — Advisor, not operator (2026-06-10)
