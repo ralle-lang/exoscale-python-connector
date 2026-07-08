@@ -162,16 +162,35 @@ gets implemented together.
 | **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
 | **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
 | **ClickHouse DBaaS engine** — the new `/dbaas-clickhouse/*` endpoints. Basic lifecycle (create/get/update/delete) and user + password management already work through the engine-generic `DBaaSServiceClient` via `service_type="clickhouse"` (no `_url_type` alias needed). Genuinely unmodelled sub-resources, none engine-specific: `GET /dbaas-settings-clickhouse` (settings discovery), `GET /dbaas-clickhouse/{}/acl-config`, `PUT /dbaas-clickhouse/{}/maintenance/start` — the settings/maintenance-start/acl patterns exist for other engines too and are unmodelled across the board, so promote them as generic DBaaS methods rather than ClickHouse-only. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #43 | ~1–2h |
+| **KMS asset type** — new `/kms-key` client (15 endpoints). Full lifecycle: CRUD, enable/disable, key rotation (`enable-`/`disable-key-rotation`, `rotate`, `list-key-rotations`), crypto ops (`encrypt`, `decrypt`, `re-encrypt`, `generate-data-key`), deletion lifecycle (`schedule-`/`cancel-deletion`), `replicate`. Model + CLI entry point + doc page + live verify. Build to the current spec shape — `POST /kms-key/{id}/schedule-deletion` dropped the required `status` response property in #43. Not in any current module | requested; touched by drift #43 | ~0.5–1 day (crypto ops + live verify) |
+| **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
+| **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
 
-_Running total: ~1.5 days (~12h) — within the ~8–16h graduation window; ready
-to graduate this batch to a GitHub issue on the active milestone. Estimates are
-first-pass, refined per drift during Claude Code evaluation._
+_Running total: ~3 days (~22h) — now **past** the ~8–16h graduation window.
+Recommend graduating: KMS is large and self-contained enough to be its own
+issue on the active milestone (0.5.0), with the remaining drift-fed items
+(VPC, DBaaS version params, nvidia-mig, ClickHouse, deploy targets, events) as
+a second batched issue. Estimates are first-pass, refined per drift during
+Claude Code evaluation._
 
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
 removing `error-reason` from the instance-pool / load-balancer-service responses
 and dropping the `error` enum value from `state`. Nothing was ever modelled, so
 no code change is needed; the item is simply gone._
+
+### Deliberately out of scope (do not re-harvest from drift)
+
+These APIv2 asset types exist but are intentionally not modelled. Drift triage
+should **not** keep re-adding them to the backlog:
+
+- **`/organization`** — org/account management, out of the connector's remit.
+- **`/quota`** — account limits; read-only account metadata, not provisioning.
+- **`/usage-report`, `/live-balance`, `/env-impact`** — billing/usage
+  reporting, not the connector's job.
+- **`/console`** — instance web-console access; interactive, not automation.
+- **`/ai/*` (AI / GPU inference)** — deferred: the product surface is new and
+  still churning (it moved again in #43). Revisit once it stabilises.
 
 ---
 
