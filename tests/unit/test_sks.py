@@ -202,3 +202,23 @@ def test_create_nodepool_sends_kebab_case_payload(client, base_url) -> None:
     assert b'"disk-size": 50' in sent
     assert b'"public-ip-assignment": "inet4"' in sent
     assert b'"instance-type"' in sent
+
+
+@responses.activate
+def test_nodepool_nvidia_mig_profiles_round_trips(client, base_url) -> None:
+    """nvidia-mig-profiles parses on the nodepool object and serialises kebab-case."""
+    responses.add(
+        responses.GET,
+        f"{base_url}/sks-cluster/cl1/nodepool/np1",
+        json={
+            "id": "np1",
+            "name": "gpu",
+            "nvidia-mig-profiles": {"a30.24gb": {"enabled": True}},
+        },
+        status=200,
+    )
+    np = SksClusterClient(client).get_nodepool("cl1", "np1")
+    assert np.nvidia_mig_profiles == {"a30.24gb": {"enabled": True}}
+    # And it serialises back under the kebab-case alias.
+    typed = SksNodepool(name="gpu", nvidia_mig_profiles={"a30.24gb": {"enabled": True}})
+    assert typed.to_api_payload()["nvidia-mig-profiles"] == {"a30.24gb": {"enabled": True}}

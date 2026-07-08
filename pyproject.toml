@@ -45,6 +45,7 @@ exoscale-security-group = "exoscale_connector.cli.security_group:main"
 exoscale-elastic-ip = "exoscale_connector.cli.elastic_ip:main"
 exoscale-private-network = "exoscale_connector.cli.private_network:main"
 exoscale-load-balancer = "exoscale_connector.cli.load_balancer:main"
+exoscale-vpc = "exoscale_connector.cli.vpc:main"
 # Compute
 exoscale-instance = "exoscale_connector.cli.instance:main"
 exoscale-instance-pool = "exoscale_connector.cli.instance_pool:main"
@@ -52,8 +53,10 @@ exoscale-instance-type = "exoscale_connector.cli.instance_type:main"
 exoscale-template = "exoscale_connector.cli.template:main"
 exoscale-anti-affinity-group = "exoscale_connector.cli.anti_affinity_group:main"
 exoscale-snapshot = "exoscale_connector.cli.snapshot:main"
+exoscale-deploy-target = "exoscale_connector.cli.deploy_target:main"
 # Account / platform
 exoscale-zone = "exoscale_connector.cli.zone:main"
+exoscale-event = "exoscale_connector.cli.event:main"
 # Storage
 exoscale-block-volume = "exoscale_connector.cli.block_volume:main"
 exoscale-block-volume-snapshot = "exoscale_connector.cli.block_volume_snapshot:main"

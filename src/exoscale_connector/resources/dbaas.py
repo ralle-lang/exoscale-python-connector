@@ -57,6 +57,10 @@ class DBaaSService(ExoscaleModel):
     type: Optional[str] = None
     plan: Optional[str] = None
     state: Optional[str] = None
+    # Engine version. Settable on update for engines that support version
+    # upgrades (mysql, valkey, clickhouse, pg, ...) via the type-specific PUT;
+    # round-tripped on the type-specific GET.
+    version: Optional[str] = None
     # Number of nodes in the cluster.
     node_count: Optional[int] = None
     # Allocated disk size in megabytes.
@@ -374,6 +378,54 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """
         return self.client.get(
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}/password/reveal",
+            zone=self._zone(zone),
+        )
+
+    # ------------------------------------------------------------------ #
+    # Generic engine sub-resources (settings / ACL / maintenance)
+    # ------------------------------------------------------------------ #
+
+    def get_settings(self, service_type: str, *, zone: Optional[str] = None) -> dict:
+        """Return the configurable settings schema for an engine type.
+
+        Wraps ``GET /dbaas-settings-{type}`` — the discovery endpoint that
+        describes which ``{type}-settings`` keys a service accepts (e.g.
+        ``clickhouse-settings``, ``mysql-settings``) and their constraints.
+
+        Note this endpoint uses the **short** service-type form (``pg``, not
+        ``postgres``) — the same names :meth:`list_service_types` returns —
+        unlike the type-specific CRUD paths which use the long form. The
+        response schema is engine-specific, so a raw dict is returned.
+        """
+        return self.client.get(
+            f"dbaas-settings-{service_type}", zone=self._zone(zone)
+        )
+
+    def get_acl_config(
+        self, name: str, *, service_type: str, zone: Optional[str] = None
+    ) -> dict:
+        """Return the ACL configuration for a service.
+
+        Wraps ``GET /dbaas-{type}/{name}/acl-config``. Supported by the engines
+        that expose per-user/topic ACLs (clickhouse, kafka, opensearch). The
+        response schema is engine-specific, so a raw dict is returned.
+        """
+        return self.client.get(
+            f"dbaas-{self._url_type(service_type)}/{name}/acl-config",
+            zone=self._zone(zone),
+        )
+
+    def start_maintenance(
+        self, name: str, *, service_type: str, zone: Optional[str] = None
+    ) -> dict:
+        """Trigger the service's pending maintenance update immediately.
+
+        Wraps ``PUT /dbaas-{type}/{name}/maintenance/start`` (available for
+        every engine). Runs the maintenance that would otherwise wait for the
+        configured window; returns the raw operation-envelope dict.
+        """
+        return self.client.put(
+            f"dbaas-{self._url_type(service_type)}/{name}/maintenance/start",
             zone=self._zone(zone),
         )
 

@@ -87,6 +87,9 @@ SCHEMA_ALIASES: Dict[str, str] = {
     "IAMPolicy": "iam-policy",
     "IAMPolicyService": "iam-service-policy",
     "IAMPolicyRule": "iam-service-policy-rule",
+    # VPC sub-resources: the spec schemas are the unprefixed `subnet` / `route`.
+    "VpcSubnet": "subnet",
+    "VpcRoute": "route",
 }
 
 # Intentional, live-verified divergences. model name -> {json-alias: reason}. A

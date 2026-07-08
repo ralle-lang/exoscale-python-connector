@@ -375,3 +375,71 @@ def test_reset_user_password_uses_reset_path(client, base_url) -> None:
 def test_ensure_is_not_supported(client) -> None:
     with pytest.raises(NotImplementedError):
         DBaaSServiceClient(client).ensure({"name": "my-db"})
+
+
+@responses.activate
+def test_get_settings_uses_short_type_form(client, base_url) -> None:
+    """get_settings hits /dbaas-settings-{short-type} (no pg->postgres aliasing)."""
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-settings-clickhouse",
+        json={"settings": {"clickhouse": {"foo": "bar"}}},
+        status=200,
+    )
+    out = DBaaSServiceClient(client).get_settings("clickhouse")
+    assert out == {"settings": {"clickhouse": {"foo": "bar"}}}
+
+
+@responses.activate
+def test_get_settings_short_form_for_pg(client, base_url) -> None:
+    # pg stays "pg" for the settings endpoint (short form), unlike CRUD paths.
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-settings-pg",
+        json={"settings": {}},
+        status=200,
+    )
+    assert DBaaSServiceClient(client).get_settings("pg") == {"settings": {}}
+
+
+@responses.activate
+def test_get_acl_config_uses_long_type_path(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-clickhouse/ch1/acl-config",
+        json={"users": [{"username": "reader"}]},
+        status=200,
+    )
+    out = DBaaSServiceClient(client).get_acl_config("ch1", service_type="clickhouse")
+    assert out["users"][0]["username"] == "reader"
+
+
+@responses.activate
+def test_start_maintenance_puts_type_specific_path(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/dbaas-mysql/my1/maintenance/start",
+        json={"id": "op1", "state": "success"},
+        status=200,
+    )
+    out = DBaaSServiceClient(client).start_maintenance("my1", service_type="mysql")
+    assert out["state"] == "success"
+
+
+@responses.activate
+def test_get_parses_version_field(client, base_url) -> None:
+    # Two-step get: list to discover type, then type-specific detail carries version.
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-service",
+        json={"dbaas-services": [{"name": "my1", "type": "mysql"}]},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-mysql/my1",
+        json={"name": "my1", "type": "mysql", "version": "8", "plan": "hobbyist-2"},
+        status=200,
+    )
+    svc = DBaaSServiceClient(client).get("my1")
+    assert svc.version == "8"

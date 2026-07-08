@@ -16,8 +16,10 @@ from exoscale_connector.resources.api_key import ApiKeyClient
 from exoscale_connector.resources.block_volume import BlockVolumeClient
 from exoscale_connector.resources.block_volume_snapshot import BlockVolumeSnapshotClient
 from exoscale_connector.resources.dbaas import DBaaSServiceClient
+from exoscale_connector.resources.deploy_target import DeployTargetClient
 from exoscale_connector.resources.dns import DnsDomainClient
 from exoscale_connector.resources.elastic_ip import ElasticIPClient
+from exoscale_connector.resources.event import EventClient
 from exoscale_connector.resources.iam_role import IAMRoleClient
 from exoscale_connector.resources.iam_user import IAMUserClient
 from exoscale_connector.resources.instance import InstanceClient
@@ -28,6 +30,7 @@ from exoscale_connector.resources.security_group import SecurityGroupClient
 from exoscale_connector.resources.sks import SksClusterClient
 from exoscale_connector.resources.snapshot import SnapshotClient
 from exoscale_connector.resources.ssh_key import SSHKeyClient
+from exoscale_connector.resources.vpc import VpcClient
 
 pytestmark = pytest.mark.integration
 
@@ -37,6 +40,9 @@ READ_ONLY_CLIENTS = [
     ("elastic-ip", ElasticIPClient),
     ("private-network", PrivateNetworkClient),
     ("load-balancer", LoadBalancerClient),
+    ("vpc", VpcClient),
+    ("deploy-target", DeployTargetClient),
+    ("event", EventClient),
     ("instance", InstanceClient),
     ("instance-pool", InstancePoolClient),
     ("anti-affinity-group", AntiAffinityGroupClient),

@@ -174,6 +174,13 @@ ClickHouse, deploy targets, events, full SG rule-reference typing) as one
 batched issue. Estimates are first-pass, refined per drift during Claude Code
 evaluation._
 
+_**Batched issue (#45) implemented** on `feat/additive-apiv2-batch`: VPC
+(+subnets/routes/attach-detach), full SG rule-reference typing, deploy targets
+(+instance wiring), events, generic DBaaS settings/acl/maintenance, first-class
+DBaaS `version`, and SKS `nvidia-mig-profiles` — unit-tested, `ruff`/`mypy`/llms
+`--check` green; live verification per docs/live-test-plan.md and merge pending.
+KMS (#44) still open._
+
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
 removing `error-reason` from the instance-pool / load-balancer-service responses

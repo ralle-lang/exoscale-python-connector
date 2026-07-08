@@ -78,11 +78,27 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
 - **Live sequence**:
   1. `create({"name": <prefix>-sg, "description": "connector smoke"})`
   2. `get` by id; `find_by_name`; assert round-trip.
-  3. `add_rule` ingress tcp/443 from `0.0.0.0/0` with description `<prefix>-rule`.
+  3. `add_rule` ingress tcp/443 from `0.0.0.0/0` (CIDR) with description `<prefix>-rule`.
   4. `get` again; assert rule in `.rules`.
   5. `delete_rule(sg_id, rule_id)`; assert rule gone.
-  6. `delete(sg_id)`.
+  6. **Peer-SG rule**: create a second SG `<prefix>-sgpeer`; `add_rule` ingress
+     tcp/22 with `security_group=SecurityGroupResource(id=<peer-id>)` (typed
+     reference, not a CIDR); `get` and assert the rule's `security_group.id`
+     round-trips; `delete_rule`; delete the peer SG.
+  7. `delete(sg_id)`.
 - **Cost**: €0. **Risk**: none — SGs are free metadata.
+
+#### 1a. `vpc` (+ subnets, routes)
+- **Ops**: VPC CRUD (`list`, `get`, `create`, `delete`); subnet
+  (`list_subnets`, `get_subnet`, `create_subnet`, `delete_subnet`); route
+  (`list_routes`, `list_subnet_routes`, `create_route`, `delete_route`).
+- **Live sequence**: create VPC `<prefix>-vpc` → create subnet
+  (`inet4`/`private`, `10.0.0.0/24`) → get/list subnet → create route
+  (`10.1.0.0/24` → `10.0.0.1`, **no `name`**) → list routes (subnet + VPC-wide)
+  → delete route → delete subnet → delete VPC.
+- **Cost**: €0. **Risk**: none — VPC/subnet/route are free metadata.
+- **Note**: instance ↔ subnet `attach_subnet`/`detach_subnet` needs a running
+  instance; covered in Tier 3.
 
 #### 2. `private-network`
 - **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete` *(no attach/detach helper yet in connector)*.
@@ -233,7 +249,7 @@ not hardcoded).
 - **Risk**: LB and pool must both be cleaned. The fixture tracks both ids.
 
 #### 15. `dbaas` — `EXOSCALE_TEST_TIER_4_DBAAS=1`
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create` (type-specific), `update`, `delete`, `get_connection_info`, `reveal_user_password`, `list_service_types`.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create` (type-specific), `update`, `delete`, `get_connection_info`, `reveal_user_password`, `list_service_types`, `get_settings`, `get_acl_config`, `start_maintenance`.
 - **Live sequence**:
   1. `list_service_types()`; pick the cheapest **pg** plan dynamically (typically `hobbyist-2` or equivalent — resolved at run time, not hardcoded).
   2. `create(service_type="pg", name="<prefix>-pg", payload={"plan": <cheapest>, "version": <stable>})`.
@@ -242,6 +258,11 @@ not hardcoded).
   5. `reveal_user_password("avnadmin")` — assert non-empty, **never print**.
   6. `update` maintenance window or `ip-filter` to a no-op change.
   7. `delete` (`POWEROFF`-then-`DELETE` if required by API; verified at run).
+- **Additive-coverage checks** (0.6.0): `get_settings("pg")` is read-only and can
+  run as a free Tier-0-style probe; `get_acl_config`/`start_maintenance` and the
+  first-class `version` update param need a live service (fold into the sequence
+  above). A `version` **upgrade** is disruptive — assert the field round-trips on
+  read rather than forcing a major-version bump on the throwaway service.
 - **Cost**: cheapest pg plan is hourly; ~15 min ≈ €0.01–0.05 depending on plan tier in your account.
 - **Risk**: longest provisioning of any tier; secrets in responses (we assert presence, never log/print).
 
@@ -368,6 +389,9 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 | 16 | sks | 4-SKS | ✅ | starter + 1× tiny nodepool, kubeconfig (with `groups`) |
 | 17 | iam-user | — | read-only (intentional) | list / get only — create would spam invite emails |
 | 18 | api-key | 1-opt | ✅ | gated by `EXOSCALE_TEST_TIER_1_API_KEY=1` (off by default; secret-bearing response) |
+| 19 | vpc (+subnets, routes) | 1 | pending | CRUD + subnet + route; attach/detach → Tier 3 |
+| 20 | deploy-target | 0 | pending | read-only (`list`/`get`) — provisioned by Exoscale |
+| 21 | event (audit log) | 0 | pending | read-only (`list`) — bare-array response |
 
 For a granular per-asset view (fields, gotchas, end-to-end examples), see
 the [asset type reference](asset-types/README.md).
@@ -385,6 +409,9 @@ tiers — no new switches:
 | Elastic IP reverse DNS | `test_tier_2.py::test_elastic_ip_reverse_dns` | 2 |
 | Instance vertical scaling | `test_tier_3.py::test_instance_scale` | 3 |
 | DBaaS users + update | extended `test_dbaas_pg_lifecycle` | 4 |
+| VPC + subnet + route lifecycle | `test_tier_1.py::test_vpc_lifecycle` | 1 |
+| Peer-SG-by-id rule (typed reference) | extended `test_tier_1.py::test_security_group_lifecycle` | 1 |
+| deploy-target / event read-only reachability | `test_smoke.py` (added to `READ_ONLY_CLIENTS`) | 0 |
 
 Run any tier with `EXOSCALE_RECORD=1` to also produce sanitized wire
 recordings for the offline replay suite (see the developer guide).

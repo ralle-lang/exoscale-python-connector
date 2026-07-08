@@ -13,8 +13,24 @@ from typing import List, Optional
 
 from pydantic import Field
 
-from ..models import ExoscaleModel, Operation, Reference, to_api_payload
+from ..models import ExoscaleModel, Operation, to_api_payload
 from ._base import ResourceClient
+
+
+class SecurityGroupResource(ExoscaleModel):
+    """A typed reference to a security group used as a rule source/destination.
+
+    Richer than a bare id-only :class:`~exoscale_connector.models.Reference`
+    because an Exoscale-managed **public** security group (e.g. the shared
+    ``exoscale-managed-*`` sources) can only be addressed by adding
+    ``visibility: "public"`` alongside its ``id``. Private peer groups in your
+    own account use ``visibility: "private"`` (the default) or just ``id``.
+    Both forms are typed on the request and round-tripped on the response.
+    """
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    visibility: Optional[str] = None  # "private" | "public"
 
 
 class SecurityGroupRule(ExoscaleModel):
@@ -27,7 +43,8 @@ class SecurityGroupRule(ExoscaleModel):
     start_port: Optional[int] = None
     end_port: Optional[int] = None
     network: Optional[str] = None  # CIDR, mutually exclusive with security_group
-    security_group: Optional[Reference] = None
+    # Peer/public SG source or destination (mutually exclusive with network).
+    security_group: Optional[SecurityGroupResource] = None
 
 
 class SecurityGroup(ExoscaleModel):

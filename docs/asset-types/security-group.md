@@ -7,6 +7,12 @@ ingress / egress rules as sub-resources.
 ## Model
 
 ```python
+class SecurityGroupResource(ExoscaleModel):
+    id: Optional[str]               # target SG uuid
+    name: Optional[str]
+    visibility: Optional[str]       # "private" (your account) | "public" (Exoscale-managed)
+
+
 class SecurityGroupRule(ExoscaleModel):
     id: Optional[str]               # API-assigned uuid
     description: Optional[str]      # free-form, useful as a human-friendly tag
@@ -15,7 +21,7 @@ class SecurityGroupRule(ExoscaleModel):
     start_port: Optional[int]
     end_port: Optional[int]
     network: Optional[str]          # CIDR — mutually exclusive with security_group
-    security_group: Optional[Reference]  # peer SG (rule allows traffic from members)
+    security_group: Optional[SecurityGroupResource]  # peer/public SG source or dest
 
 
 class SecurityGroup(ExoscaleModel):
@@ -77,6 +83,13 @@ sg.delete_rule(group.id, rule_id)
   instance, instance pool, or LB. The API returns 412 — detach first.
 - **Adding a rule is async**; the operation completes within a few seconds
   but `wait=False` is available for fire-and-forget scenarios.
+- **Peer-SG rules take a typed `security_group` reference, not a CIDR.** A rule
+  can allow traffic from another security group's members instead of a
+  `network` CIDR — the two are mutually exclusive. Reference a **private** peer
+  in your own account by id (`{"security-group": {"id": "<uuid>"}}`), and an
+  Exoscale-managed **public** group by adding `"visibility": "public"`
+  (`{"security-group": {"id": "<uuid>", "visibility": "public"}}`). Both round-trip
+  on the response as a `SecurityGroupResource`.
 
 ## End-to-end example
 
