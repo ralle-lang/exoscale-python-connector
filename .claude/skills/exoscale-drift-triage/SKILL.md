@@ -105,5 +105,5 @@ for the ground-truth checks (step 3).
 ## Live re-verification
 
 If a breaking change touches request payloads, flag whether a live tier run is
-needed (`docs/live-test-plan.md`); credentials come from the `a1d-monitoring`
-Infisical project, never hardcoded. Never let live-tenant data into commits.
+needed (`docs/live-test-plan.md`); credentials come from the test Infisical
+project (dev env), never hardcoded. Never let live-tenant data into commits.
