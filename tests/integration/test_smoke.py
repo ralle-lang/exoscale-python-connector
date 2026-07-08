@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from exoscale_connector.errors import APIError
 from exoscale_connector.resources.anti_affinity_group import AntiAffinityGroupClient
 from exoscale_connector.resources.api_key import ApiKeyClient
 from exoscale_connector.resources.block_volume import BlockVolumeClient
@@ -66,7 +67,15 @@ READ_ONLY_CLIENTS = [
 )
 def test_list_is_reachable(live_client, label, client_cls) -> None:
     """Listing each asset type against a real zone must succeed and return a list."""
-    items = client_cls(live_client).list()
+    try:
+        items = client_cls(live_client).list()
+    except APIError as exc:
+        # A product/operation the tenant hasn't enabled (e.g. VPC on accounts
+        # without it) returns 403 "... not enabled". That's a tenant capability
+        # gate, not a connector fault — the endpoint was reached and recognised.
+        if exc.status_code == 403 and "not enabled" in str(exc).lower():
+            pytest.skip(f"{label}: operation not enabled on this tenant ({exc})")
+        raise
     assert isinstance(items, list)
 
 

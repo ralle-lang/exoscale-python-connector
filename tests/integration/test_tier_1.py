@@ -131,7 +131,15 @@ def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
     """
     vpc = VpcClient(live_client)
     name = make_name(run_id, "vpc")
-    created = vpc.create({"name": name, "description": "connector tier-1 smoke"})
+    try:
+        created = vpc.create({"name": name, "description": "connector tier-1 smoke"})
+    except APIError as exc:
+        # VPC is a per-tenant opt-in product; without it the API returns
+        # 403 "... not enabled". Skip rather than fail — the endpoint is correct,
+        # the tenant just can't exercise it (see docs/live-test-plan.md).
+        if exc.status_code == 403 and "not enabled" in str(exc).lower():
+            pytest.skip(f"VPC not enabled on this tenant ({exc})")
+        raise
     vpc_id = created.id
     assert vpc_id, "vpc create did not resolve an id"
     tracker.register("vpc", lambda: vpc.delete(vpc_id), vpc_id)

@@ -99,6 +99,10 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
 - **Cost**: €0. **Risk**: none — VPC/subnet/route are free metadata.
 - **Note**: instance ↔ subnet `attach_subnet`/`detach_subnet` needs a running
   instance; covered in Tier 3.
+- **Tenant opt-in**: VPC is a per-account product. On a tenant without it the
+  API returns `403 "... not enabled"`; the smoke and Tier-1 tests **skip** on
+  that (endpoint is correct, the tenant just can't exercise it) rather than
+  fail — same policy as the DNS-quota skip.
 
 #### 2. `private-network`
 - **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete` *(no attach/detach helper yet in connector)*.
@@ -389,9 +393,9 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 | 16 | sks | 4-SKS | ✅ | starter + 1× tiny nodepool, kubeconfig (with `groups`) |
 | 17 | iam-user | — | read-only (intentional) | list / get only — create would spam invite emails |
 | 18 | api-key | 1-opt | ✅ | gated by `EXOSCALE_TEST_TIER_1_API_KEY=1` (off by default; secret-bearing response) |
-| 19 | vpc (+subnets, routes) | 1 | pending | CRUD + subnet + route; attach/detach → Tier 3 |
-| 20 | deploy-target | 0 | pending | read-only (`list`/`get`) — provisioned by Exoscale |
-| 21 | event (audit log) | 0 | pending | read-only (`list`) — bare-array response |
+| 19 | vpc (+subnets, routes) | 1 | ⏭️ skip (not enabled) | CRUD + subnet + route; skips on tenant 403 "not enabled" (attach/detach → Tier 3) |
+| 20 | deploy-target | 0 | ✅ | read-only (`list`/`get`) — provisioned by Exoscale |
+| 21 | event (audit log) | 0 | ✅ | read-only (`list`) — bare-array response |
 
 For a granular per-asset view (fields, gotchas, end-to-end examples), see
 the [asset type reference](asset-types/README.md).
@@ -409,9 +413,10 @@ tiers — no new switches:
 | Elastic IP reverse DNS | `test_tier_2.py::test_elastic_ip_reverse_dns` | 2 |
 | Instance vertical scaling | `test_tier_3.py::test_instance_scale` | 3 |
 | DBaaS users + update | extended `test_dbaas_pg_lifecycle` | 4 |
-| VPC + subnet + route lifecycle | `test_tier_1.py::test_vpc_lifecycle` | 1 |
-| Peer-SG-by-id rule (typed reference) | extended `test_tier_1.py::test_security_group_lifecycle` | 1 |
-| deploy-target / event read-only reachability | `test_smoke.py` (added to `READ_ONLY_CLIENTS`) | 0 |
+| VPC + subnet + route lifecycle | `test_tier_1.py::test_vpc_lifecycle` | 1 (skips if VPC not enabled) |
+| Peer-SG-by-id rule (typed reference) | extended `test_tier_1.py::test_security_group_lifecycle` | 1 ✅ |
+| deploy-target / event read-only reachability | `test_smoke.py` (added to `READ_ONLY_CLIENTS`) | 0 ✅ |
+| DBaaS first-class `version` + generic `get_settings` | extended `test_tier_4.py::test_dbaas_pg_lifecycle` | 4 ✅ |
 
 Run any tier with `EXOSCALE_RECORD=1` to also produce sanitized wire
 recordings for the offline replay suite (see the developer guide).

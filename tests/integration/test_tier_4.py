@@ -180,6 +180,15 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
     assert fetched.name == name
     assert (fetched.type or "").lower() == "pg"
 
+    # Additive 0.6.0 coverage: `version` is a first-class typed field that
+    # round-trips on the type-specific GET, and get_settings exposes the engine
+    # settings schema (read-only, engine-generic — short type form "pg").
+    assert fetched.version, "pg service did not report a version"
+    settings = dbaas.get_settings("pg")
+    assert isinstance(settings, dict) and settings.get("settings"), (
+        "get_settings returned no settings schema"
+    )
+
     # ip-filter set at create round-trips onto the typed field; update replaces
     # the whole list (it does not merge).
     assert fetched.ip_filter == ["203.0.113.0/24"], (
