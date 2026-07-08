@@ -165,13 +165,14 @@ gets implemented together.
 | **KMS asset type** — new `/kms-key` client (15 endpoints). Full lifecycle: CRUD, enable/disable, key rotation (`enable-`/`disable-key-rotation`, `rotate`, `list-key-rotations`), crypto ops (`encrypt`, `decrypt`, `re-encrypt`, `generate-data-key`), deletion lifecycle (`schedule-`/`cancel-deletion`), `replicate`. Model + CLI entry point + doc page + live verify. Build to the current spec shape — `POST /kms-key/{id}/schedule-deletion` dropped the required `status` response property in #43. Not in any current module | requested; touched by drift #43 | ~0.5–1 day (crypto ops + live verify) |
 | **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
 | **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
+| **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
 
-_Running total: ~3 days (~22h) — now **past** the ~8–16h graduation window.
-Recommend graduating: KMS is large and self-contained enough to be its own
-issue on the active milestone (0.5.0), with the remaining drift-fed items
-(VPC, DBaaS version params, nvidia-mig, ClickHouse, deploy targets, events) as
-a second batched issue. Estimates are first-pass, refined per drift during
-Claude Code evaluation._
+_Running total: ~3 days (~25h) — past the ~8–16h graduation window.
+**Graduated into milestone 0.6.0 as two issues:** KMS as its own issue (large,
+self-contained), and the rest (VPC, DBaaS version params, nvidia-mig,
+ClickHouse, deploy targets, events, full SG rule-reference typing) as one
+batched issue. Estimates are first-pass, refined per drift during Claude Code
+evaluation._
 
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
