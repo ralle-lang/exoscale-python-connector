@@ -25,6 +25,7 @@ from exoscale_connector.resources.iam_role import IAMRoleClient
 from exoscale_connector.resources.iam_user import IAMUserClient
 from exoscale_connector.resources.instance import InstanceClient
 from exoscale_connector.resources.instance_pool import InstancePoolClient
+from exoscale_connector.resources.kms import KmsKeyClient
 from exoscale_connector.resources.load_balancer import LoadBalancerClient
 from exoscale_connector.resources.private_network import PrivateNetworkClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
@@ -54,6 +55,7 @@ READ_ONLY_CLIENTS = [
     ("iam-role", IAMRoleClient),
     ("iam-user", IAMUserClient),
     ("ssh-key", SSHKeyClient),
+    ("kms", KmsKeyClient),
     ("dns-domain", DnsDomainClient),
     ("dbaas", DBaaSServiceClient),
     ("sks-cluster", SksClusterClient),
@@ -70,11 +72,13 @@ def test_list_is_reachable(live_client, label, client_cls) -> None:
     try:
         items = client_cls(live_client).list()
     except APIError as exc:
-        # A product/operation the tenant hasn't enabled (e.g. VPC on accounts
-        # without it) returns 403 "... not enabled". That's a tenant capability
-        # gate, not a connector fault — the endpoint was reached and recognised.
-        if exc.status_code == 403 and "not enabled" in str(exc).lower():
-            pytest.skip(f"{label}: operation not enabled on this tenant ({exc})")
+        # A 403 on a read-only list is a tenant/credential capability gate, not a
+        # connector fault: signing worked and the endpoint was reached, only
+        # authorization was refused — e.g. VPC "... not enabled" on accounts
+        # without it, or "Forbidden by role policy for kms" when the API key's
+        # IAM role doesn't grant that product. Skip rather than fail.
+        if exc.status_code == 403:
+            pytest.skip(f"{label}: forbidden on this tenant/credential ({exc})")
         raise
     assert isinstance(items, list)
 

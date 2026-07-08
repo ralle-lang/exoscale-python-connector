@@ -90,6 +90,10 @@ SCHEMA_ALIASES: Dict[str, str] = {
     # VPC sub-resources: the spec schemas are the unprefixed `subnet` / `route`.
     "VpcSubnet": "subnet",
     "VpcRoute": "route",
+    # KMS: collection_path "kms-key" maps to an empty stub; the detail response
+    # (superset of the list entry) is the schema to diff against.
+    "KmsKey": "get-kms-key-response",
+    "KeyRotationConfig": "key-rotation-config",
 }
 
 # Intentional, live-verified divergences. model name -> {json-alias: reason}. A

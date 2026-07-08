@@ -66,6 +66,7 @@ exoscale-api-key = "exoscale_connector.cli.api_key:main"
 exoscale-iam-role = "exoscale_connector.cli.iam_role:main"
 exoscale-iam-user = "exoscale_connector.cli.iam_user:main"
 exoscale-ssh-key = "exoscale_connector.cli.ssh_key:main"
+exoscale-kms = "exoscale_connector.cli.kms:main"
 # Managed services
 exoscale-dns = "exoscale_connector.cli.dns:main"
 exoscale-dbaas = "exoscale_connector.cli.dbaas:main"

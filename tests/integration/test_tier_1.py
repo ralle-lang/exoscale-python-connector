@@ -134,11 +134,12 @@ def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
     try:
         created = vpc.create({"name": name, "description": "connector tier-1 smoke"})
     except APIError as exc:
-        # VPC is a per-tenant opt-in product; without it the API returns
-        # 403 "... not enabled". Skip rather than fail — the endpoint is correct,
-        # the tenant just can't exercise it (see docs/live-test-plan.md).
-        if exc.status_code == 403 and "not enabled" in str(exc).lower():
-            pytest.skip(f"VPC not enabled on this tenant ({exc})")
+        # VPC access is gated per tenant/credential (product "... not enabled",
+        # or an IAM role that doesn't grant it). A 403 means the endpoint is
+        # correct but this account/key can't exercise it — skip, don't fail
+        # (see docs/live-test-plan.md).
+        if exc.status_code == 403:
+            pytest.skip(f"VPC forbidden on this tenant/credential ({exc})")
         raise
     vpc_id = created.id
     assert vpc_id, "vpc create did not resolve an id"
