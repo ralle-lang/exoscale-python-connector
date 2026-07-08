@@ -158,35 +158,40 @@ gets implemented together.
 
 | Item | Source | First-pass estimate (impl + full test run) |
 |---|---|---|
-| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification | drift #34, re-confirmed #40 | ~1 day (new asset type, nested sub-resources, live verify) |
+| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification. Subnet ops now include `PUT /vpc/{}/subnet/{}/attach` + `.../detach` (instance↔subnet membership); `POST .../route` dropped its `name` request property | drift #34, re-confirmed #40, subnet attach/detach + route-`name` drop #43 | ~1 day (new asset type, nested sub-resources, live verify) |
 | **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
 | **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
-| **InstancePool `error-reason` + `error` state** — surface the new optional response property (`error-reason`, explains a pool entering the new `error` state) as a first-class model field; the `error` state value is already tolerated (plain-`str` field, not `Literal`). Same `error-reason` also surfaces nested under load-balancer service `instance-pool` | drift #40 | ~1h |
+| **ClickHouse DBaaS engine** — the new `/dbaas-clickhouse/*` endpoints. Basic lifecycle (create/get/update/delete) and user + password management already work through the engine-generic `DBaaSServiceClient` via `service_type="clickhouse"` (no `_url_type` alias needed). Genuinely unmodelled sub-resources, none engine-specific: `GET /dbaas-settings-clickhouse` (settings discovery), `GET /dbaas-clickhouse/{}/acl-config`, `PUT /dbaas-clickhouse/{}/maintenance/start` — the settings/maintenance-start/acl patterns exist for other engines too and are unmodelled across the board, so promote them as generic DBaaS methods rather than ClickHouse-only. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #43 | ~1–2h |
+| **KMS asset type** — new `/kms-key` client (15 endpoints). Full lifecycle: CRUD, enable/disable, key rotation (`enable-`/`disable-key-rotation`, `rotate`, `list-key-rotations`), crypto ops (`encrypt`, `decrypt`, `re-encrypt`, `generate-data-key`), deletion lifecycle (`schedule-`/`cancel-deletion`), `replicate`. Model + CLI entry point + doc page + live verify. Build to the current spec shape — `POST /kms-key/{id}/schedule-deletion` dropped the required `status` response property in #43. Not in any current module | requested; touched by drift #43 | ~0.5–1 day (crypto ops + live verify) |
+| **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
+| **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
+| **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
 
-_Running total: ~1.5 days. Estimates are first-pass, refined per drift during
-Claude Code evaluation._
+_Running total: ~3 days (~25h) — past the ~8–16h graduation window.
+**Graduated into milestone 0.6.0 as two issues:** KMS as its own issue (large,
+self-contained), and the rest (VPC, DBaaS version params, nvidia-mig,
+ClickHouse, deploy targets, events, full SG rule-reference typing) as one
+batched issue. Estimates are first-pass, refined per drift during Claude Code
+evaluation._
 
----
+_drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
+(harvested from drift #40) was **retracted** — #43 reverses it upstream,
+removing `error-reason` from the instance-pool / load-balancer-service responses
+and dropping the `error` enum value from `state`. Nothing was ever modelled, so
+no code change is needed; the item is simply gone._
 
-## Backlog / deferred
+### Deliberately out of scope (do not re-harvest from drift)
 
-### Async client (httpx) — deferred, decision pending
-Doubles the maintenance surface and strains the "self-contained, requests +
-pydantic" portability promise. Revisit only with a concrete consumer that
-needs high-concurrency fan-out; would likely live as an optional extra or
-sibling package.
+These APIv2 asset types exist but are intentionally not modelled. Drift triage
+should **not** keep re-adding them to the backlog:
 
-### Size-ordering / scale-to-slug helpers — declined for now
-A `scale_to_slug()` or "next size up" helper implies a size-ordering table in
-the package; catalogue knowledge stays server-side (discovered, never
-assumed). Callers can derive ordering from the numeric `cpus`/`memory`
-fields. Reopen if a real consumer needs it badly enough to justify the
-maintenance trap.
-
-### Pagination support — contingent on the API
-APIv2 list endpoints are unpaginated today; `ResourceClient.list()` documents
-that assumption. If Exoscale introduces cursors, `list()` grows cursor
-handling. Nothing to do until then.
+- **`/organization`** — org/account management, out of the connector's remit.
+- **`/quota`** — account limits; read-only account metadata, not provisioning.
+- **`/usage-report`, `/live-balance`, `/env-impact`** — billing/usage
+  reporting, not the connector's job.
+- **`/console`** — instance web-console access; interactive, not automation.
+- **`/ai/*` (AI / GPU inference)** — deferred: the product surface is new and
+  still churning (it moved again in #43). Revisit once it stabilises.
 
 ---
 
