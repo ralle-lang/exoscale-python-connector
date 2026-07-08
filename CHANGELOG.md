@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-08
+
+Additive APIv2 coverage — new asset types and typed-coverage gaps surfaced by the
+upstream-drift triage. Purely additive: no existing behaviour changes.
+
+### Added
+- **VPC asset type** (`VpcClient`) — `/vpc` with nested `subnet` and `route`
+  sub-resources, plus instance ↔ subnet `attach`/`detach`. Models `Vpc` /
+  `VpcSubnet` / `VpcRoute`; `exoscale-vpc` CLI; doc page (#45).
+- **KMS asset type** (`KmsKeyClient`) — the full `/kms-key` surface (15
+  endpoints): CRUD, enable/disable, key rotation, envelope crypto
+  (`encrypt` / `decrypt` / `re_encrypt` / `generate_data_key`), the scheduled
+  deletion lifecycle, and multi-zone replication. Crypto operations are
+  library-only (secret-bearing, kept off the CLI); there is no immediate delete,
+  so `delete()` raises in favour of `schedule_deletion()`. `exoscale-kms` CLI
+  exposes the management verbs; doc page (#44).
+- **Deploy targets** — read-only `DeployTargetClient` (`/deploy-target`);
+  `Instance.deploy_target` lets a create pin an instance to a placement target
+  (#45).
+- **Audit events** — read-only `EventClient` over `/event`, with `from_`/`to`
+  windowing (#45).
+- **Typed security-group rule references** — a rule's `security_group` is now a
+  `SecurityGroupResource` (`id` / `name` / `visibility`) instead of a bare
+  id-only reference, so both private peers and Exoscale-managed public groups are
+  typed on request and round-tripped on response (#45).
+- **DBaaS** — a first-class typed `version` field, plus engine-generic
+  `get_settings` / `get_acl_config` / `start_maintenance` methods (#45).
+- **SKS** — nodepool `nvidia_mig_profiles` (#45).
+
+### Changed
+- Docs: the SOS bucket endpoint format (`https://sos-<zone>.exo.io`, auto-derived
+  from the zone) is now surfaced in the README and user guide, not only the
+  object-storage asset page (#32).
+
 ## [0.5.0] - 2026-06-12
 
 ### Added
@@ -107,7 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.2.0...v0.3.0
