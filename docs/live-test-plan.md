@@ -58,6 +58,7 @@ enable exactly what you want; no flag = skipped.
 | 2 — cheap, no compute | `EXOSCALE_TEST_TIER_2=1` | < €0.01/run | bucket (S3), block-volume + snapshot (detached), elastic-ip |
 | 3 — compute, minutes-of-runtime | `EXOSCALE_TEST_TIER_3=1` | ~€0.01–0.05/run | instance(+lifecycle), instance-pool(+scale), compute-snapshot, block-volume attach/detach |
 | 4 — expensive / long-lived | `EXOSCALE_TEST_TIER_4_DBAAS=1`, `EXOSCALE_TEST_TIER_4_SKS=1`, `EXOSCALE_TEST_TIER_4_LB=1` | each ~€0.01–0.10/run, 10–20 min | dbaas, sks(+nodepool+kubeconfig), load-balancer(+service) |
+| KMS — opt-in, lingering | `EXOSCALE_TEST_KMS=1` | key cost; **key lingers ≥7 days** | kms (crypto round-trip) |
 | ❌ — out of live scope | n/a | n/a | iam-user create (sends invite emails) |
 
 All tiers require `EXOSCALE_ALLOW_MUTATION=1` as the master switch.
@@ -284,6 +285,13 @@ not hardcoded).
 - **Cost**: starter control plane is free; 1 × standard.tiny for ~15 min ≈ €0.001; brief 2x during upscale.
 - **Risk**: longest total runtime (~15 min). Cluster delete must complete before nodepool ids release.
 
+#### 22. `kms` (key + rotation + crypto) — `EXOSCALE_TEST_KMS=1`
+- **Ops**: `list`, `get`, `create`, `enable`/`disable`, `enable_rotation`/`disable_rotation`/`rotate`/`list_rotations`, `encrypt`/`decrypt`/`re_encrypt`/`generate_data_key`, `schedule_deletion`/`cancel_deletion`, `replicate`. (No `delete` — KMS has none.)
+- **Live sequence** (`test_kms.py::test_kms_key_lifecycle`): create key `<prefix>-kms` → get (assert `enabled`) → `enable_rotation(period=30)` → `rotate` → `list_rotations` → Base64 `encrypt` → `decrypt` and assert the plaintext round-trips → `generate_data_key` (assert both parts present, **never print**) → `schedule_deletion(delay_days=7)`.
+- **Cleanup caveat**: **there is no immediate delete.** `schedule_deletion`'s minimum `delay-days` is 7, so the key stays in `pending-deletion` for ~7 days before Exoscale removes it. Each run leaves one such key. Gated behind its own `EXOSCALE_TEST_KMS=1` flag for that reason.
+- **Cost**: a KMS key's monthly charge, prorated (small); the key persists ≥7 days.
+- **Risk**: secret-bearing responses (plaintext, data key) — asserted for presence, never logged/printed. Skips on any 403 access gate — the product may be off (`... not enabled`) or the API key's IAM role may not grant KMS (`Forbidden by role policy for kms`, which is what the current test key returns).
+
 ---
 
 ### Out of live scope
@@ -396,6 +404,7 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 | 19 | vpc (+subnets, routes) | 1 | ⏭️ skip (not enabled) | CRUD + subnet + route; skips on tenant 403 "not enabled" (attach/detach → Tier 3) |
 | 20 | deploy-target | 0 | ✅ | read-only (`list`/`get`) — provisioned by Exoscale |
 | 21 | event (audit log) | 0 | ✅ | read-only (`list`) — bare-array response |
+| 22 | kms (key + crypto) | KMS-opt-in | ⏭️ skip (role policy) | crypto round-trip; test key's IAM role forbids KMS (403), so live-gated; key would linger ≥7 days |
 
 For a granular per-asset view (fields, gotchas, end-to-end examples), see
 the [asset type reference](asset-types/README.md).

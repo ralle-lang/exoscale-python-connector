@@ -44,6 +44,7 @@ COMMANDS = {
     "iam-role": "iam_role",
     "iam-user": "iam_user",
     "ssh-key": "ssh_key",
+    "kms": "kms",
     # Managed services
     "dns": "dns",
     "dbaas": "dbaas",
