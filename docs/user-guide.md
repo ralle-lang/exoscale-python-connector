@@ -171,6 +171,9 @@ rules) and lifecycle actions; run `exoscale-<type> --help` for the full list.
 > **Object Storage note:** buckets are S3-compatible, not part of the APIv2.
 > `exoscale-bucket` uses `boto3` (the `[sos]` extra) and the SOS endpoint, but
 > reuses the same `EXOSCALE_API_KEY` / `EXOSCALE_API_SECRET` credentials.
+> The endpoint is `https://sos-<zone>.exo.io`, **derived automatically from the
+> zone** you set (`--zone` / `EXOSCALE_ZONE`) — you never construct it by hand.
+> See [Object Storage](asset-types/object-storage.md) for the full details.
 
 ## Per-asset reference
 
