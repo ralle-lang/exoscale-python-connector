@@ -13,7 +13,7 @@ Verified endpoints come from the Ansible playbooks and Python tools in this repo
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
@@ -46,6 +46,11 @@ class SksNodepool(ExoscaleModel):
     taints: Optional[Dict[str, str]] = None
     instance_prefix: Optional[str] = None
     public_ip_assignment: Optional[str] = None
+    # Nvidia MIG (Multi-Instance GPU) profiles to enable on GPU nodes, keyed by
+    # GPU model (e.g. {"a30.24gb": {...}}). Settable on nodepool create/update;
+    # returned on the nodepool object. Payload passes through create_nodepool /
+    # update_nodepool, which accept a dict or model.
+    nvidia_mig_profiles: Optional[Dict[str, Any]] = None
 
 
 class SksCluster(ExoscaleModel):

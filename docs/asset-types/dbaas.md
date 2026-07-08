@@ -24,6 +24,7 @@ class DBaaSService(ExoscaleModel):
     type: Optional[str]            # short form: "pg", "mysql", "valkey", ...
     plan: Optional[str]            # e.g. "hobbyist-2", "startup-4"
     state: Optional[str]           # "rebuilding" -> "running"
+    version: Optional[str]         # engine version; settable on update (mysql/valkey/clickhouse/...)
     node_count: Optional[int]
     disk_size: Optional[int]
     ip_filter: Optional[List[str]]  # allowed CIDRs; absent/empty = allow-all
@@ -167,6 +168,10 @@ extra wire-shape coverage):
 # Plan change / maintenance window / type-specific settings.
 dbaas.update(name, {"maintenance": {"dow": "sunday", "time": "04:00:00"}}, service_type="pg")
 
+# Engine version upgrade (mysql / valkey / clickhouse / ...): `version` is a
+# first-class update field, round-tripped on the model.
+dbaas.update("my-mysql-1", {"version": "8"}, service_type="mysql")
+
 # Users — passwords are never returned by create/reset; fetch them
 # explicitly (and treat them as secrets).
 dbaas.create_user(name, "analyst", service_type="pg")
@@ -174,6 +179,28 @@ dbaas.reset_user_password(name, "analyst", service_type="pg")
 secret = dbaas.reveal_user_password(name, "analyst", service_type="pg")
 dbaas.delete_user(name, "analyst", service_type="pg")
 ```
+
+### Generic engine sub-resources (settings / ACL / maintenance)
+
+Three read/trigger helpers that generalise across engine types:
+
+```python
+# Discover the settings schema an engine accepts (short type form: "pg", not
+# "postgres"). Response shape is engine-specific -> raw dict.
+schema = dbaas.get_settings("clickhouse")           # GET /dbaas-settings-clickhouse
+
+# Per-service ACL configuration (clickhouse / kafka / opensearch).
+acls = dbaas.get_acl_config("my-ch-1", service_type="clickhouse")
+
+# Run the pending maintenance update now instead of waiting for the window.
+dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
+```
+
+- **`get_settings` uses the short type form** (`pg`, `mysql`, `clickhouse`) — the
+  same names `list_service_types()` returns — because the endpoint is
+  `/dbaas-settings-{short}`. The per-service `get_acl_config` /
+  `start_maintenance` use the long type path (`pg` → `postgres`) like the rest of
+  the type-specific methods; pass either form and the client translates.
 
 `ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
 kwargs) — use `get_or_none(name)` + `create(...)` explicitly.

@@ -140,3 +140,16 @@ def test_reboot_puts_colon_action(client, base_url) -> None:
     )
     op = InstanceClient(client).reboot("i-1")
     assert op.id == "op-reboot"
+
+
+@responses.activate
+def test_get_parses_deploy_target_reference(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/instance/i1",
+        json={"id": "i1", "name": "vm", "deploy-target": {"id": "dt1"}},
+        status=200,
+    )
+    instance = InstanceClient(client).get("i1")
+    assert instance.deploy_target is not None
+    assert instance.deploy_target.id == "dt1"

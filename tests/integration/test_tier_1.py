@@ -24,10 +24,12 @@ from exoscale_connector.resources.iam_role import IAMPolicy, IAMRole, IAMRoleCli
 from exoscale_connector.resources.private_network import PrivateNetworkClient
 from exoscale_connector.resources.security_group import (
     SecurityGroupClient,
+    SecurityGroupResource,
     SecurityGroupRule,
 )
 from exoscale_connector.resources.ssh_key import SSHKey, SSHKeyClient
 from exoscale_connector.resources.template import TemplateClient
+from exoscale_connector.resources.vpc import VpcClient, VpcRoute, VpcSubnet
 
 from ._fixtures import assert_safe_name, make_name
 
@@ -67,6 +69,34 @@ def test_security_group_lifecycle(live_client, run_id, tracker, tier_1_enabled) 
     after_del = sg.get(sg_id)
     assert not [r for r in after_del.rules if r.description == rule_desc]
 
+    # Peer-SG-by-id rule: allow traffic from another security group's members
+    # (typed SecurityGroupResource reference, not a CIDR). Exercises the
+    # request+response typing of security_group on a rule.
+    peer_name = make_name(run_id, "sgpeer")
+    peer = sg.create({"name": peer_name, "description": "connector tier-1 peer"})
+    peer_id = peer.id
+    tracker.register("security-group", lambda: sg.delete(peer_id), peer_id)
+    peer_rule_desc = f"{name}-from-peer"
+    sg.add_rule(
+        sg_id,
+        SecurityGroupRule(
+            flow_direction="ingress",
+            protocol="tcp",
+            start_port=22,
+            end_port=22,
+            security_group=SecurityGroupResource(id=peer_id),
+            description=peer_rule_desc,
+        ),
+    )
+    after_peer = sg.get(sg_id)
+    peer_matches = [r for r in after_peer.rules if r.description == peer_rule_desc]
+    assert len(peer_matches) == 1, "expected exactly one peer-SG rule"
+    assert peer_matches[0].security_group is not None
+    assert peer_matches[0].security_group.id == peer_id
+    sg.delete_rule(sg_id, peer_matches[0].id)
+    sg.delete(peer_id)
+    tracker.unregister(peer_id)
+
     assert_safe_name(name)
     sg.delete(sg_id)
     tracker.unregister(sg_id)
@@ -92,6 +122,54 @@ def test_private_network_lifecycle(live_client, run_id, tracker, tier_1_enabled)
     assert_safe_name(name)
     pn.delete(pn_id)
     tracker.unregister(pn_id)
+
+
+def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
+    """VPC: create + subnet + route CRUD + delete (all free, no compute).
+
+    Instance attach/detach needs a running instance and is covered in Tier 3.
+    """
+    vpc = VpcClient(live_client)
+    name = make_name(run_id, "vpc")
+    created = vpc.create({"name": name, "description": "connector tier-1 smoke"})
+    vpc_id = created.id
+    assert vpc_id, "vpc create did not resolve an id"
+    tracker.register("vpc", lambda: vpc.delete(vpc_id), vpc_id)
+
+    assert vpc.get(vpc_id).name == name
+    assert any(v.id == vpc_id for v in vpc.list())
+
+    # Subnet
+    subnet_op = vpc.create_subnet(
+        vpc_id,
+        VpcSubnet(
+            name=f"{name}-sub",
+            addressfamily="inet4",
+            address_space="private",
+            ipv4_block="10.0.0.0/24",
+        ),
+    )
+    subnet_id = subnet_op.reference_id
+    assert subnet_id, "subnet create did not reference an id"
+    subnets = vpc.list_subnets(vpc_id)
+    assert any(s.id == subnet_id for s in subnets)
+    assert vpc.get_subnet(vpc_id, subnet_id).ipv4_block == "10.0.0.0/24"
+
+    # Route (per subnet); `name` is intentionally not sent.
+    route_op = vpc.create_route(
+        vpc_id, subnet_id, VpcRoute(destination="10.1.0.0/24", target="10.0.0.1"),
+    )
+    route_id = route_op.reference_id
+    assert route_id, "route create did not reference an id"
+    assert any(r.id == route_id for r in vpc.list_subnet_routes(vpc_id, subnet_id))
+    assert any(r.id == route_id for r in vpc.list_routes(vpc_id))
+
+    # Teardown (inner-to-outer)
+    vpc.delete_route(vpc_id, subnet_id, route_id)
+    vpc.delete_subnet(vpc_id, subnet_id)
+    assert_safe_name(name)
+    vpc.delete(vpc_id)
+    tracker.unregister(vpc_id)
 
 
 def test_anti_affinity_group_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:

@@ -26,6 +26,7 @@ COMMANDS = {
     "elastic-ip": "elastic_ip",
     "private-network": "private_network",
     "load-balancer": "load_balancer",
+    "vpc": "vpc",
     # Compute
     "instance": "instance",
     "instance-pool": "instance_pool",
@@ -33,6 +34,7 @@ COMMANDS = {
     "template": "template",
     "anti-affinity-group": "anti_affinity_group",
     "snapshot": "snapshot",
+    "deploy-target": "deploy_target",
     # Storage
     "block-volume": "block_volume",
     "block-volume-snapshot": "block_volume_snapshot",
@@ -48,6 +50,7 @@ COMMANDS = {
     "sks": "sks",
     # Platform
     "zone": "zone",
+    "event": "event",
     # Tooling (not an asset type)
     "skill": "skill",
 }

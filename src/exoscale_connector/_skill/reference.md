@@ -279,6 +279,7 @@ An Exoscale managed database service.
 | `type` | `type` | Optional[str] |
 | `plan` | `plan` | Optional[str] |
 | `state` | `state` | Optional[str] |
+| `version` | `version` | Optional[str] |
 | `node_count` | `node-count` | Optional[int] |
 | `disk_size` | `disk-size` | Optional[int] |
 | `ip_filter` | `ip-filter` | Optional[List[str]] |
@@ -305,16 +306,46 @@ Inherits the common operations (see above) plus the methods below, if any.
   Not supported: DBaaS ``create`` needs ``service_type``/``name`` kwargs.
 - `get(resource_id: str, *, zone: Optional[str] = None) -> DBaaSService`
   Fetch a DBaaS service by name.
+- `get_acl_config(name: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+  Return the ACL configuration for a service.
 - `get_connection_info(name: str, *, service_type: str, zone: Optional[str] = None) -> DBaaSService`
   Fetch the full service detail including ``connection-info`` and ``uri-params``.
+- `get_settings(service_type: str, *, zone: Optional[str] = None) -> dict`
+  Return the configurable settings schema for an engine type.
 - `list_service_types(*, zone: Optional[str] = None) -> List[dict]`
   Return available DBaaS service types from the ``dbaas-service-type`` endpoint.
 - `reset_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
   Reset a user's password (``PUT .../user/{username}/password/reset``).
 - `reveal_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
   Return the revealed credentials for a service user.
+- `start_maintenance(name: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+  Trigger the service's pending maintenance update immediately.
 - `update(name: str, payload: Any, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> DBaaSService`
   Update a service (``PUT dbaas-{type}/{name}``) and return its new state.
+
+### `exoscale_connector.resources.deploy_target`
+
+Deploy Target resource client (read-only).
+
+#### model `DeployTarget`
+
+An Exoscale deploy target (instance placement target).
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | Optional[str] |
+| `name` | `name` | Optional[str] |
+| `description` | `description` | Optional[str] |
+| `type` | `type` | Optional[str] |
+
+#### client `DeployTargetClient`
+
+List and fetch Exoscale deploy targets.
+
+API collection: `deploy-target`; resource model: `DeployTarget`.
+
+Inherits the common operations (see above) plus the methods below, if any.
+
 
 ### `exoscale_connector.resources.dns`
 
@@ -411,6 +442,40 @@ Inherits the common operations (see above) plus the methods below, if any.
   Return the PTR domain name for the resource, or ``None`` if unset.
 - `set_reverse_dns(resource_id: str, domain_name: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
   Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
+
+### `exoscale_connector.resources.event`
+
+Audit Event resource client (read-only).
+
+#### model `Event`
+
+A single audit-log entry describing one APIv2 request.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `timestamp` | `timestamp` | Optional[str] |
+| `handler` | `handler` | Optional[str] |
+| `uri` | `uri` | Optional[str] |
+| `status` | `status` | Optional[int] |
+| `elapsed_ms` | `elapsed-ms` | Optional[int] |
+| `request_id` | `request-id` | Optional[str] |
+| `source_ip` | `source-ip` | Optional[str] |
+| `message` | `message` | Optional[str] |
+| `zone` | `zone` | Optional[str] |
+| `iam_user` | `iam-user` | Optional[Reference] |
+| `iam_role` | `iam-role` | Optional[Reference] |
+| `iam_api_key` | `iam-api-key` | Optional[Reference] |
+
+#### client `EventClient`
+
+Read the account audit event stream (``GET /event``).
+
+API collection: `event`; resource model: `Event`.
+
+Inherits the common operations (see above) plus the methods below, if any.
+
+- `list(*, from_: Optional[str] = None, to: Optional[str] = None, zone: Optional[str] = None) -> List[Event]`
+  Return audit events, newest window first.
 
 ### `exoscale_connector.resources.iam_role`
 
@@ -527,6 +592,7 @@ An Exoscale compute instance.
 | `security_groups` | `security-groups` | List[Reference] |
 | `labels` | `labels` | Optional[dict] |
 | `manager` | `manager` | Optional[Reference] |
+| `deploy_target` | `deploy-target` | Optional[Reference] |
 | `created_at` | `created-at` | Optional[str] |
 
 #### model `SshKeyReference`
@@ -795,6 +861,16 @@ An Exoscale security group and its rules.
 | `rules` | `rules` | List[SecurityGroupRule] |
 | `external_sources` | `external-sources` | Optional[List[str]] |
 
+#### model `SecurityGroupResource`
+
+A typed reference to a security group used as a rule source/destination.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | Optional[str] |
+| `name` | `name` | Optional[str] |
+| `visibility` | `visibility` | Optional[str] |
+
 #### model `SecurityGroupRule`
 
 A single ingress/egress rule belonging to a security group.
@@ -808,7 +884,7 @@ A single ingress/egress rule belonging to a security group.
 | `start_port` | `start-port` | Optional[int] |
 | `end_port` | `end-port` | Optional[int] |
 | `network` | `network` | Optional[str] |
-| `security_group` | `security-group` | Optional[Reference] |
+| `security_group` | `security-group` | Optional[SecurityGroupResource] |
 
 #### client `SecurityGroupClient`
 
@@ -869,6 +945,7 @@ A pool of worker nodes within an SKS cluster.
 | `taints` | `taints` | Optional[Dict[str, str]] |
 | `instance_prefix` | `instance-prefix` | Optional[str] |
 | `public_ip_assignment` | `public-ip-assignment` | Optional[str] |
+| `nvidia_mig_profiles` | `nvidia-mig-profiles` | Optional[Dict[str, Any]] |
 
 #### client `SksClusterClient`
 
@@ -994,6 +1071,80 @@ Inherits the common operations (see above) plus the methods below, if any.
   Return the smallest public Linux template in the zone, or ``None``.
 - `list(*, zone: Optional[str] = None, labels: Optional[dict] = None, visibility: Optional[str] = None) -> List[Template]`
   List templates, optionally filtered by ``visibility``.
+
+### `exoscale_connector.resources.vpc`
+
+VPC (Virtual Private Cloud) resource client.
+
+#### model `Vpc`
+
+An Exoscale VPC (private network fabric).
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | Optional[str] |
+| `name` | `name` | Optional[str] |
+| `description` | `description` | Optional[str] |
+| `labels` | `labels` | Optional[Dict[str, str]] |
+| `created_at` | `created-at` | Optional[str] |
+
+#### model `VpcRoute`
+
+A route entry within a VPC subnet.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | Optional[str] |
+| `description` | `description` | Optional[str] |
+| `destination` | `destination` | Optional[str] |
+| `target` | `target` | Optional[str] |
+| `kind` | `kind` | Optional[str] |
+
+#### model `VpcSubnet`
+
+An IP subnet within a VPC that instances can attach to.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | Optional[str] |
+| `name` | `name` | Optional[str] |
+| `description` | `description` | Optional[str] |
+| `address_space` | `address-space` | Optional[str] |
+| `addressfamily` | `addressfamily` | Optional[str] |
+| `ipv4_block` | `ipv4-block` | Optional[str] |
+| `labels` | `labels` | Optional[Dict[str, str]] |
+| `created_at` | `created-at` | Optional[str] |
+
+#### client `VpcClient`
+
+Manage VPCs and their subnet / route sub-resources.
+
+API collection: `vpc`; resource model: `Vpc`.
+
+Inherits the common operations (see above) plus the methods below, if any.
+
+- `attach_subnet(vpc_id: str, subnet_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Attach an instance to a subnet.
+- `create_route(vpc_id: str, subnet_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Add a route to a subnet.
+- `create_subnet(vpc_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Add a subnet to a VPC (``POST vpc/{vpc_id}/subnet``).
+- `delete_route(vpc_id: str, subnet_id: str, route_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Delete a route (``DELETE vpc/{vpc_id}/subnet/{subnet_id}/route/{route_id}``).
+- `delete_subnet(vpc_id: str, subnet_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Delete a subnet (``DELETE vpc/{vpc_id}/subnet/{subnet_id}``).
+- `detach_subnet(vpc_id: str, subnet_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Detach an instance from a subnet.
+- `get_subnet(vpc_id: str, subnet_id: str, *, zone: Optional[str] = None) -> VpcSubnet`
+  Fetch one subnet by id (``GET vpc/{vpc_id}/subnet/{subnet_id}``).
+- `list_routes(vpc_id: str, *, zone: Optional[str] = None) -> List[VpcRoute]`
+  List every route in a VPC (``GET vpc/{vpc_id}/route``).
+- `list_subnet_routes(vpc_id: str, subnet_id: str, *, zone: Optional[str] = None) -> List[VpcRoute]`
+  List a subnet's routes (``GET vpc/{vpc_id}/subnet/{subnet_id}/route``).
+- `list_subnets(vpc_id: str, *, zone: Optional[str] = None) -> List[VpcSubnet]`
+  List a VPC's subnets (``GET vpc/{vpc_id}/subnet``).
+- `update_subnet(vpc_id: str, subnet_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+  Update a subnet (``PUT vpc/{vpc_id}/subnet/{subnet_id}``).
 
 ### `exoscale_connector.resources.zone`
 
@@ -1489,6 +1640,7 @@ class DBaaSService(ExoscaleModel):
     type: Optional[str]            # short form: "pg", "mysql", "valkey", ...
     plan: Optional[str]            # e.g. "hobbyist-2", "startup-4"
     state: Optional[str]           # "rebuilding" -> "running"
+    version: Optional[str]         # engine version; settable on update (mysql/valkey/clickhouse/...)
     node_count: Optional[int]
     disk_size: Optional[int]
     ip_filter: Optional[List[str]]  # allowed CIDRs; absent/empty = allow-all
@@ -1632,6 +1784,10 @@ extra wire-shape coverage):
 # Plan change / maintenance window / type-specific settings.
 dbaas.update(name, {"maintenance": {"dow": "sunday", "time": "04:00:00"}}, service_type="pg")
 
+# Engine version upgrade (mysql / valkey / clickhouse / ...): `version` is a
+# first-class update field, round-tripped on the model.
+dbaas.update("my-mysql-1", {"version": "8"}, service_type="mysql")
+
 # Users — passwords are never returned by create/reset; fetch them
 # explicitly (and treat them as secrets).
 dbaas.create_user(name, "analyst", service_type="pg")
@@ -1640,8 +1796,90 @@ secret = dbaas.reveal_user_password(name, "analyst", service_type="pg")
 dbaas.delete_user(name, "analyst", service_type="pg")
 ```
 
+##### Generic engine sub-resources (settings / ACL / maintenance)
+
+Three read/trigger helpers that generalise across engine types:
+
+```python
+# Discover the settings schema an engine accepts (short type form: "pg", not
+# "postgres"). Response shape is engine-specific -> raw dict.
+schema = dbaas.get_settings("clickhouse")           # GET /dbaas-settings-clickhouse
+
+# Per-service ACL configuration (clickhouse / kafka / opensearch).
+acls = dbaas.get_acl_config("my-ch-1", service_type="clickhouse")
+
+# Run the pending maintenance update now instead of waiting for the window.
+dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
+```
+
+- **`get_settings` uses the short type form** (`pg`, `mysql`, `clickhouse`) — the
+  same names `list_service_types()` returns — because the endpoint is
+  `/dbaas-settings-{short}`. The per-service `get_acl_config` /
+  `start_maintenance` use the long type path (`pg` → `postgres`) like the rest of
+  the type-specific methods; pass either form and the client translates.
+
 `ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
 kwargs) — use `get_or_none(name)` + `create(...)` explicitly.
+
+### deploy-target
+
+A **deploy target** is a placement location an instance can be pinned to at
+creation time — an `edge` site or a `dedicated` host. Targets are provisioned by
+Exoscale, so this asset is **read-only**: discover a target id, then reference it
+when creating an instance.
+
+#### Model
+
+```python
+class DeployTarget(ExoscaleModel):
+    id: Optional[str]
+    name: Optional[str]
+    description: Optional[str]
+    type: Optional[str]        # "edge" | "dedicated"
+```
+
+#### CLI
+
+```bash
+exoscale-deploy-target list
+exoscale-deploy-target get --id <uuid>
+```
+
+#### Library
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.deploy_target import DeployTargetClient
+from exoscale_connector.resources.instance import InstanceClient
+
+client = ExoscaleClient.from_env(zone="de-fra-1")
+
+# 1. Discover an available target
+targets = DeployTargetClient(client).list()
+target = next(t for t in targets if t.type == "dedicated")
+
+# 2. Pin a new instance to it
+instance = InstanceClient(client).create({
+    "name": "pinned-vm",
+    "instance-type": {"id": "<instance-type-uuid>"},
+    "template": {"id": "<template-uuid>"},
+    "disk-size": 50,
+    "deploy-target": {"id": target.id},
+})
+
+# The chosen target round-trips on the instance:
+assert instance.deploy_target.id == target.id
+```
+
+#### Gotchas
+
+- **Read-only.** Only `list` / `get` are meaningful. Deploy targets are created
+  by Exoscale; the inherited mutating verbs will fail server-side.
+- **Set at create time only.** The `deploy-target` reference is a create-payload
+  field on the instance (`{"deploy-target": {"id": ...}}`); it is not something
+  you change on an existing instance. It round-trips as `Instance.deploy_target`.
+- **Most accounts see an empty list.** Dedicated/edge placement is an opt-in
+  capability; an empty `list()` just means none are assigned to your account.
 
 ### dns (domain + records)
 
@@ -1856,6 +2094,65 @@ eips.set_reverse_dns(eip.id, "mail.example.com.")
 eips.get_reverse_dns(eip.id)                 # "mail.example.com." | None
 eips.delete_reverse_dns(eip.id)
 ```
+
+### event (audit log)
+
+The account **audit log**: one entry per APIv2 request, recording who called
+(IAM user / role / API key), what they called (method + path), from where, and
+the outcome. Handy as a "what changed / who did it" check after an automated
+provisioning run. **Read-only.**
+
+#### Model
+
+```python
+class Event(ExoscaleModel):
+    timestamp: Optional[str]        # ISO-8601 request time
+    handler: Optional[str]          # the API handler that served the request
+    uri: Optional[str]              # request path
+    status: Optional[int]           # HTTP status code
+    elapsed_ms: Optional[int]       # server-side duration
+    request_id: Optional[str]
+    source_ip: Optional[str]
+    message: Optional[str]
+    zone: Optional[str]
+    iam_user: Optional[Reference]   # caller identity (whichever applies)
+    iam_role: Optional[Reference]
+    iam_api_key: Optional[Reference]
+```
+
+#### CLI
+
+```bash
+exoscale-event list
+```
+
+#### Library
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.event import EventClient
+
+events = EventClient(ExoscaleClient.from_env(zone="de-fra-1"))
+
+# Recent window (API default)
+for e in events.list():
+    print(e.timestamp, e.status, e.uri, e.source_ip)
+
+# Bounded window (ISO-8601). `from_` maps to the API's `from` query param.
+recent = events.list(from_="2026-07-01T00:00:00Z", to="2026-07-08T00:00:00Z")
+```
+
+#### Gotchas
+
+- **Read-only, list-only.** There is a single endpoint (`GET /event`); no `get`
+  by id, and events are not addressable by name.
+- **Bare-array response.** Unlike most endpoints, `GET /event` returns a raw
+  JSON array rather than a `{"events": [...]}` envelope. `EventClient.list`
+  normalises that for you.
+- **`from_`, not `from`.** The API's `from` query parameter collides with the
+  Python keyword, so the client method takes `from_`.
+- **Zone-scoped.** Events are read from the client's zone; query each zone you
+  operate in if you need a full picture.
 
 ### iam-role
 
@@ -2764,6 +3061,12 @@ ingress / egress rules as sub-resources.
 #### Model
 
 ```python
+class SecurityGroupResource(ExoscaleModel):
+    id: Optional[str]               # target SG uuid
+    name: Optional[str]
+    visibility: Optional[str]       # "private" (your account) | "public" (Exoscale-managed)
+
+
 class SecurityGroupRule(ExoscaleModel):
     id: Optional[str]               # API-assigned uuid
     description: Optional[str]      # free-form, useful as a human-friendly tag
@@ -2772,7 +3075,7 @@ class SecurityGroupRule(ExoscaleModel):
     start_port: Optional[int]
     end_port: Optional[int]
     network: Optional[str]          # CIDR — mutually exclusive with security_group
-    security_group: Optional[Reference]  # peer SG (rule allows traffic from members)
+    security_group: Optional[SecurityGroupResource]  # peer/public SG source or dest
 
 
 class SecurityGroup(ExoscaleModel):
@@ -2834,6 +3137,13 @@ sg.delete_rule(group.id, rule_id)
   instance, instance pool, or LB. The API returns 412 — detach first.
 - **Adding a rule is async**; the operation completes within a few seconds
   but `wait=False` is available for fire-and-forget scenarios.
+- **Peer-SG rules take a typed `security_group` reference, not a CIDR.** A rule
+  can allow traffic from another security group's members instead of a
+  `network` CIDR — the two are mutually exclusive. Reference a **private** peer
+  in your own account by id (`{"security-group": {"id": "<uuid>"}}`), and an
+  Exoscale-managed **public** group by adding `"visibility": "public"`
+  (`{"security-group": {"id": "<uuid>", "visibility": "public"}}`). Both round-trip
+  on the response as a `SecurityGroupResource`.
 
 #### End-to-end example
 
@@ -2901,6 +3211,7 @@ class SksNodepool(ExoscaleModel):
     taints: Optional[Dict[str, str]]
     instance_prefix: Optional[str]
     public_ip_assignment: Optional[str]
+    nvidia_mig_profiles: Optional[Dict[str, Any]]  # MIG profiles for GPU nodes, keyed by GPU model
 
 
 class SksCluster(ExoscaleModel):
@@ -3326,6 +3637,114 @@ smallest_linux = templates.find_linux()        # smallest public Linux image
   stays ~200 KB even at 10 GB virtual size.
 - **register/delete live-verified 2026-06-11** via `test_template_register_delete`
   (Tier 1, gated on `EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM`).
+
+### vpc (+ subnets, routes)
+
+A **VPC** (Virtual Private Cloud) is a private network fabric with its own
+routing domain. It owns **subnets** (IP ranges instances attach to) and, per
+subnet, **routes**. Instances join a subnet via attach/detach.
+
+#### Model
+
+```python
+class Vpc(ExoscaleModel):
+    id: Optional[str]
+    name: Optional[str]
+    description: Optional[str]
+    labels: Optional[Dict[str, str]]
+    created_at: Optional[str]
+
+
+class VpcSubnet(ExoscaleModel):
+    id: Optional[str]
+    name: Optional[str]
+    description: Optional[str]
+    address_space: Optional[str]    # "private"
+    addressfamily: Optional[str]    # "inet4" | "dual"
+    ipv4_block: Optional[str]       # CIDR
+    labels: Optional[Dict[str, str]]
+    created_at: Optional[str]
+
+
+class VpcRoute(ExoscaleModel):
+    id: Optional[str]
+    description: Optional[str]
+    destination: Optional[str]      # CIDR the route matches
+    target: Optional[str]           # next-hop
+    kind: Optional[str]             # "Subnet" | "Vpc"
+```
+
+#### CLI
+
+The umbrella CLI exposes VPC CRUD and subnet management (`<verb>-vpc` /
+`<verb>-subnet`). Routes and instance attach/detach are one level deeper and are
+library-only.
+
+```bash
+exoscale-vpc list-vpcs
+exoscale-vpc get-vpc --id <uuid>
+exoscale-vpc create-vpc --json '{"name": "prod", "description": "prod fabric"}'
+exoscale-vpc delete-vpc --id <uuid>
+
+exoscale-vpc list-subnets --vpc-id <uuid>
+exoscale-vpc create-subnet --vpc-id <uuid> \
+  --json '{"name": "app", "addressfamily": "inet4", "address-space": "private", "ipv4-block": "10.0.0.0/24"}'
+exoscale-vpc delete-subnet --vpc-id <uuid> --id <subnet-uuid>
+```
+
+#### Library
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.vpc import VpcClient
+
+vpc = VpcClient(ExoscaleClient.from_env(zone="de-fra-1"))
+
+# VPC CRUD (async, awaited by default)
+op = vpc.create({"name": "prod", "description": "prod fabric"})
+vpc_id = op.reference_id
+
+# Subnets
+vpc.create_subnet(vpc_id, {
+    "name": "app",
+    "addressfamily": "inet4",
+    "address-space": "private",
+    "ipv4-block": "10.0.0.0/24",
+})
+subnets = vpc.list_subnets(vpc_id)
+subnet_id = subnets[0].id
+
+# Attach / detach an instance to a subnet
+vpc.attach_subnet(vpc_id, subnet_id, instance_id)
+vpc.detach_subnet(vpc_id, subnet_id, instance_id)
+
+# Routes (per subnet)
+vpc.create_route(vpc_id, subnet_id, {"destination": "0.0.0.0/0", "target": "10.0.0.1"})
+routes = vpc.list_subnet_routes(vpc_id, subnet_id)
+all_routes = vpc.list_routes(vpc_id)          # every route in the VPC
+vpc.delete_route(vpc_id, subnet_id, routes[0].id)
+
+# Teardown
+vpc.delete_subnet(vpc_id, subnet_id)
+vpc.delete(vpc_id)
+```
+
+#### Gotchas
+
+- **Subnet create requires three fields:** `name`, `addressfamily`
+  (`inet4`/`dual`), and `address-space` (`private`). Set the CIDR with
+  `ipv4-block`.
+- **Instance membership lives on the subnet.** Join with
+  `attach_subnet(vpc_id, subnet_id, instance_id)` (wraps
+  `PUT vpc/{vpc}/subnet/{subnet}/attach` with `{"instance": {"id": ...}}`), not
+  the instance's own update endpoint. Attach/detach are async, awaited by default.
+- **Routes belong to a subnet, not the VPC directly.** Create/delete a route
+  under a subnet; `list_routes(vpc_id)` returns the union across all subnets for
+  a fabric-wide view.
+- **Do not send `name` when creating a route.** The `name` request property was
+  dropped upstream; a route is identified by its `destination`/`target`.
+- **VPC create is async.** `create` returns the operation; the new VPC id is on
+  `operation.reference_id` once it settles (awaited by default).
 
 ### zone
 

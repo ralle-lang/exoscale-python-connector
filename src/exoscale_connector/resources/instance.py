@@ -37,6 +37,10 @@ class Instance(ExoscaleModel):
     labels: Optional[dict] = None
     # manager carries pool/cluster membership ({"type": "...", "id": "..."})
     manager: Optional[Reference] = None
+    # Placement target the instance is pinned to. Set at create time by passing
+    # {"deploy-target": {"id": ...}} in the create payload; discover valid ids
+    # with DeployTargetClient. Round-tripped on the response.
+    deploy_target: Optional[Reference] = None
     created_at: Optional[str] = None
 
 

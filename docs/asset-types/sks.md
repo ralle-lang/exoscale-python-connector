@@ -24,6 +24,7 @@ class SksNodepool(ExoscaleModel):
     taints: Optional[Dict[str, str]]
     instance_prefix: Optional[str]
     public_ip_assignment: Optional[str]
+    nvidia_mig_profiles: Optional[Dict[str, Any]]  # MIG profiles for GPU nodes, keyed by GPU model
 
 
 class SksCluster(ExoscaleModel):
