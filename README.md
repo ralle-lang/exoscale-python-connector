@@ -30,6 +30,10 @@ Object Storage (S3-compatible) support pulls in `boto3`:
 pip install "exoscale-connector[sos]"
 ```
 
+The bucket endpoint is `https://sos-<zone>.exo.io`, derived automatically from
+the zone you set — you never build the URL yourself. See
+[Object Storage](docs/asset-types/object-storage.md) for details.
+
 For development from a local clone:
 
 ```bash
