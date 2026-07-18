@@ -166,6 +166,7 @@ gets implemented together.
 | **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
 | **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
 | **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
+| **ClickHouse DBaaS user create/reset response shape** — `POST /dbaas-clickhouse/{}/user` and `PUT /dbaas-clickhouse/{}/user/{}/password/reset` swapped the Operation envelope (`id`, `state`, `reference`, `message`, `reason`) for an inline user payload (`username`, `password`). Both connector methods return a raw `dict`, so nothing breaks today — but the documented gotcha *"passwords are never returned by create/reset"* (`docs/asset-types/dbaas.md`, `DBaaSServiceClient.reset_user_password` docstring) no longer holds for ClickHouse. Per D1 the spec alone does not settle this: verify live against a ClickHouse service first, then either scope the gotcha to the engines where it holds (pg, live-verified 2026-06-10) or surface the returned credential and skip the extra `reveal_user_password` round-trip. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #52 | ~1h (doc + optional convenience; needs a live ClickHouse service) |
 
 _Running total: ~3 days (~25h) — past the ~8–16h graduation window.
 **Graduated into milestone 0.6.0 as two issues:** KMS as its own issue (large,
@@ -180,6 +181,10 @@ _**Batched issue (#45) implemented** on `feat/additive-apiv2-batch`: VPC
 DBaaS `version`, and SKS `nvidia-mig-profiles` — unit-tested, `ruff`/`mypy`/llms
 `--check` green; live verification per docs/live-test-plan.md and merge pending.
 KMS (#44) still open._
+
+_Post-graduation running total: ~1h (ClickHouse user create/reset response
+shape, drift #52). Rows above it were graduated into 0.6.0; the fresh backlog is
+well under the ~8–16h graduation window, so it keeps accruing._
 
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
@@ -198,7 +203,9 @@ should **not** keep re-adding them to the backlog:
   reporting, not the connector's job.
 - **`/console`** — instance web-console access; interactive, not automation.
 - **`/ai/*` (AI / GPU inference)** — deferred: the product surface is new and
-  still churning (it moved again in #43). Revisit once it stabilises.
+  still churning (it moved again in #43, and again in #52 — `POST`/`PATCH
+  /ai/api-key` tightened `name` to a 1–50 char pattern and `POST /ai/deployment`
+  gained `product-name`). Revisit once it stabilises.
 
 ---
 

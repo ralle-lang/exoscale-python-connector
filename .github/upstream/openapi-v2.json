@@ -387,6 +387,9 @@
         "properties": {
           "name": {
             "description": "Human-readable name for the AI API key",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9 _'()-]*[A-Za-z0-9])?$",
             "type": "string"
           },
           "scope": {
@@ -434,6 +437,10 @@
             "format": "date-time",
             "readOnly": true,
             "type": "string"
+          },
+          "value": {
+            "description": "Plaintext AI API key value",
+            "type": "string"
           }
         },
         "required": [
@@ -442,7 +449,8 @@
           "name",
           "scope",
           "created-at",
-          "updated-at"
+          "updated-at",
+          "value"
         ],
         "type": "object"
       },
@@ -474,6 +482,11 @@
           },
           "name": {
             "description": "Deployment name",
+            "minLength": 1,
+            "type": "string"
+          },
+          "product-name": {
+            "description": "Billing identifier for this deployment. Used by the Router for usage counters and Kafka events.",
             "minLength": 1,
             "type": "string"
           },
@@ -6182,23 +6195,22 @@
             "format": "date-time",
             "readOnly": true,
             "type": "string"
+          },
+          "visibility": {
+            "description": "Deployment visibility: private for your organization's deployments, public for Exoscale Managed Inference deployments.",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "type": "string"
           }
         },
         "required": [
-          "id",
           "name",
           "state",
-          "state-details",
-          "gpu-type",
-          "gpu-count",
-          "replicas",
-          "service-level",
           "deployment-url",
-          "inference-engine-parameters",
-          "inference-engine-version",
           "model",
-          "created-at",
-          "updated-at"
+          "visibility"
         ],
         "type": "object"
       },
@@ -6605,7 +6617,7 @@
         "type": "object"
       },
       "inference-engine-version": {
-        "default": "0.24.0",
+        "default": "0.25.1",
         "description": "Inference engine version",
         "enum": [
           "0.12.0",
@@ -6623,18 +6635,15 @@
           "0.22.0",
           "0.22.1",
           "0.23.0",
-          "0.24.0"
+          "0.24.0",
+          "0.25.0",
+          "0.25.1"
         ],
         "type": "string"
       },
       "ingest-metering-request": {
         "description": "Router flush payload: the router's full in-memory usage map with flush identity fields",
         "properties": {
-          "created-at": {
-            "description": "ISO-8601 UTC timestamp when the flush snapshot was created (truncated to minute boundary for bucketing)",
-            "format": "date-time",
-            "type": "string"
-          },
           "flush-id": {
             "description": "UUID identifying this flush; used for idempotent deduplication",
             "format": "uuid",
@@ -6643,6 +6652,11 @@
           "router-id": {
             "description": "Router instance identifier that produced this flush",
             "minLength": 1,
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "ISO-8601 UTC timestamp when the flush snapshot was created (truncated to minute boundary for bucketing)",
+            "format": "date-time",
             "type": "string"
           },
           "usage": {
@@ -6656,7 +6670,7 @@
         "required": [
           "flush-id",
           "router-id",
-          "created-at",
+          "timestamp",
           "usage"
         ],
         "type": "object"
@@ -10544,20 +10558,22 @@
             "format": "date-time",
             "readOnly": true,
             "type": "string"
+          },
+          "visibility": {
+            "description": "Deployment visibility: private for your organization's deployments, public for Exoscale Managed Inference deployments.",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "type": "string"
           }
         },
         "required": [
-          "id",
           "name",
           "state",
-          "gpu-type",
-          "gpu-count",
-          "replicas",
-          "service-level",
           "deployment-url",
           "model",
-          "created-at",
-          "updated-at"
+          "visibility"
         ],
         "type": "object"
       },
@@ -12957,6 +12973,9 @@
         "properties": {
           "name": {
             "description": "Human-readable name for the AI API key",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9 _'()-]*[A-Za-z0-9])?$",
             "type": "string"
           },
           "scope": {
@@ -13169,7 +13188,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -13179,7 +13198,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           }
         },
         "summary": "[BETA] List AI API Keys",
@@ -13210,7 +13229,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -13220,7 +13239,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "Bad Request"
           },
           "403": {
             "content": {
@@ -13230,7 +13249,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13240,7 +13259,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Create AI API Key",
@@ -13273,7 +13292,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -13283,7 +13302,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13293,7 +13312,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Delete AI API Key",
@@ -13324,7 +13343,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -13334,7 +13353,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13344,7 +13363,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Get AI API Key",
@@ -13385,7 +13404,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -13395,7 +13414,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "Bad Request"
           },
           "403": {
             "content": {
@@ -13405,7 +13424,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13415,7 +13434,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Update AI API Key",
@@ -13448,7 +13467,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "404": {
             "content": {
@@ -13458,7 +13477,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Reveal AI API Key",
@@ -13491,7 +13510,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -13501,7 +13520,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13511,7 +13530,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Rotate AI API Key",
@@ -13524,16 +13543,7 @@
       "get": {
         "description": "List Deployments",
         "operationId": "list-deployments",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "visibility",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "content": {
@@ -13543,7 +13553,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -13553,7 +13563,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "Bad Request"
           }
         },
         "summary": "List Deployments",
@@ -13584,7 +13594,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -13594,7 +13604,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "Bad Request"
           },
           "403": {
             "content": {
@@ -13604,7 +13614,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "412": {
             "content": {
@@ -13614,7 +13624,7 @@
                 }
               }
             },
-            "description": "412"
+            "description": "412 (probably insufficient GPUs)"
           }
         },
         "summary": "Create Deployment",
@@ -13647,7 +13657,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -13657,7 +13667,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13667,7 +13677,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -13677,7 +13687,7 @@
                 }
               }
             },
-            "description": "409"
+            "description": "Conflict"
           }
         },
         "summary": "Delete Deployment",
@@ -13708,7 +13718,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "404": {
             "content": {
@@ -13718,7 +13728,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "Get Deployment",
@@ -13759,7 +13769,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -13769,7 +13779,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "Bad Request"
           },
           "403": {
             "content": {
@@ -13779,7 +13789,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13789,7 +13799,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -13799,7 +13809,7 @@
                 }
               }
             },
-            "description": "409"
+            "description": "Conflict"
           }
         },
         "summary": "Update Deployment",
@@ -13832,7 +13842,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "404": {
             "content": {
@@ -13842,7 +13852,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "Reveal Deployment API Key",
@@ -13892,7 +13902,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -13902,7 +13912,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -13912,7 +13922,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           },
           "500": {
             "content": {
@@ -13922,7 +13932,7 @@
                 }
               }
             },
-            "description": "500"
+            "description": "Internal Server Error"
           }
         },
         "summary": "Get Deployment Logs",
@@ -13965,7 +13975,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -13975,7 +13985,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -13985,7 +13995,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -13995,7 +14005,7 @@
                 }
               }
             },
-            "description": "409"
+            "description": "Conflict"
           },
           "412": {
             "content": {
@@ -14005,7 +14015,7 @@
                 }
               }
             },
-            "description": "412"
+            "description": "Precondition Failed"
           }
         },
         "summary": "Scale Deployment",
@@ -14037,7 +14047,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           }
         },
         "summary": "Get inference-engine Help",
@@ -14060,7 +14070,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           }
         },
         "summary": "List Instance Types",
@@ -14073,16 +14083,7 @@
       "get": {
         "description": "List Models",
         "operationId": "list-models",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "visibility",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "content": {
@@ -14092,7 +14093,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           }
         },
         "summary": "List Models",
@@ -14123,7 +14124,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -14133,7 +14134,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           }
         },
         "summary": "Create Model",
@@ -14166,7 +14167,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "403": {
             "content": {
@@ -14176,7 +14177,7 @@
                 }
               }
             },
-            "description": "403"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -14186,7 +14187,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           },
           "412": {
             "content": {
@@ -14196,7 +14197,7 @@
                 }
               }
             },
-            "description": "412"
+            "description": "Precondition Failed"
           }
         },
         "summary": "Delete Model",
@@ -14227,7 +14228,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "404": {
             "content": {
@@ -14237,7 +14238,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "Get Model",
@@ -14260,7 +14261,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "OK"
           },
           "404": {
             "content": {
@@ -14270,7 +14271,7 @@
                 }
               }
             },
-            "description": "404"
+            "description": "Not Found"
           }
         },
         "summary": "[BETA] Get Organization Consumption Quota",
@@ -15603,7 +15604,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/operation"
+                  "$ref": "#/components/schemas/dbaas-user-clickhouse-secrets"
                 }
               }
             },
@@ -15699,7 +15700,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/operation"
+                  "$ref": "#/components/schemas/dbaas-user-clickhouse-secrets"
                 }
               }
             },
@@ -26089,7 +26090,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "A list of all KMS keys in the target zone"
           },
           "400": {
             "content": {
@@ -26099,7 +26100,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nBad Request: The request was rejected because of an invalid request body or path parameter.\n"
           }
         },
         "summary": "List KMS Keys",
@@ -26108,7 +26109,7 @@
         ]
       },
       "post": {
-        "description": "Create a customer-managed unique KMS Key in your organization. A KMS Key is a logical represention of a cryptographic key material. It also includes metadata such as a UUID, a name and its state.",
+        "description": "Create a customer-managed unique KMS Key in your organization. A KMS Key is a logical representation of a cryptographic key material. It also includes metadata such as a UUID, a name and its state.",
         "operationId": "create-kms-key",
         "parameters": [],
         "requestBody": {
@@ -26130,7 +26131,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Created new KMS key"
           },
           "400": {
             "content": {
@@ -26140,7 +26141,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nName Conflict: The request was rejected because a key with the same name already exists in the target zone.\n\nBad Request: The request was rejected because of an invalid request body or path parameter.\n"
           }
         },
         "summary": "Create KMS Key",
@@ -26173,7 +26174,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "KMS Key Details"
           },
           "400": {
             "content": {
@@ -26183,7 +26184,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n"
           }
         },
         "summary": "Get KMS Key",
@@ -26216,7 +26217,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key deletion cancelled"
           },
           "400": {
             "content": {
@@ -26226,7 +26227,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nNot on Replica: The request was rejectde because the operation is not allowed on a replica.\n\nNot Pending Deletion: The request was rejected because the key is not pending deletion.\n"
           }
         },
         "summary": "Cancel KMS Key Deletion",
@@ -26269,7 +26270,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Base64 encoded plaintext."
           },
           "400": {
             "content": {
@@ -26279,7 +26280,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nInvalid Usage: The request was rejected because the operation is only allowed on symmetric keys with usage \"encrypt-decrypt\".\n"
           }
         },
         "summary": "Decrypt",
@@ -26312,7 +26313,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key disabled"
           },
           "400": {
             "content": {
@@ -26322,7 +26323,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Pending Deletion: The request was rejected because it was performed on a key that is pending deletion.\n\nNot on Default: The request was rejected because the operation is not allowed on the default key.\n"
           }
         },
         "summary": "Disable KMS Key",
@@ -26355,7 +26356,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key rotation disabled"
           },
           "400": {
             "content": {
@@ -26365,7 +26366,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nInvalid Origin: The request was rejected because automatic key rotation can only be enabled on a KMS key with origin \"exoscale-kms\".\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nNot on Default: The request was rejected because the operation is not allowed on the default key.\n\nNot on Replica: The request was rejectde because the operation is not allowed on a replica.\n\nKey is Pending Deletion: The request was rejected because it was performed on a key that is pending deletion.\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nInvalid Usage: The request was rejected because the operation is only allowed on symmetric keys with usage \"encrypt-decrypt\".\n\nConflict: The request was rejected because the automatic rotation is already enabled for this KMS Key.\n"
           }
         },
         "summary": "Disable Key Rotation",
@@ -26376,7 +26377,7 @@
     },
     "/kms-key/{id}/enable": {
       "post": {
-        "description": "Enables a KMS Key by setting its stated to \"enabled\". It restores the ability to fully use the KMS key for cryptographic operations and key lifecycle operations.",
+        "description": "Enables a KMS Key by setting its state to \"enabled\". It restores the ability to fully use the KMS key for cryptographic operations and key lifecycle operations.",
         "operationId": "enable-kms-key",
         "parameters": [
           {
@@ -26398,7 +26399,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key enabled"
           },
           "400": {
             "content": {
@@ -26408,7 +26409,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Pending Deletion: The request was rejected because it was performed on a key that is pending deletion.\n"
           }
         },
         "summary": "Enable KMS Key",
@@ -26451,7 +26452,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Periodic key rotation enabled"
           },
           "400": {
             "content": {
@@ -26461,7 +26462,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nInvalid Origin: The request was rejected because automatic key rotation can only be enabled on a KMS key with origin \"exoscale-kms\".\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nNot on Default: The request was rejected because the operation is not allowed on the default key.\n\nNot on Replica: The request was rejectde because the operation is not allowed on a replica.\n\nKey is Pending Deletion: The request was rejected because it was performed on a key that is pending deletion.\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nInvalid Usage: The request was rejected because the operation is only allowed on symmetric keys with usage \"encrypt-decrypt\".\n\nConflict: The request was rejected because the automatic rotation is already enabled for this KMS Key.\n\nBad Request: The request was rejected because of an invalid request body or path parameter.\n"
           }
         },
         "summary": "Enable Key Rotation",
@@ -26504,7 +26505,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Base64 encoded ciphertext"
           },
           "400": {
             "content": {
@@ -26514,7 +26515,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nInvalid Usage: The request was rejected because the operation is only allowed on symmetric keys with usage \"encrypt-decrypt\".\n"
           }
         },
         "summary": "Encrypt",
@@ -26557,7 +26558,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Data Encryption Key in the clear and in its base64 encoded encrypted format."
           },
           "400": {
             "content": {
@@ -26567,7 +26568,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nInvalid Usage: The request was rejected because the operation is only allowed on symmetric keys with usage \"encrypt-decrypt\".\n"
           }
         },
         "summary": "Generate Data Encryption Key",
@@ -26600,7 +26601,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "The list of all historical rotations for the requested KMS key."
           },
           "400": {
             "content": {
@@ -26610,7 +26611,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n"
           }
         },
         "summary": "List KMS Key Rotations",
@@ -26653,7 +26654,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Base64 encoded ciphertext"
           },
           "400": {
             "content": {
@@ -26663,7 +26664,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nNot on Default: The request was rejected because the operation is not allowed on the default key.\n\nBad Request: The request was rejected because of an invalid request body or path parameter.\n"
           }
         },
         "summary": "Re-encrypt",
@@ -26706,7 +26707,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key replication target registered"
           },
           "400": {
             "content": {
@@ -26716,7 +26717,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Pending Deletion: The request was rejected because it was performed on a key that is pending deletion.\n\nNot on Default: The request was rejected because the operation is not allowed on the default key.\n\nNot Multizone: The request was rejected because the KMS key is not a multi-zone key.\n\nConflict: The request was rejected because the key is already replicated in the target zone.\n\nInvalid Argument: The request was rejected because the target zone is invalid.\n"
           }
         },
         "summary": "Replicate KMS Key",
@@ -26749,7 +26750,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key rotated"
           },
           "400": {
             "content": {
@@ -26759,7 +26760,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nKey is Pending Deletion: The request was rejected because it was performed on a key that is pending deletion.\n\nNot on a Replica: The request was rejected because the operation is not allowed on a replica.\n\nInvalid Usage: The request was rejected because the operation is only allowed on symmetric keys with usage \"encrypt-decrypt\".\n\nKey is Disabled: The request was rejected because the specified KMS key is disabled.\n\nManual Rotation Limit: The request was rejected because you reached your limit of 10 manual rotations per key for this KMS key.\n"
           }
         },
         "summary": "Rotate Key",
@@ -26802,7 +26803,7 @@
                 }
               }
             },
-            "description": "200"
+            "description": "Key deletion scheduled"
           },
           "400": {
             "content": {
@@ -26812,7 +26813,7 @@
                 }
               }
             },
-            "description": "400"
+            "description": "### Errors\n\nKey Not Found: The request was rejected because the specified KMS Key could not be found.\n\nNot on Default: The request was rejected because the operation is not allowed on the default key.\n\nNot on Replica: The request was rejectde because the operation is not allowed on a replica.\n\nBad Request: The request was rejected because of an invalid request body or path parameter.\n"
           }
         },
         "summary": "Schedule KMS Key Deletion",
@@ -31164,7 +31165,7 @@
         },
         "summary": "[BETA] List VPCs",
         "tags": [
-          "vpc"
+          "vpc-management"
         ]
       },
       "post": {
@@ -31215,7 +31216,7 @@
         },
         "summary": "[BETA] Create a VPC",
         "tags": [
-          "vpc"
+          "vpc-management"
         ]
       }
     },
@@ -31248,7 +31249,7 @@
         },
         "summary": "[BETA] Delete a VPC",
         "tags": [
-          "vpc"
+          "vpc-management"
         ]
       },
       "get": {
@@ -31279,7 +31280,7 @@
         },
         "summary": "[BETA] Retrieve VPC details",
         "tags": [
-          "vpc"
+          "vpc-management"
         ]
       },
       "put": {
@@ -31340,7 +31341,7 @@
         },
         "summary": "[BETA] Update a VPC",
         "tags": [
-          "vpc"
+          "vpc-management"
         ]
       }
     },
@@ -31381,7 +31382,7 @@
         },
         "summary": "[BETA] List VPC routes",
         "tags": [
-          "vpc"
+          "vpc-route"
         ]
       }
     },
@@ -31422,7 +31423,7 @@
         },
         "summary": "[BETA] List Subnets",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       },
       "post": {
@@ -31503,7 +31504,7 @@
         },
         "summary": "[BETA] Create a Subnet",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       }
     },
@@ -31545,7 +31546,7 @@
         },
         "summary": "[BETA] Delete a Subnet",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       },
       "get": {
@@ -31585,7 +31586,7 @@
         },
         "summary": "[BETA] Retrieve Subnet details",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       },
       "put": {
@@ -31660,7 +31661,7 @@
         },
         "summary": "[BETA] Update a Subnet",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       }
     },
@@ -31696,6 +31697,11 @@
                   "instance": {
                     "$ref": "#/components/schemas/instance-ref",
                     "description": "Compute instance"
+                  },
+                  "ipv4": {
+                    "description": "Instance IPv4",
+                    "format": "ipv4",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -31721,7 +31727,7 @@
         },
         "summary": "[BETA] Attach a Compute instance to a Subnet",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       }
     },
@@ -31782,7 +31788,7 @@
         },
         "summary": "[BETA] Detach a Compute instance from a Subnet",
         "tags": [
-          "vpc"
+          "vpc-subnet"
         ]
       }
     },
@@ -31832,7 +31838,7 @@
         },
         "summary": "[BETA] List Subnet routes",
         "tags": [
-          "vpc"
+          "vpc-route"
         ]
       },
       "post": {
@@ -31901,7 +31907,7 @@
         },
         "summary": "[BETA] Create a route",
         "tags": [
-          "vpc"
+          "vpc-route"
         ]
       }
     },
@@ -31952,7 +31958,7 @@
         },
         "summary": "[BETA] Delete a route",
         "tags": [
-          "vpc"
+          "vpc-route"
         ]
       }
     },
@@ -32306,6 +32312,18 @@
       "x-weight": 500
     },
     {
+      "description": "[BETA] Create and manipulate routing rules",
+      "externalDocs": {
+        "description": "Read more",
+        "url": "https://community.exoscale.com/documentation/compute/"
+      },
+      "name": "vpc-route",
+      "parent": "vpc",
+      "x-display-name": "VPC",
+      "x-icon": "exo-vpc",
+      "x-weight": 195
+    },
+    {
       "description": "Snapshots provide a way to get point-in-time recovery\n                   for your Compute instance.",
       "externalDocs": {
         "description": "Read more",
@@ -32553,6 +32571,18 @@
       "x-weight": 830
     },
     {
+      "description": "[BETA] Create and manipulate VPCs",
+      "externalDocs": {
+        "description": "Read more",
+        "url": "https://community.exoscale.com/documentation/compute/"
+      },
+      "name": "vpc-management",
+      "parent": "vpc",
+      "x-display-name": "VPC",
+      "x-icon": "exo-vpc",
+      "x-weight": 195
+    },
+    {
       "description": "Nodepool templates are Exoscale-managed instance templates for SKS worker nodes.",
       "externalDocs": {
         "description": "Read more",
@@ -32574,6 +32604,18 @@
       "x-display-name": "SKS",
       "x-icon": "exo-sks",
       "x-weight": 300
+    },
+    {
+      "description": "[BETA] Configure VPC subnets and attach instances to them",
+      "externalDocs": {
+        "description": "Read more",
+        "url": "https://community.exoscale.com/documentation/compute/"
+      },
+      "name": "vpc-subnet",
+      "parent": "vpc",
+      "x-display-name": "VPC",
+      "x-icon": "exo-vpc",
+      "x-weight": 195
     },
     {
       "description": "The Organization Policy is an IAM policy that applies as a first layer across your entire Exoscale organization.",
