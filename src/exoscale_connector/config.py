@@ -5,6 +5,7 @@ that secrets are never hardcoded and can be injected by any vault tooling at
 runtime. :meth:`ClientConfig.from_env` is the normal entry point; the dataclass
 can also be constructed directly for tests or programmatic use.
 """
+
 from __future__ import annotations
 
 import os

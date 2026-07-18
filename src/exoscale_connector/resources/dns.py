@@ -13,6 +13,7 @@ Playbook cross-reference:
   ansible/playbooks/provider/exoscale/dns/provision_domain.yml
   ansible/playbooks/provider/exoscale/dns/provision_record.yml
 """
+
 from __future__ import annotations
 
 from typing import Dict, List, Optional
@@ -68,9 +69,7 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
     # Record sub-resource
     # ------------------------------------------------------------------ #
 
-    def list_records(
-        self, domain_id: str, *, zone: Optional[str] = None
-    ) -> List[DnsRecord]:
+    def list_records(self, domain_id: str, *, zone: Optional[str] = None) -> List[DnsRecord]:
         """Return all records for a domain.
 
         The live API responds under the key ``dns-domain-records``. We do

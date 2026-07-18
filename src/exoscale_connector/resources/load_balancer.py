@@ -8,6 +8,7 @@ helpers, because the service is not an independent top-level resource.
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-network-load-balancer
 """
+
 from __future__ import annotations
 
 from typing import Dict, List, Optional
@@ -37,7 +38,7 @@ class LoadBalancerService(ExoscaleModel):
     # "source-hash" | "round-robin"
     strategy: Optional[str] = None
     # Healthcheck sub-object; field names follow API kebab-case via alias generator
-    healthcheck_mode: Optional[str] = None      # "tcp" | "http" | "https"
+    healthcheck_mode: Optional[str] = None  # "tcp" | "http" | "https"
     healthcheck_port: Optional[int] = None
     healthcheck_uri: Optional[str] = None
     healthcheck_interval: Optional[int] = None
@@ -53,7 +54,7 @@ class LoadBalancer(ExoscaleModel):
     id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    ip: Optional[str] = None             # public IPv4 address
+    ip: Optional[str] = None  # public IPv4 address
     state: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
     services: List[LoadBalancerService] = Field(default_factory=list)

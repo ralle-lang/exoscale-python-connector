@@ -11,6 +11,7 @@ The first argument selects the asset; everything after it is handed verbatim
 to that asset's own CLI (same flags, same exit codes). Asset modules import
 lazily so startup cost stays flat as the asset list grows.
 """
+
 from __future__ import annotations
 
 import importlib

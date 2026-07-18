@@ -13,6 +13,7 @@ project (default) or the user-level skills directory::
 The copied files are owned by this tool: re-running ``install`` after a
 package upgrade refreshes them in place.
 """
+
 from __future__ import annotations
 
 import argparse

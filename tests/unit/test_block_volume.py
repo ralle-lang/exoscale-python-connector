@@ -4,6 +4,7 @@ All tests use mocked HTTP (``responses`` library) — no real network calls are
 made. Covers list, get, find, create (async), delete, attach, detach, resize,
 and the create_snapshot helper.
 """
+
 from __future__ import annotations
 
 import json

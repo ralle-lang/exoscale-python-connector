@@ -22,6 +22,7 @@ every ``self.client.get/post/put/delete(...)`` call), so discovery tracks the
 code without hand-maintenance; only the small set of cross-collection siblings is
 declared by hand here.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -309,8 +310,7 @@ def render_affected_markdown(base: dict, revision: dict) -> str:
     if unmatched:
         lines.append("")
         lines.append(
-            "Changed paths not used by any connector module "
-            "(informational — no module to review):"
+            "Changed paths not used by any connector module (informational — no module to review):"
         )
         lines.append("")
         for path, status in unmatched:

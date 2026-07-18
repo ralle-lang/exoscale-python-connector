@@ -4,6 +4,7 @@ Callers can catch :class:`ExoscaleError` to handle anything raised by the
 connector, or narrow to a specific subclass (e.g. :class:`ExoscaleNotFoundError`)
 for control flow such as idempotent create/delete.
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional

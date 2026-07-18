@@ -7,6 +7,7 @@ The wire shape matches what the live test fixtures already exercise
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-instance-type
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -19,8 +20,8 @@ class InstanceType(ExoscaleModel):
     """A compute offering (CPU/memory size)."""
 
     id: Optional[str] = None
-    family: Optional[str] = None    # e.g. "standard", "cpu", "memory", "gpu"
-    size: Optional[str] = None      # e.g. "tiny", "medium", "extra-large"
+    family: Optional[str] = None  # e.g. "standard", "cpu", "memory", "gpu"
+    size: Optional[str] = None  # e.g. "tiny", "medium", "extra-large"
     cpus: Optional[int] = None
     # Memory in bytes.
     memory: Optional[int] = None

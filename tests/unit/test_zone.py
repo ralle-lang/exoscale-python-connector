@@ -1,4 +1,5 @@
 """Unit tests for the read-only zone client."""
+
 from __future__ import annotations
 
 import responses

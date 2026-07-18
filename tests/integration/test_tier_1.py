@@ -12,6 +12,7 @@ verify → mutate (where the API supports it) → cleanup → unregister. If a
 test fails between provision and explicit delete, the tracker sweeps any
 leakage on teardown.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -166,7 +167,9 @@ def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
 
     # Route (per subnet); `name` is intentionally not sent.
     route_op = vpc.create_route(
-        vpc_id, subnet_id, VpcRoute(destination="10.1.0.0/24", target="10.0.0.1"),
+        vpc_id,
+        subnet_id,
+        VpcRoute(destination="10.1.0.0/24", target="10.0.0.1"),
     )
     route_id = route_op.reference_id
     assert route_id, "route create did not reference an id"
@@ -207,9 +210,9 @@ def test_ssh_key_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None
     # The private key is generated and discarded inside this process — it is
     # never written to disk and never logged.
     private = Ed25519PrivateKey.generate()
-    public_openssh = private.public_key().public_bytes(
-        Encoding.OpenSSH, PublicFormat.OpenSSH
-    ).decode("ascii")
+    public_openssh = (
+        private.public_key().public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH).decode("ascii")
+    )
 
     name = make_name(run_id, "key")
     keys = SSHKeyClient(live_client)
@@ -360,7 +363,6 @@ def test_api_key_lifecycle(live_client, run_id, tracker, tier_1_api_key_enabled)
     tracker.unregister(role_id)
 
 
-
 def test_ensure_is_idempotent(live_client, run_id, tracker, tier_1_enabled) -> None:
     """ensure(): first call creates, second call adopts without mutating."""
     sgs = SecurityGroupClient(live_client)
@@ -378,9 +380,7 @@ def test_ensure_is_idempotent(live_client, run_id, tracker, tier_1_enabled) -> N
     tracker.unregister(created.id)
 
 
-def test_template_register_delete(
-    live_client, run_id, tracker, template_register_enabled
-) -> None:
+def test_template_register_delete(live_client, run_id, tracker, template_register_enabled) -> None:
     """Template: register from a hosted qcow2 -> assert private list -> delete.
 
     Gated behind EXOSCALE_TEST_TEMPLATE_URL + EXOSCALE_TEST_TEMPLATE_CHECKSUM
@@ -393,14 +393,16 @@ def test_template_register_delete(
     name = make_name(run_id, "tmpl")
     assert_safe_name(name)
 
-    template = templates.create({
-        "name": name,
-        "url": url,
-        "checksum": checksum,
-        "boot-mode": "legacy",
-        "ssh-key-enabled": False,
-        "password-enabled": False,
-    })
+    template = templates.create(
+        {
+            "name": name,
+            "url": url,
+            "checksum": checksum,
+            "boot-mode": "legacy",
+            "ssh-key-enabled": False,
+            "password-enabled": False,
+        }
+    )
     assert template.id, "template register returned no id"
     tracker.register("template", lambda: templates.delete(template.id), template.id)
 

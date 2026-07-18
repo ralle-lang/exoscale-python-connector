@@ -3,6 +3,7 @@
 All HTTP is intercepted by ``responses``; no network calls are made. KMS is
 synchronous (no async operations), so no operation-poll mocks are needed.
 """
+
 from __future__ import annotations
 
 import json
@@ -18,10 +19,12 @@ def test_list_returns_typed_models(client, base_url) -> None:
     responses.add(
         responses.GET,
         f"{base_url}/kms-key",
-        json={"kms-keys": [
-            {"id": "k1", "name": "a", "status": "enabled"},
-            {"id": "k2", "name": "b", "status": "disabled"},
-        ]},
+        json={
+            "kms-keys": [
+                {"id": "k1", "name": "a", "status": "enabled"},
+                {"id": "k2", "name": "b", "status": "disabled"},
+            ]
+        },
         status=200,
     )
     keys = KmsKeyClient(client).list()
@@ -34,8 +37,11 @@ def test_get_parses_nested_rotation(client, base_url) -> None:
         responses.GET,
         f"{base_url}/kms-key/k1",
         json={
-            "id": "k1", "name": "a", "status": "enabled",
-            "multi-zone": True, "origin-zone": "de-fra-1",
+            "id": "k1",
+            "name": "a",
+            "status": "enabled",
+            "multi-zone": True,
+            "origin-zone": "de-fra-1",
             "rotation": {"automatic": True, "rotation-period": 90, "manual-count": 2},
             "replicas": ["at-vie-1"],
         },
@@ -71,10 +77,12 @@ def test_delete_raises_not_implemented(client) -> None:
 
 @responses.activate
 def test_enable_disable(client, base_url) -> None:
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/enable",
-                  json={"status": "success"}, status=200)
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/disable",
-                  json={"status": "success"}, status=200)
+    responses.add(
+        responses.POST, f"{base_url}/kms-key/k1/enable", json={"status": "success"}, status=200
+    )
+    responses.add(
+        responses.POST, f"{base_url}/kms-key/k1/disable", json={"status": "success"}, status=200
+    )
     kms = KmsKeyClient(client)
     assert kms.enable("k1")["status"] == "success"
     assert kms.disable("k1")["status"] == "success"
@@ -82,15 +90,30 @@ def test_enable_disable(client, base_url) -> None:
 
 @responses.activate
 def test_rotation_methods(client, base_url) -> None:
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/enable-key-rotation",
-                  json={"rotation": {"automatic": True, "rotation-period": 30}}, status=200)
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/disable-key-rotation",
-                  json={"rotation": {"automatic": False}}, status=200)
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/rotate",
-                  json={"rotation": {"automatic": False, "manual-count": 1}}, status=200)
-    responses.add(responses.GET, f"{base_url}/kms-key/k1/list-key-rotations",
-                  json={"rotations": [{"version": 1, "automatic": False, "rotated-at": "t"}]},
-                  status=200)
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/enable-key-rotation",
+        json={"rotation": {"automatic": True, "rotation-period": 30}},
+        status=200,
+    )
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/disable-key-rotation",
+        json={"rotation": {"automatic": False}},
+        status=200,
+    )
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/rotate",
+        json={"rotation": {"automatic": False, "manual-count": 1}},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/kms-key/k1/list-key-rotations",
+        json={"rotations": [{"version": 1, "automatic": False, "rotated-at": "t"}]},
+        status=200,
+    )
     kms = KmsKeyClient(client)
     assert kms.enable_rotation("k1", rotation_period=30)["rotation"]["rotation-period"] == 30
     # rotation_period omitted -> body-less POST
@@ -104,17 +127,24 @@ def test_rotation_methods(client, base_url) -> None:
 
 @responses.activate
 def test_crypto_roundtrip_payloads(client, base_url) -> None:
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/encrypt",
-                  json={"ciphertext": "CT"}, status=200)
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/decrypt",
-                  json={"plaintext": "PT"}, status=200)
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/generate-data-key",
-                  json={"ciphertext": "CT", "plaintext": "DK"}, status=200)
+    responses.add(
+        responses.POST, f"{base_url}/kms-key/k1/encrypt", json={"ciphertext": "CT"}, status=200
+    )
+    responses.add(
+        responses.POST, f"{base_url}/kms-key/k1/decrypt", json={"plaintext": "PT"}, status=200
+    )
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/generate-data-key",
+        json={"ciphertext": "CT", "plaintext": "DK"},
+        status=200,
+    )
     kms = KmsKeyClient(client)
     enc = kms.encrypt("k1", "PT", encryption_context="CTX")
     assert enc["ciphertext"] == "CT"
     assert json.loads(responses.calls[0].request.body) == {
-        "plaintext": "PT", "encryption-context": "CTX",
+        "plaintext": "PT",
+        "encryption-context": "CTX",
     }
     dec = kms.decrypt("k1", "CT")
     assert dec["plaintext"] == "PT"
@@ -126,23 +156,33 @@ def test_crypto_roundtrip_payloads(client, base_url) -> None:
 
 @responses.activate
 def test_re_encrypt_sends_source_and_destination(client, base_url) -> None:
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/re-encrypt",
-                  json={"ciphertext": "CT2"}, status=200)
+    responses.add(
+        responses.POST, f"{base_url}/kms-key/k1/re-encrypt", json={"ciphertext": "CT2"}, status=200
+    )
     out = KmsKeyClient(client).re_encrypt(
         "k1", source={"ciphertext": "CT"}, destination={"encryption-context": "CTX"}
     )
     assert out["ciphertext"] == "CT2"
     assert json.loads(responses.calls[0].request.body) == {
-        "source": {"ciphertext": "CT"}, "destination": {"encryption-context": "CTX"},
+        "source": {"ciphertext": "CT"},
+        "destination": {"encryption-context": "CTX"},
     }
 
 
 @responses.activate
 def test_deletion_lifecycle(client, base_url) -> None:
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/schedule-deletion",
-                  json={"delete-at": "2026-07-15T00:00:00Z"}, status=200)
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/cancel-deletion",
-                  json={"status": "success"}, status=200)
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/schedule-deletion",
+        json={"delete-at": "2026-07-15T00:00:00Z"},
+        status=200,
+    )
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/cancel-deletion",
+        json={"status": "success"},
+        status=200,
+    )
     kms = KmsKeyClient(client)
     sched = kms.schedule_deletion("k1", delay_days=7)
     assert sched["delete-at"].startswith("2026-07-15")
@@ -152,8 +192,12 @@ def test_deletion_lifecycle(client, base_url) -> None:
 
 @responses.activate
 def test_replicate_sends_target_zone(client, base_url) -> None:
-    responses.add(responses.POST, f"{base_url}/kms-key/k1/replicate",
-                  json={"status": "target-registered"}, status=200)
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/replicate",
+        json={"status": "target-registered"},
+        status=200,
+    )
     out = KmsKeyClient(client).replicate("k1", "at-vie-1")
     assert out["status"] == "target-registered"
     assert json.loads(responses.calls[0].request.body) == {"zone": "at-vie-1"}

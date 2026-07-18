@@ -1,4 +1,5 @@
 """CLI entry point: ``exoscale-instance-type`` (read-only)."""
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

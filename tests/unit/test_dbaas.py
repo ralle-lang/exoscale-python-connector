@@ -9,6 +9,7 @@ access.  Test coverage:
                  re-fetch via GET /dbaas-service/{name}
 - delete():      DELETE /dbaas-service/{name}, wrap response in Operation
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ from exoscale_connector.resources.dbaas import DBaaSServiceClient
 # list
 # ---------------------------------------------------------------------------
 
+
 @responses.activate
 def test_list_returns_all_services(client, base_url) -> None:
     responses.add(
@@ -29,7 +31,7 @@ def test_list_returns_all_services(client, base_url) -> None:
         f"{base_url}/dbaas-service",
         json={
             "dbaas-services": [
-                {"name": "pg-prod",    "type": "pg",    "state": "running"},
+                {"name": "pg-prod", "type": "pg", "state": "running"},
                 {"name": "redis-cache", "type": "redis", "state": "running"},
             ]
         },
@@ -56,6 +58,7 @@ def test_list_returns_empty_list_when_no_services(client, base_url) -> None:
 # ---------------------------------------------------------------------------
 # get
 # ---------------------------------------------------------------------------
+
 
 @responses.activate
 def test_get_fetches_service_by_name(client, base_url) -> None:
@@ -168,6 +171,7 @@ def test_get_raises_not_found_when_service_absent(client, base_url) -> None:
 # ---------------------------------------------------------------------------
 # create
 # ---------------------------------------------------------------------------
+
 
 @responses.activate
 def test_create_posts_to_type_specific_endpoint_then_refetches(client, base_url) -> None:
@@ -285,6 +289,7 @@ def test_create_uses_correct_type_in_url(client, base_url) -> None:
 # delete
 # ---------------------------------------------------------------------------
 
+
 @responses.activate
 def test_delete_calls_generic_delete_endpoint(client, base_url) -> None:
     """delete() uses dbaas-service/{name}, not a type-specific path."""
@@ -328,9 +333,7 @@ def test_update_puts_to_type_specific_endpoint_and_refetches(client, base_url) -
         json={"name": "my-db", "type": "pg", "plan": "startup-8"},
         status=200,
     )
-    svc = DBaaSServiceClient(client).update(
-        "my-db", {"plan": "startup-8"}, service_type="pg"
-    )
+    svc = DBaaSServiceClient(client).update("my-db", {"plan": "startup-8"}, service_type="pg")
     assert svc.plan == "startup-8"
     assert json.loads(responses.calls[0].request.body) == {"plan": "startup-8"}
 

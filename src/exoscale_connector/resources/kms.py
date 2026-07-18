@@ -22,6 +22,7 @@ Two things set KMS apart from a standard asset type:
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-kms
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -99,15 +100,11 @@ class KmsKeyClient(ResourceClient[KmsKey]):
 
     def enable(self, key_id: str, *, zone: Optional[str] = None) -> dict:
         """Enable a key (``POST /kms-key/{id}/enable``). Returns ``{"status": ...}``."""
-        return self.client.post(
-            f"{self.collection_path}/{key_id}/enable", zone=self._zone(zone)
-        )
+        return self.client.post(f"{self.collection_path}/{key_id}/enable", zone=self._zone(zone))
 
     def disable(self, key_id: str, *, zone: Optional[str] = None) -> dict:
         """Disable a key (``POST /kms-key/{id}/disable``). A disabled key can't decrypt."""
-        return self.client.post(
-            f"{self.collection_path}/{key_id}/disable", zone=self._zone(zone)
-        )
+        return self.client.post(f"{self.collection_path}/{key_id}/disable", zone=self._zone(zone))
 
     # ------------------------------------------------------------------ #
     # Rotation
@@ -140,9 +137,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
 
     def rotate(self, key_id: str, *, zone: Optional[str] = None) -> dict:
         """Rotate the key material now (``POST .../rotate``). Returns the new rotation state."""
-        return self.client.post(
-            f"{self.collection_path}/{key_id}/rotate", zone=self._zone(zone)
-        )
+        return self.client.post(f"{self.collection_path}/{key_id}/rotate", zone=self._zone(zone))
 
     def list_rotations(self, key_id: str, *, zone: Optional[str] = None) -> List[dict]:
         """List a key's past rotations (``GET .../list-key-rotations``)."""

@@ -12,6 +12,7 @@ for ~7 days (Exoscale removes it after the window). Opt in explicitly:
 
 Secrets (plaintext, data keys) are asserted for presence only and never printed.
 """
+
 from __future__ import annotations
 
 import base64

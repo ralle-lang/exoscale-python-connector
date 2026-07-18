@@ -2,6 +2,7 @@
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-private-network
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
@@ -17,8 +18,8 @@ class PrivateNetwork(ExoscaleModel):
     name: Optional[str] = None
     description: Optional[str] = None
     # Optional DHCP range and netmask; only present when DHCP is configured.
-    start_ip: Optional[str] = None       # API key: "start-ip"
-    end_ip: Optional[str] = None         # API key: "end-ip"
+    start_ip: Optional[str] = None  # API key: "start-ip"
+    end_ip: Optional[str] = None  # API key: "end-ip"
     netmask: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
 

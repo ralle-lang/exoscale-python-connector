@@ -9,6 +9,7 @@ builds its own parser and dispatch, but reuses the shared plumbing
 (:func:`base_parser`, :func:`dump`, :func:`execute_cli`) so there is no
 duplicated credential/JSON/error handling.
 """
+
 from __future__ import annotations
 
 import json

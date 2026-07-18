@@ -7,6 +7,7 @@ HTTP behaviour is covered by the resource unit tests. Building an
 ``ExoscaleClient`` from dummy env credentials performs no network I/O, so the
 spies fully isolate the CLI.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,9 +35,11 @@ def cli_env(monkeypatch) -> None:
 
 def _spy(ret: Any):
     """A class-method replacement that records (args, kwargs) and returns ret."""
+
     def fn(self, *args, **kwargs):
         fn.calls.append((args, kwargs))
         return ret
+
     fn.calls = []  # type: ignore[attr-defined]
     return fn
 
@@ -54,6 +57,7 @@ def _out(capsys) -> Any:
 # ------------------------------------------------------------------ #
 # dns — primary (domain) + sub-resource (record)
 # ------------------------------------------------------------------ #
+
 
 def test_dns_list_domains(monkeypatch, capsys) -> None:
     spy = _stub(monkeypatch, DnsDomainClient, "list", [{"id": "d1"}])
@@ -98,6 +102,7 @@ def test_dns_delete_record(monkeypatch, capsys) -> None:
 # sks — primary (cluster) + sub-resource (nodepool)
 # ------------------------------------------------------------------ #
 
+
 def test_sks_list_clusters(monkeypatch, capsys) -> None:
     spy = _stub(monkeypatch, SksClusterClient, "list", [{"id": "c1"}])
     assert sks_main(["list-clusters"]) == 0
@@ -126,6 +131,7 @@ def test_sks_delete_nodepool(monkeypatch, capsys) -> None:
 # ------------------------------------------------------------------ #
 # dbaas — bespoke name-keyed verbs
 # ------------------------------------------------------------------ #
+
 
 def test_dbaas_list(monkeypatch, capsys) -> None:
     spy = _stub(monkeypatch, DBaaSServiceClient, "list", [{"name": "pg-1"}])
@@ -163,6 +169,7 @@ def test_dbaas_delete_by_name(monkeypatch, capsys) -> None:
 # ------------------------------------------------------------------ #
 # Regression: the bare-verb path (15 single-resource CLIs) is unchanged
 # ------------------------------------------------------------------ #
+
 
 def _sg_cli(argv: List[str]) -> int:
     return run_resource_cli(

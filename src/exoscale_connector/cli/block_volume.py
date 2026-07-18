@@ -5,6 +5,7 @@ The shared harness provides list / get / find / create / delete. Volume-specific
 operations (attach, detach, resize) are not exposed as CLI subcommands here —
 use the Python client directly or the Exoscale management console for those.
 """
+
 from __future__ import annotations
 
 import sys

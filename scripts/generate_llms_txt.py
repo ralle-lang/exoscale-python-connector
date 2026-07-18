@@ -24,6 +24,7 @@ Usage::
 Output is deterministic (sorted, no timestamps) so a plain diff is a reliable
 sync check. Stdlib only — no new dependencies.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -167,10 +168,7 @@ def _client_lines(cls: type) -> List[str]:
         if getattr(cls, "id_field", "id") != "id":
             facts.append(f"keyed by `{cls.id_field}` instead of `id`")
         lines += ["; ".join(facts) + ".", ""]
-        lines.append(
-            "Inherits the common operations (see above)"
-            " plus the methods below, if any."
-        )
+        lines.append("Inherits the common operations (see above) plus the methods below, if any.")
         method_lines = _method_lines(cls, exclude=(ResourceClient,))
     else:
         method_lines = _method_lines(cls)
@@ -192,9 +190,7 @@ def _resource_module_sections() -> List[str]:
         classes = [
             obj
             for name, obj in sorted(vars(mod).items())
-            if inspect.isclass(obj)
-            and obj.__module__ == mod.__name__
-            and not name.startswith("_")
+            if inspect.isclass(obj) and obj.__module__ == mod.__name__ and not name.startswith("_")
         ]
         for obj in classes:
             if issubclass(obj, Enum):
@@ -412,8 +408,11 @@ def generate_bundle() -> str:
     lines += ["", "## IAM policy expression helpers (`exoscale_connector.iam_expr`)", ""]
     iam_expr = importlib.import_module("exoscale_connector.iam_expr")
     for name, obj in sorted(vars(iam_expr).items()):
-        if inspect.isfunction(obj) and obj.__module__ == iam_expr.__name__ \
-                and not name.startswith("_"):
+        if (
+            inspect.isfunction(obj)
+            and obj.__module__ == iam_expr.__name__
+            and not name.startswith("_")
+        ):
             lines.append(f"- `{name}{_format_signature(obj)}` — {_doc_summary(obj)}")
 
     lines += ["", "## API surface by asset type", ""]

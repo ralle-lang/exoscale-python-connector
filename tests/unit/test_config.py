@@ -1,4 +1,5 @@
 """Unit tests for ClientConfig credential hygiene and TLS/timeout settings."""
+
 from __future__ import annotations
 
 import warnings

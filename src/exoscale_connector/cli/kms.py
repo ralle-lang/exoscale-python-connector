@@ -11,6 +11,7 @@ The crypto operations (encrypt / decrypt / re-encrypt / generate-data-key) are
 CLI arguments leak into the process list. Use
 :class:`~exoscale_connector.resources.kms.KmsKeyClient` from Python for those.
 """
+
 from __future__ import annotations
 
 import json
@@ -37,7 +38,9 @@ def _build_parser() -> Any:
 
     p_create = sub.add_parser("create", help="Create a KMS key from a JSON payload")
     p_create.add_argument(
-        "--json", dest="json_payload", default=None,
+        "--json",
+        dest="json_payload",
+        default=None,
         help='Inline JSON body, e.g. \'{"name": "my-key", "usage": "encrypt-decrypt"}\'',
     )
 

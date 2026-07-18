@@ -1,4 +1,5 @@
 """Unit tests for DeployTargetClient (read-only asset)."""
+
 from __future__ import annotations
 
 import responses

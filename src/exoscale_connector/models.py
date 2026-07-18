@@ -6,6 +6,7 @@ The Exoscale APIv2 uses kebab-case JSON field names (e.g. ``flow-direction``,
 automatically. Serialise outbound payloads with ``model_dump(by_alias=True,
 exclude_none=True)`` (or the :func:`to_api_payload` helper).
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional

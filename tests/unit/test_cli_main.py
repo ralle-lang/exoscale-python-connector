@@ -1,4 +1,5 @@
 """Unit tests for the umbrella CLI and table output."""
+
 from __future__ import annotations
 
 import pytest

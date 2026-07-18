@@ -10,6 +10,7 @@ resource automatically.
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-iam
 """
+
 from __future__ import annotations
 
 from enum import Enum

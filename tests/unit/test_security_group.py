@@ -1,4 +1,5 @@
 """Unit tests for the SecurityGroupClient (reference asset-type tests)."""
+
 from __future__ import annotations
 
 import responses

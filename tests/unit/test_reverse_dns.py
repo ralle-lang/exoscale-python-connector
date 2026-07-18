@@ -1,4 +1,5 @@
 """Unit tests for instance scale and the reverse-DNS mixin (instance + elastic IP)."""
+
 from __future__ import annotations
 
 import json as jsonlib

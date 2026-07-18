@@ -19,6 +19,7 @@ when an injected client is provided), so the module itself can be imported
 without ``boto3`` installed.  Tests inject a mock via the ``s3_client``
 constructor parameter and never trigger the real import.
 """
+
 from __future__ import annotations
 
 from typing import Any, List, Optional
@@ -377,6 +378,7 @@ class BucketClient:
 # ------------------------------------------------------------------ #
 # Helpers
 # ------------------------------------------------------------------ #
+
 
 def _extract_error_code(exc: Exception) -> str:
     """Extract an S3 error code string from a botocore ``ClientError``, or '0'."""

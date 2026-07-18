@@ -11,6 +11,7 @@ resource client.
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-audit
 """
+
 from __future__ import annotations
 
 from typing import List, Optional

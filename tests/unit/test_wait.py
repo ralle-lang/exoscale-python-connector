@@ -1,4 +1,5 @@
 """Unit tests for the wait_for_state helper."""
+
 from __future__ import annotations
 
 import pytest

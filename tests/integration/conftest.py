@@ -12,6 +12,7 @@ account. Any test that *mutates* resources must additionally be guarded by your
 own allowlist (see the ``require_mutation_allowed`` fixture) so a real
 environment is never modified by accident.
 """
+
 from __future__ import annotations
 
 import os
@@ -87,9 +88,7 @@ def tier_1_api_key_enabled(tier_1_enabled) -> None:
     a casual Tier 1 run never produces a secret-bearing response.
     """
     if not _env_bool("EXOSCALE_TEST_TIER_1_API_KEY"):
-        pytest.skip(
-            "api-key live test disabled (set EXOSCALE_TEST_TIER_1_API_KEY=1 to enable)"
-        )
+        pytest.skip("api-key live test disabled (set EXOSCALE_TEST_TIER_1_API_KEY=1 to enable)")
 
 
 @pytest.fixture

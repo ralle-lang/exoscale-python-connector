@@ -1,4 +1,5 @@
 """Unit tests for AntiAffinityGroupClient."""
+
 from __future__ import annotations
 
 import responses

@@ -9,6 +9,7 @@ here rather than through an instance client.
 
 API reference: https://openapi-v2.exoscale.com/ (compute snapshot group)
 """
+
 from __future__ import annotations
 
 from typing import Optional

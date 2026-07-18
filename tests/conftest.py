@@ -4,6 +4,7 @@ Unit tests never touch the network: a :class:`ClientConfig` with dummy
 credentials and zero retry backoff drives an :class:`ExoscaleClient` whose HTTP
 calls are intercepted by the ``responses`` library.
 """
+
 from __future__ import annotations
 
 import pytest

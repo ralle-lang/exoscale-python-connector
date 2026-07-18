@@ -3,6 +3,7 @@
 Templates are mostly read-only from the CLI's perspective; ``create`` registers
 a custom template from a URL + checksum payload.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

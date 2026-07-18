@@ -8,6 +8,7 @@ test is the enforcement point — the same self-policing shape as
 dependency with no pin, or a stale pin for something that isn't a runtime
 dependency all fail the build.
 """
+
 from __future__ import annotations
 
 import re

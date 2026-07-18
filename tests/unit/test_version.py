@@ -10,6 +10,7 @@ right version, which is an explicit design goal.
 These tests guard that wiring: that ``pyproject`` does not reintroduce a second,
 hand-synced version literal, and that ``__version__`` is a sane value.
 """
+
 from __future__ import annotations
 
 import re

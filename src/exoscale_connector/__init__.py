@@ -12,6 +12,7 @@ Credentials come from ``EXOSCALE_API_KEY`` / ``EXOSCALE_API_SECRET`` in the
 environment (inject them with your vault tooling); nothing is read from disk or
 hardcoded.
 """
+
 from __future__ import annotations
 
 from .client import ExoscaleClient

@@ -1,4 +1,5 @@
 """CLI entry point: ``exoscale-deploy-target`` (read-only)."""
+
 from __future__ import annotations
 
 import sys

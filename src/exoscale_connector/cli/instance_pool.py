@@ -3,6 +3,7 @@
 Thin wrapper over the shared harness; all behaviour lives in
 :class:`~exoscale_connector.resources.instance_pool.InstancePoolClient`.
 """
+
 from __future__ import annotations
 
 import sys

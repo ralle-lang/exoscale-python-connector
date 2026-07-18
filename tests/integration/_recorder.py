@@ -23,6 +23,7 @@ Sanitization:
 Recordings can still carry tenant-specific identifiers (resource UUIDs, IPs,
 zone names) — **review a recording before committing it**.
 """
+
 from __future__ import annotations
 
 import json

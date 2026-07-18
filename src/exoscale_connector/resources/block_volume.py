@@ -6,6 +6,7 @@ plus attach / detach / resize helpers, all of which are async operations.
 
 API reference: https://openapi-v2.exoscale.com/ (block storage group)
 """
+
 from __future__ import annotations
 
 from typing import Dict, List, Optional

@@ -1,4 +1,5 @@
 """Unit tests for the IAM expression-building helpers."""
+
 from __future__ import annotations
 
 from exoscale_connector import iam_expr as e
@@ -47,7 +48,7 @@ def test_field_names_accept_dotted_identifiers() -> None:
 def test_field_names_reject_expression_injection() -> None:
     import pytest
 
-    for bad in ('resources.bucket) || (1==1', "a b", "a-b", ".a", "a.", "", 'x"y'):
+    for bad in ("resources.bucket) || (1==1", "a b", "a-b", ".a", "a.", "", 'x"y'):
         with pytest.raises(ValueError):
             e.eq(bad, "value")
     with pytest.raises(ValueError):

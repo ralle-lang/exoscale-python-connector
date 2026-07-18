@@ -10,6 +10,7 @@ Note the chicken-and-egg: the APIv2 host is itself zone-scoped, so you need
 
 API reference: https://openapi-v2.exoscale.com/operation/operation-list-zones
 """
+
 from __future__ import annotations
 
 from typing import Optional

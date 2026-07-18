@@ -1,4 +1,5 @@
 """Unit tests for ResourceClient.ensure() and label-filtered list()."""
+
 from __future__ import annotations
 
 import pytest

@@ -13,6 +13,7 @@ Two non-negotiable invariants are enforced here:
    ``list()`` could match an unrelated resource in the shared tenant; the
    registry path cannot.
 """
+
 from __future__ import annotations
 
 import os
@@ -79,9 +80,7 @@ class ResourceTracker:
                 deleter()
                 results.append((label, resource_id, "swept"))
             except Exception as exc:  # noqa: BLE001  — sweep must not raise
-                results.append(
-                    (label, resource_id, f"sweep-failed: {type(exc).__name__}: {exc}")
-                )
+                results.append((label, resource_id, f"sweep-failed: {type(exc).__name__}: {exc}"))
         self.items.clear()
         return results
 

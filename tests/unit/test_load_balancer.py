@@ -1,4 +1,5 @@
 """Unit tests for LoadBalancerClient (including service sub-resource methods)."""
+
 from __future__ import annotations
 
 import responses
@@ -36,9 +37,7 @@ def test_get_returns_model_with_services(client, base_url) -> None:
             "id": "lb1",
             "name": "frontend",
             "ip": "1.2.3.4",
-            "services": [
-                {"id": "svc1", "name": "https", "port": 443, "target-port": 8443}
-            ],
+            "services": [{"id": "svc1", "name": "https", "port": 443, "target-port": 8443}],
         },
         status=200,
     )

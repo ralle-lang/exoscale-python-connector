@@ -1,4 +1,5 @@
 """Unit tests for SSHKeyClient."""
+
 from __future__ import annotations
 
 import responses

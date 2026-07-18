@@ -30,6 +30,7 @@ composition. Type comparison is by coarse JSON family (string / number / boolean
 array / object), so idiomatic typing choices don't generate noise — only a genuine
 family change (e.g. string -> object) is flagged.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -459,8 +460,10 @@ def render_summary_markdown(schemas: Dict[str, dict]) -> str:
     failing = [d for d in drifts if d.has_failures]
     lines: List[str] = []
     if not failing:
-        lines.append("_No model/spec field drift: every model matches its schema "
-                     "(or an allowlisted, live-verified divergence)._")
+        lines.append(
+            "_No model/spec field drift: every model matches its schema "
+            "(or an allowlisted, live-verified divergence)._"
+        )
     else:
         lines.append("| Model | Schema | Drift |")
         lines.append("|---|---|---|")
@@ -469,18 +472,17 @@ def render_summary_markdown(schemas: Dict[str, dict]) -> str:
             if d.model_only:
                 bits.append("model-only: " + ", ".join(f"`{a}`" for a in d.model_only))
             if d.type_mismatch:
-                bits.append(
-                    "type: "
-                    + ", ".join(f"`{a}` ({m}≠{s})" for a, m, s in d.type_mismatch)
-                )
+                bits.append("type: " + ", ".join(f"`{a}` ({m}≠{s})" for a, m, s in d.type_mismatch))
             if d.missing_required:
                 bits.append("missing required: " + ", ".join(f"`{a}`" for a in d.missing_required))
             lines.append(f"| `{d.model_name}` | `{d.schema}` | {'; '.join(bits)} |")
     optional = [(d.model_name, d.missing_optional) for d in drifts if d.missing_optional]
     if optional:
         lines.append("")
-        lines.append("<details><summary>Unmodelled optional spec fields "
-                     "(informational — tolerated by <code>extra=\"allow\"</code>)</summary>")
+        lines.append(
+            "<details><summary>Unmodelled optional spec fields "
+            '(informational — tolerated by <code>extra="allow"</code>)</summary>'
+        )
         lines.append("")
         for model_name, fields in sorted(optional):
             lines.append(f"- `{model_name}`: " + ", ".join(f"`{f}`" for f in sorted(fields)))
@@ -511,8 +513,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     unresolved = unresolved_models(schemas)
     if unresolved:
         failed = True
-        print(f"Unresolved models (add a SCHEMA_ALIASES or EXEMPT_MODELS entry): {unresolved}",
-              file=sys.stderr)
+        print(
+            f"Unresolved models (add a SCHEMA_ALIASES or EXEMPT_MODELS entry): {unresolved}",
+            file=sys.stderr,
+        )
     invalid = invalid_mapping_entries(schemas)
     if invalid:
         failed = True
@@ -524,9 +528,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     for d in all_drift(schemas):
         if d.has_failures:
             failed = True
-            print(f"{d.model_name} -> {d.schema}: model_only={d.model_only} "
-                  f"type_mismatch={d.type_mismatch} missing_required={d.missing_required}",
-                  file=sys.stderr)
+            print(
+                f"{d.model_name} -> {d.schema}: model_only={d.model_only} "
+                f"type_mismatch={d.type_mismatch} missing_required={d.missing_required}",
+                file=sys.stderr,
+            )
     if failed:
         return 1
     print("All resource models match their OpenAPI schema (or an allowlisted divergence).")

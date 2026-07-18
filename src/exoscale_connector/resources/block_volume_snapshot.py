@@ -13,6 +13,7 @@ helper on the volume client.
 
 API reference: https://openapi-v2.exoscale.com/ (block storage group)
 """
+
 from __future__ import annotations
 
 from typing import Dict, Optional

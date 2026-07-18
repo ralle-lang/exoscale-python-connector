@@ -9,6 +9,7 @@ Exoscale, not by API callers, so this client is read-only: use :meth:`list` /
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-deploy-target
 """
+
 from __future__ import annotations
 
 from typing import Optional

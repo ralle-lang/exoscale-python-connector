@@ -1,4 +1,5 @@
 """Unit tests for the template client."""
+
 from __future__ import annotations
 
 import responses

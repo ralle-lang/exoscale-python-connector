@@ -24,6 +24,7 @@ Exit codes
 1 — error (message printed to stderr)
 2 — bad arguments / missing subcommand
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,6 +61,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 # ------------------------------------------------------------------ #
 # Argument parser
 # ------------------------------------------------------------------ #
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -109,9 +111,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_del.add_argument("--bucket", required=True)
     p_del.add_argument("--key", required=True)
 
-    p_sign = sub.add_parser(
-        "presign", help="Generate a presigned URL (treat the URL as a secret)"
-    )
+    p_sign = sub.add_parser("presign", help="Generate a presigned URL (treat the URL as a secret)")
     p_sign.add_argument("--bucket", required=True)
     p_sign.add_argument("--key", required=True)
     p_sign.add_argument("--method", choices=("get", "put"), default="get")
@@ -123,6 +123,7 @@ def _build_parser() -> argparse.ArgumentParser:
 # ------------------------------------------------------------------ #
 # Dispatch
 # ------------------------------------------------------------------ #
+
 
 def _dispatch(client: BucketClient, args: argparse.Namespace) -> object:
     """Route a parsed command to the matching BucketClient method."""

@@ -9,6 +9,7 @@ AI bundle honest. They diff every resource model's fields against
 field). Intentional, live-verified divergences live in
 ``ALLOWED_DIVERGENCES`` with a reason; the allowlist is itself policed for staleness.
 """
+
 from __future__ import annotations
 
 from scripts.model_schema_drift import (

@@ -2,6 +2,7 @@
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-compute
 """
+
 from __future__ import annotations
 
 from typing import List, Optional
@@ -74,9 +75,7 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         Returns the async operation, awaited by default.
         """
         zone = self._zone(zone)
-        response = self.client.put(
-            f"{self.collection_path}/{instance_id}:start", zone=zone
-        )
+        response = self.client.put(f"{self.collection_path}/{instance_id}:start", zone=zone)
         return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
 
     def stop(
@@ -88,9 +87,7 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
     ) -> Operation:
         """Stop a running instance gracefully (``PUT instance/{id}:stop``)."""
         zone = self._zone(zone)
-        response = self.client.put(
-            f"{self.collection_path}/{instance_id}:stop", zone=zone
-        )
+        response = self.client.put(f"{self.collection_path}/{instance_id}:stop", zone=zone)
         return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
 
     def reboot(
@@ -102,9 +99,7 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
     ) -> Operation:
         """Reboot a running instance (``PUT instance/{id}:reboot``)."""
         zone = self._zone(zone)
-        response = self.client.put(
-            f"{self.collection_path}/{instance_id}:reboot", zone=zone
-        )
+        response = self.client.put(f"{self.collection_path}/{instance_id}:reboot", zone=zone)
         return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
 
     def scale(

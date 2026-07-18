@@ -12,6 +12,7 @@ Example::
     inst = instances.create({...})
     inst = wait_for_state(lambda: instances.get(inst.id), "running", timeout=600)
 """
+
 from __future__ import annotations
 
 import time
@@ -46,8 +47,7 @@ def wait_for_state(
         time.sleep(interval)
     last_state = getattr(last, attr, None)
     raise WaitTimeoutError(
-        f"resource never reached state {expected!r} within {timeout}s "
-        f"(last state: {last_state!r})",
+        f"resource never reached state {expected!r} within {timeout}s (last state: {last_state!r})",
         expected=expected,
         last_state=last_state,
     )

@@ -9,6 +9,7 @@ the failure mode a hand-written mock can't catch.
 
 With no recordings present the suite is skipped, not failed.
 """
+
 from __future__ import annotations
 
 import json

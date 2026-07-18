@@ -18,6 +18,7 @@ Every test creates its own instance + deps (ssh-key, security-group) and tears
 them down. Resources carry the conn-test- prefix; the tracker handles cleanup
 even on failure.
 """
+
 from __future__ import annotations
 
 import time
@@ -50,11 +51,7 @@ def _generate_ssh_pub() -> str:
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
     private = Ed25519PrivateKey.generate()
-    return (
-        private.public_key()
-        .public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH)
-        .decode("ascii")
-    )
+    return private.public_key().public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH).decode("ascii")
 
 
 def _make_deps(client, run_id: str, tracker):

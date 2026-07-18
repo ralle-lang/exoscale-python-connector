@@ -7,6 +7,7 @@ Other asset-type modules mirror this structure.
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-security-group
 """
+
 from __future__ import annotations
 
 from typing import List, Optional

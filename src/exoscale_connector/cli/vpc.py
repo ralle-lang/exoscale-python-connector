@@ -10,6 +10,7 @@ to a subnet, which belongs to a VPC) and don't fit the generic ``<verb>-<noun>``
 harness; use :class:`~exoscale_connector.resources.vpc.VpcClient` directly for
 those (``attach_subnet``, ``create_route``, ...).
 """
+
 from __future__ import annotations
 
 import sys

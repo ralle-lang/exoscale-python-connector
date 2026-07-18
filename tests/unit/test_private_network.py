@@ -1,4 +1,5 @@
 """Unit tests for PrivateNetworkClient."""
+
 from __future__ import annotations
 
 import responses

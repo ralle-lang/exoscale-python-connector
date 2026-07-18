@@ -4,6 +4,7 @@ All HTTP is intercepted by ``responses``; no network calls are made.
 Covers: cluster list/get/create(operation)/delete + nodepool create(operation)/delete
 and kebab-case payload serialisation.
 """
+
 from __future__ import annotations
 
 import responses
@@ -13,6 +14,7 @@ from exoscale_connector.resources.sks import SksClusterClient, SksNodepool  # no
 # ------------------------------------------------------------------ #
 # Cluster tests
 # ------------------------------------------------------------------ #
+
 
 @responses.activate
 def test_list_clusters_returns_typed_models(client, base_url) -> None:
@@ -110,6 +112,7 @@ def test_delete_cluster_returns_settled_operation(client, base_url) -> None:
 # ------------------------------------------------------------------ #
 # Nodepool tests
 # ------------------------------------------------------------------ #
+
 
 @responses.activate
 def test_list_nodepools_returns_typed_models(client, base_url) -> None:

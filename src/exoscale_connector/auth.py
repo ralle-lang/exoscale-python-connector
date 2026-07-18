@@ -8,6 +8,7 @@ so the connector stays self-contained and copy-pastable into other projects.
 The signing scheme is documented at
 https://openapi-v2.exoscale.com/topic/topic-api-request-signature
 """
+
 from __future__ import annotations
 
 import hashlib

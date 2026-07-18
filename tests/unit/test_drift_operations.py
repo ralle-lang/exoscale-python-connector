@@ -6,6 +6,7 @@ the mapping honest the same way ``test_llms_txt`` keeps the bundle honest: they
 fail if the code calls an endpoint the mapping can't attribute, or if the mapping
 carries a sibling no module actually uses.
 """
+
 from __future__ import annotations
 
 from scripts.drift_operations import (

@@ -8,6 +8,7 @@ a custom description that documents this constraint.
 Use ``exoscale-snapshot delete --id <id>`` to remove a snapshot, or trigger
 creation via the instance client / Ansible.
 """
+
 from __future__ import annotations
 
 import sys

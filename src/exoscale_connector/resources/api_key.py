@@ -12,6 +12,7 @@ will be populated on create and absent on every subsequent fetch.
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-iam
 """
+
 from __future__ import annotations
 
 from typing import Optional

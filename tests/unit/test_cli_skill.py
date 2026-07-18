@@ -1,4 +1,5 @@
 """Tests for the ``exoscale-connector skill`` CLI."""
+
 from pathlib import Path
 
 from exoscale_connector.cli import skill

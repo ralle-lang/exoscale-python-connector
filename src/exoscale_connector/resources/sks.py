@@ -11,6 +11,7 @@ API reference: https://openapi-v2.exoscale.com/
 Verified endpoints come from the Ansible playbooks and Python tools in this repo
 (see ansible/playbooks/provider/exoscale/sks/ and tools/exoscale/).
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional

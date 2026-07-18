@@ -7,6 +7,7 @@ parameter so that:
 * No network traffic is made.
 * The exact boto3 method signatures called by BucketClient are verified.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch

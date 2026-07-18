@@ -7,6 +7,7 @@ changelog entry under e.g. ``/block-storage`` maps straight to
 Derived from ``collection_path`` introspection (same ground-truth approach
 as ``generate_llms_txt.py``), so it cannot drift from the code.
 """
+
 from __future__ import annotations
 
 import importlib

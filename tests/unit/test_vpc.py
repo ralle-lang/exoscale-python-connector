@@ -2,6 +2,7 @@
 
 All HTTP is intercepted by ``responses``; no network calls are made.
 """
+
 from __future__ import annotations
 
 import json
@@ -77,8 +78,9 @@ def test_create_subnet_sends_kebab_payload_and_awaits(client, base_url) -> None:
     )
     op = VpcClient(client).create_subnet(
         "v1",
-        VpcSubnet(name="app", addressfamily="inet4", address_space="private",
-                  ipv4_block="10.0.0.0/24"),
+        VpcSubnet(
+            name="app", addressfamily="inet4", address_space="private", ipv4_block="10.0.0.0/24"
+        ),
     )
     assert op.state == "success" and op.reference_id == "s-new"
     sent = json.loads(responses.calls[0].request.body)
@@ -110,7 +112,9 @@ def test_create_route_omits_name(client, base_url) -> None:
         status=200,
     )
     op = VpcClient(client).create_route(
-        "v1", "s1", VpcRoute(destination="0.0.0.0/0", target="10.0.0.1"),
+        "v1",
+        "s1",
+        VpcRoute(destination="0.0.0.0/0", target="10.0.0.1"),
     )
     assert op.state == "success"
     sent = json.loads(responses.calls[0].request.body)

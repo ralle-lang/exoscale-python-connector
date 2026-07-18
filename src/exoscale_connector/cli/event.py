@@ -1,4 +1,5 @@
 """CLI entry point: ``exoscale-event`` (read-only)."""
+
 from __future__ import annotations
 
 import sys

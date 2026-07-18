@@ -11,6 +11,7 @@ exercise (``resolve_linux_template``); register/delete live-verified
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-template
 """
+
 from __future__ import annotations
 
 from typing import List, Optional
@@ -25,15 +26,15 @@ class Template(ExoscaleModel):
     id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    family: Optional[str] = None        # e.g. "Linux Ubuntu", used for OS matching
+    family: Optional[str] = None  # e.g. "Linux Ubuntu", used for OS matching
     version: Optional[str] = None
     # Minimum disk size the template requires, in bytes.
     size: Optional[int] = None
-    visibility: Optional[str] = None    # "public" | "private"
+    visibility: Optional[str] = None  # "public" | "private"
     # Registration source (private templates).
     url: Optional[str] = None
     checksum: Optional[str] = None
-    boot_mode: Optional[str] = None     # "legacy" | "uefi"
+    boot_mode: Optional[str] = None  # "legacy" | "uefi"
     default_user: Optional[str] = None
     ssh_key_enabled: Optional[bool] = None
     password_enabled: Optional[bool] = None
@@ -73,9 +74,7 @@ class TemplateClient(ResourceClient[Template]):
         Mirrors the selection logic the live tests use: filter by family
         containing "linux", then prefer the smallest required disk size.
         """
-        candidates = [
-            t for t in self.list(zone=zone) if "linux" in (t.family or "").lower()
-        ]
+        candidates = [t for t in self.list(zone=zone) if "linux" in (t.family or "").lower()]
         if not candidates:
             return None
         candidates.sort(key=lambda t: t.size if t.size is not None else float("inf"))

@@ -7,6 +7,7 @@ volume). The 'create' subcommand from the shared harness is present but will
 fail at the API level if called directly — use the volume client or Ansible
 playbooks to trigger snapshot creation instead.
 """
+
 from __future__ import annotations
 
 import sys

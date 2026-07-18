@@ -1,4 +1,5 @@
 """Unit tests for EventClient (read-only audit log)."""
+
 from __future__ import annotations
 
 import responses

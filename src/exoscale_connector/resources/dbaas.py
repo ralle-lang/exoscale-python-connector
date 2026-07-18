@@ -13,6 +13,7 @@ The Exoscale DBaaS API is unlike other asset types in two ways:
 
 API reference: https://openapi-v2.exoscale.com/#tag/DBaaS
 """
+
 from __future__ import annotations
 
 import random
@@ -397,13 +398,9 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         unlike the type-specific CRUD paths which use the long form. The
         response schema is engine-specific, so a raw dict is returned.
         """
-        return self.client.get(
-            f"dbaas-settings-{service_type}", zone=self._zone(zone)
-        )
+        return self.client.get(f"dbaas-settings-{service_type}", zone=self._zone(zone))
 
-    def get_acl_config(
-        self, name: str, *, service_type: str, zone: Optional[str] = None
-    ) -> dict:
+    def get_acl_config(self, name: str, *, service_type: str, zone: Optional[str] = None) -> dict:
         """Return the ACL configuration for a service.
 
         Wraps ``GET /dbaas-{type}/{name}/acl-config``. Supported by the engines

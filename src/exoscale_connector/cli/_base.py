@@ -13,6 +13,7 @@ bare verbs. CLIs whose verbs don't fit this shape at all (e.g. ``dbaas``) build
 their own parser/dispatch and reuse the public helpers here (:func:`base_parser`,
 :func:`load_payload`, :func:`dump`, :func:`execute_cli`).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,6 +74,7 @@ class SubResource:
 # ------------------------------------------------------------------ #
 # Public building blocks (also imported by bespoke CLIs such as dbaas)
 # ------------------------------------------------------------------ #
+
 
 def base_parser(prog: str, description: str) -> Tuple[argparse.ArgumentParser, Any]:
     """Return a parser pre-wired with ``--zone``/``--output`` plus its subparsers handle."""
@@ -215,6 +217,7 @@ def execute_cli(
 # ------------------------------------------------------------------ #
 # Generic resource CLI
 # ------------------------------------------------------------------ #
+
 
 def run_resource_cli(
     resource_cls: Type[ResourceClient],

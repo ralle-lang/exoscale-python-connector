@@ -11,6 +11,7 @@ correct URL segment and model attribute.
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-ssh-key
 """
+
 from __future__ import annotations
 
 from typing import Optional

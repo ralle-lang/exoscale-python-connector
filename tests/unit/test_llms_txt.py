@@ -4,6 +4,7 @@ The sync test is the enforcement point: it fails whenever the committed bundle
 no longer matches what the code and asset-type pages would generate, on every
 CI run. Regenerate with ``python scripts/generate_llms_txt.py``.
 """
+
 import importlib
 import inspect
 import json
@@ -65,9 +66,9 @@ def test_skill_has_valid_frontmatter_and_points_at_reference():
 def test_sks_addons_injected_from_spec():
     """The sks.md addon block is sourced from the committed OpenAPI spec, not hand-typed."""
     spec = json.loads(UPSTREAM_SPEC.read_text(encoding="utf-8"))
-    cluster_enum = (
-        spec["components"]["schemas"]["sks-cluster"]["properties"]["addons"]["items"]["enum"]
-    )
+    cluster_enum = spec["components"]["schemas"]["sks-cluster"]["properties"]["addons"]["items"][
+        "enum"
+    ]
     page = _load_asset_page(SKS_PAGE)
     assert "BEGIN GENERATED:sks-addons" in page
     # Every addon advertised by the spec must appear in the rendered page.
@@ -102,8 +103,7 @@ def test_bundle_embeds_every_asset_type_page():
     for page in pages:
         # First heading of each page must survive embedding (demoted, not dropped).
         first_heading = next(
-            line for line in page.read_text(encoding="utf-8").splitlines()
-            if line.startswith("#")
+            line for line in page.read_text(encoding="utf-8").splitlines() if line.startswith("#")
         )
         assert "##" + first_heading in bundle, f"{page.name} not embedded"
     # The live-verified gotchas are the moat — spot-check one survives verbatim.

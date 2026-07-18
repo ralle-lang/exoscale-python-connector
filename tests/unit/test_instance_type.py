@@ -1,4 +1,5 @@
 """Unit tests for the instance-type client."""
+
 from __future__ import annotations
 
 import responses

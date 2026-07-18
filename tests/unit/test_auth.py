@@ -1,4 +1,5 @@
 """Unit tests for the EXO2-HMAC-SHA256 request signer."""
+
 from __future__ import annotations
 
 import requests

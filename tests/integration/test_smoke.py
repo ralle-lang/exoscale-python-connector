@@ -7,6 +7,7 @@ per-zone endpoints are correct, and that each collection path + list key +
 model actually matches what the API returns. They never create, modify or
 delete anything.
 """
+
 from __future__ import annotations
 
 import pytest

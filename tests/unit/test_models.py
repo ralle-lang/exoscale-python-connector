@@ -1,4 +1,5 @@
 """Unit tests for the pydantic model infrastructure (kebab-case aliasing)."""
+
 from __future__ import annotations
 
 from exoscale_connector.models import Operation, to_api_payload
@@ -25,9 +26,7 @@ def test_parse_kebab_response_into_snake_attributes() -> None:
 
 
 def test_operation_reference_id_accessor() -> None:
-    op = Operation.model_validate(
-        {"id": "op-1", "state": "success", "reference": {"id": "res-9"}}
-    )
+    op = Operation.model_validate({"id": "op-1", "state": "success", "reference": {"id": "res-9"}})
     assert op.reference_id == "res-9"
 
 

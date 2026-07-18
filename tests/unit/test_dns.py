@@ -1,4 +1,5 @@
 """Unit tests for DnsDomainClient (DNS domains + record sub-resource)."""
+
 from __future__ import annotations
 
 import responses
@@ -77,8 +78,12 @@ def test_list_records_uses_primary_key(client, base_url) -> None:
             "dns-domain-records": [
                 {"id": "rec1", "name": "www", "type": "A", "content": "192.0.2.1", "ttl": 300},
                 {
-                    "id": "rec2", "name": "@", "type": "MX",
-                    "content": "mail.example.com", "ttl": 3600, "priority": 10,
+                    "id": "rec2",
+                    "name": "@",
+                    "type": "MX",
+                    "content": "mail.example.com",
+                    "ttl": 3600,
+                    "priority": 10,
                 },
             ]
         },
@@ -127,8 +132,12 @@ def test_create_record_posts_kebab_payload(client, base_url) -> None:
         responses.GET,
         f"{base_url}/dns-domain/dom1/record/rec3",
         json={
-            "id": "rec3", "name": "mail", "type": "MX",
-            "content": "mx.example.com", "ttl": 3600, "priority": 10,
+            "id": "rec3",
+            "name": "mail",
+            "type": "MX",
+            "content": "mx.example.com",
+            "ttl": 3600,
+            "priority": 10,
         },
         status=200,
     )

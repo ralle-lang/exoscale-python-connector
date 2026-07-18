@@ -6,6 +6,7 @@ pydantic model, and inherits consistent ``list`` / ``get`` / ``find_by_name`` /
 handling. Asset types only override what is genuinely special (extra endpoints,
 non-standard payloads), keeping the per-type modules small and uniform.
 """
+
 from __future__ import annotations
 
 from typing import Any, Generic, List, Optional, Type, TypeVar

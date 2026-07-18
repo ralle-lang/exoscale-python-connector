@@ -1,4 +1,5 @@
 """Unit tests for the low-level HTTP client (mocked transport)."""
+
 from __future__ import annotations
 
 import pytest
@@ -71,9 +72,7 @@ def test_retry_after_header_overrides_backoff(client, base_url, monkeypatch) -> 
     # The server's Retry-After (seconds form) is honoured instead of our backoff.
     sleeps: list = []
     monkeypatch.setattr("exoscale_connector.client.time.sleep", sleeps.append)
-    responses.add(
-        responses.GET, f"{base_url}/instance", status=429, headers={"Retry-After": "7"}
-    )
+    responses.add(responses.GET, f"{base_url}/instance", status=429, headers={"Retry-After": "7"})
     responses.add(responses.GET, f"{base_url}/instance", json={"instances": []}, status=200)
     assert client.get("instance") == {"instances": []}
     assert sleeps == [7.0]
@@ -96,9 +95,7 @@ def test_retry_after_is_capped(client, base_url, monkeypatch) -> None:
 def test_delete_is_retried_on_transient_error(client, base_url) -> None:
     # DELETE is idempotent, so transient 5xx retries remain safe.
     responses.add(responses.DELETE, f"{base_url}/instance/abc", status=502)
-    responses.add(
-        responses.DELETE, f"{base_url}/instance/abc", json={"id": "op2"}, status=200
-    )
+    responses.add(responses.DELETE, f"{base_url}/instance/abc", json={"id": "op2"}, status=200)
     assert client.delete("instance/abc") == {"id": "op2"}
     assert len(responses.calls) == 2
 

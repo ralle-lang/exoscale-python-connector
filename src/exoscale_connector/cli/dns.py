@@ -8,6 +8,7 @@ harness emits ``<verb>-domain`` / ``<verb>-record`` commands (``list-domains``,
 Output is newline-terminated JSON on stdout; connector errors exit 1, argument
 errors exit 2.
 """
+
 from __future__ import annotations
 
 import sys

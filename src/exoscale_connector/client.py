@@ -5,6 +5,7 @@ helpers plus asynchronous-operation polling. Resource classes
 (:mod:`exoscale_connector.resources`) sit on top of it and add typed, per-asset
 behaviour — application code normally uses those rather than this client directly.
 """
+
 from __future__ import annotations
 
 import logging
@@ -189,9 +190,7 @@ class ExoscaleClient:
             # Not every mutating endpoint returns an operation; nothing to wait on.
             return given or Operation()
 
-        deadline = time.time() + (
-            timeout if timeout is not None else self.config.operation_timeout
-        )
+        deadline = time.time() + (timeout if timeout is not None else self.config.operation_timeout)
         last = given or Operation(id=operation_id)
         consecutive_failures = 0
         while time.time() < deadline:

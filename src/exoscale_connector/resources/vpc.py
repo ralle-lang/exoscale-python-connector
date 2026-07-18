@@ -14,6 +14,7 @@ managed through dedicated methods — the same pattern as
 
 API reference: https://openapi-v2.exoscale.com/group/endpoint-vpc
 """
+
 from __future__ import annotations
 
 from typing import Dict, List, Optional
@@ -75,19 +76,13 @@ class VpcClient(ResourceClient[Vpc]):
     # Subnet sub-resource
     # ------------------------------------------------------------------ #
 
-    def list_subnets(
-        self, vpc_id: str, *, zone: Optional[str] = None
-    ) -> List[VpcSubnet]:
+    def list_subnets(self, vpc_id: str, *, zone: Optional[str] = None) -> List[VpcSubnet]:
         """List a VPC's subnets (``GET vpc/{vpc_id}/subnet``)."""
-        payload = self.client.get(
-            f"{self.collection_path}/{vpc_id}/subnet", zone=self._zone(zone)
-        )
+        payload = self.client.get(f"{self.collection_path}/{vpc_id}/subnet", zone=self._zone(zone))
         items = payload.get("subnets") or []
         return [VpcSubnet.model_validate(i) for i in items if isinstance(i, dict)]
 
-    def get_subnet(
-        self, vpc_id: str, subnet_id: str, *, zone: Optional[str] = None
-    ) -> VpcSubnet:
+    def get_subnet(self, vpc_id: str, subnet_id: str, *, zone: Optional[str] = None) -> VpcSubnet:
         """Fetch one subnet by id (``GET vpc/{vpc_id}/subnet/{subnet_id}``)."""
         payload = self.client.get(
             f"{self.collection_path}/{vpc_id}/subnet/{subnet_id}",
@@ -200,9 +195,7 @@ class VpcClient(ResourceClient[Vpc]):
 
     def list_routes(self, vpc_id: str, *, zone: Optional[str] = None) -> List[VpcRoute]:
         """List every route in a VPC (``GET vpc/{vpc_id}/route``)."""
-        payload = self.client.get(
-            f"{self.collection_path}/{vpc_id}/route", zone=self._zone(zone)
-        )
+        payload = self.client.get(f"{self.collection_path}/{vpc_id}/route", zone=self._zone(zone))
         items = payload.get("routes") or []
         return [VpcRoute.model_validate(i) for i in items if isinstance(i, dict)]
 

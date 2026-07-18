@@ -1,4 +1,5 @@
 """CLI entry point: ``exoscale-zone`` (read-only)."""
+
 from __future__ import annotations
 
 from typing import Optional, Sequence

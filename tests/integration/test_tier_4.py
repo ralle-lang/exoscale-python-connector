@@ -14,6 +14,7 @@ All resources carry the conn-test- prefix and are tracked for guaranteed
 teardown. Secret-bearing responses (DBaaS connection info, password reveal,
 SKS kubeconfig) are asserted present but never printed.
 """
+
 from __future__ import annotations
 
 import time

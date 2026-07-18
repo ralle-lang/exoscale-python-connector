@@ -1,4 +1,5 @@
 """Unit tests for the live-run wire recorder (sanitization + hook plumbing)."""
+
 from __future__ import annotations
 
 import json

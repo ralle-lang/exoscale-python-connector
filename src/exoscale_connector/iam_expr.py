@@ -17,6 +17,7 @@ Example::
     IAMPolicyRule.deny(e.ne("resources.bucket", user_input))
     IAMPolicyRule.allow(e.operation_in(["list-buckets", "get-object"]))
 """
+
 from __future__ import annotations
 
 import re
