@@ -21,6 +21,11 @@ jobs:
         run: pip install -e '.[dev]'
       - name: Lint
         run: ruff check src tests scripts
+      # Formatting is a separate gate from linting: `ruff check` passes on
+      # unformatted code, so without this the tree silently drifts and an
+      # unrelated change ends up bundling a large incidental reformat.
+      - name: Format
+        run: ruff format --check src tests scripts
       - name: Type-check
         run: mypy src
       - name: Unit tests
