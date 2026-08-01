@@ -2,13 +2,24 @@
 # oasdiff action used by upstream-drift.yml), and proposes bumps for the one
 # exactly-pinned Python dev tool.
 #
-# Runtime dependencies stay deliberately loose ranges in pyproject.toml and are
-# effectively unmanaged: any new release already satisfies a `>=` floor, so the
-# pip updater has nothing to propose for them. In practice it only acts on
-# `ruff`, which is pinned exactly because CI gates on `ruff format --check` and
-# formatter output is not stable across ruff releases. A bump therefore arrives
-# as a reviewable PR whose own CI run proves whether the new version reformats
-# the tree — if it does, the reformat belongs in that PR.
+# The pip updater is restricted to `ruff` by an explicit allowlist, and that
+# restriction is load-bearing rather than decorative. Ruff is pinned exactly
+# because CI gates on `ruff format --check` and formatter output is not stable
+# across ruff releases, so a bump must arrive as a reviewable PR whose own CI
+# run proves whether the new version reformats the tree.
+#
+# Everything else Python must stay untouched, for two different reasons:
+#
+#   * Runtime dependencies in pyproject.toml are deliberately loose `>=` ranges
+#     (the "requests + pydantic only" promise), so there is nothing to bump.
+#   * ci/constraints-min.txt pins those same dependencies to their DECLARED
+#     MINIMUMS on purpose — that is what makes the min-deps job prove the floors
+#     actually work. Without the allowlist, Dependabot reads it as an ordinary
+#     pinned requirements file and proposes bumping the floors, which defeats
+#     the job entirely. It did exactly that in #66/#67 before this was added;
+#     tests/unit/test_min_constraints.py caught both, but a guardrail firing
+#     every week is not a workflow. Those pins move only when a pyproject floor
+#     is raised by hand.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -19,3 +30,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    allow:
+      - dependency-name: ruff
