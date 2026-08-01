@@ -424,7 +424,52 @@ Every GitHub Action in every workflow is **pinned to a full commit SHA** (with a
 trailing `# vX` comment for readability), not a moving tag — a tag can be
 repointed by a compromised upstream, a SHA cannot. Dependabot
 (`.github/dependabot.yml`) watches the `github-actions` ecosystem and opens PRs to
-bump the pins deliberately.
+bump the pins deliberately. It also watches `pip`, but **only for `ruff`** — see
+below for why that restriction is load-bearing.
+
+### Reviewing Dependabot PRs
+
+Most are a one-line SHA swap, but four things in this repo make them less
+trivial than they look.
+
+**Verify the SHA actually is the tag it claims.** The comment is prose; the SHA
+is the security boundary. Dependabot is trustworthy, but the check is one call
+and this is the whole point of pinning:
+
+```bash
+gh api repos/actions/checkout/git/ref/tags/v7.0.1 --jq '.object.sha'
+```
+
+For an annotated tag that returns the tag object — dereference it with
+`gh api repos/<owner>/<repo>/git/tags/<sha> --jq '.object.sha'`.
+
+**Green CI does not mean the bump is verified.** `ci.yml` runs on every PR, but
+actions used *only* in `upstream-drift.yml` (oasdiff) or `release.yml`
+(`gh-action-pypi-publish`, `download-artifact`) are never exercised by it. A
+green check on those bumps means "nothing else broke", not "the new version
+works". `upstream-drift.yml` has `workflow_dispatch` — running it manually is a
+partial smoke test, though with no drift pending the changelog step is skipped
+and the bumped oasdiff never actually generates anything. `release.yml` is
+proven only by an actual release.
+
+**A `ruff` bump may need a reformat in the same PR.** Ruff is pinned exactly
+because CI gates on `ruff format --check` and formatter output is not stable
+across releases. If a bump reformats the tree, that reformat belongs in the bump
+PR — never bundled into unrelated work later.
+
+**Do not widen the pip allowlist.** `ci/constraints-min.txt` pins the runtime
+dependencies to their *declared minimums*, which is the entire mechanism by
+which the `min-deps` job proves those floors work. Dependabot reads it as an
+ordinary pinned requirements file and will happily bump the floors, defeating
+the job; it did exactly that before the allowlist existed.
+`tests/unit/test_min_constraints.py` catches it, but the allowlist stops the
+noise at the source. Those pins move only when a `pyproject.toml` floor is
+raised by hand.
+
+When several PRs touch adjacent lines in the same workflow (a `checkout` bump
+and a `setup-python` bump sit one line apart), merging one conflicts the rest.
+`@dependabot rebase` as a PR comment regenerates the loser against `main`;
+re-check the rebased diff before merging.
 
 ## Reference manual
 

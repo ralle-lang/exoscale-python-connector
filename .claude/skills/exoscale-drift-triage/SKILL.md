@@ -20,7 +20,13 @@ Mondays and files/updates a single open issue per source, labelled
 
 The issue body already contains the analysis: an evaluation checklist, an
 **Affected connector modules** map, a **Model ↔ spec field drift** table, and
-the oasdiff changelog. Do not re-derive these — read them, then decide and act.
+the oasdiff changelog. Don't redo that work by hand — but don't treat it as the
+whole picture either. **It describes the spec as of the bot's run, not as of
+now.** Anything that landed upstream afterwards is absent from the issue, and
+the changelog will still claim `0 error, 0 warning`. Read the analysis, then
+verify it against the live spec in step 3; where they disagree, the live spec
+wins. Drift #57 reported 5 informational changes and omitted a breaking path
+rename that arrived days later.
 
 The committed snapshots under `.github/upstream/` are **not** touched by the
 bot — main is protection-ruled, and per D1 the baseline should move only once a
@@ -36,6 +42,12 @@ for the ground-truth checks (step 3).
 - **D3 — classify, then route.** Breaking → fix now on a branch. Additive →
   record in `docs/roadmap.md` backlog, batched; graduate a batch to an issue at
   ~8–16h estimated effort.
+- **D4 — default-enabled products only.** A product that is not enabled on a
+  default tenant is out of scope: it cannot be exercised, so it could only ever
+  be modelled from the spec — exactly what D1 forbids trusting. Do **not**
+  harvest opt-in products into the backlog; add them to the roadmap's
+  out-of-scope list instead. This governs new harvesting only — already-shipped
+  clients (e.g. `VpcClient`, itself a per-account product) stay.
 
 ## Procedure
 
@@ -58,14 +70,35 @@ for the ground-truth checks (step 3).
      (it turns `test_model_schema_drift.py` red once the snapshot advances);
      unmodelled optional fields are informational, tolerated by `extra="allow"`.
    - `python -m pytest tests/unit/test_model_schema_drift.py tests/unit/test_drift_operations.py`
+   - **Diff the paths yourself** — this is the step that finds what the issue
+     missed, and none of the checks above can substitute for it:
+     ```
+     python scripts/drift_operations.py --affected .github/upstream/openapi-v2.json "$SPEC"
+     ```
+     Added/removed/changed paths here but not in the issue means drift landed
+     after the bot ran. A *removed* path paired with a similar *added* one is a
+     rename — inspect both operations before concluding anything, since the
+     operationId usually stays the same.
    - Re-read the gotchas on each affected `docs/asset-types/*.md` page; a spec
      change can invalidate a documented gotcha.
 
 4. **Classify each change** per D3:
    - **Breaking** (red CI: rename/removal/retype/newly-required request field,
      or an invalidated gotcha) → fix now.
+   - **Breaking but CI-invisible** — a **path or path-parameter** change
+     (renamed/retyped path segment) on an endpoint the connector calls. Models
+     are unaffected, so `test_model_schema_drift.py` stays green and
+     `test_drift_operations.py` passes; nothing goes red while the call is
+     broken at runtime. Step 3's path diff is the only thing that surfaces
+     these. Treat as breaking, but see D1 before changing behaviour — if the
+     endpoint cannot be live-verified, document the hazard rather than guessing
+     at the new contract.
    - **Additive** (new optional fields, tolerated by `extra="allow"`; new
      endpoints/asset types not yet modelled) → roadmap.
+   - **Out of scope** — the change belongs to an opt-in product (D4), or to an
+     area already on the roadmap's out-of-scope list (`/organization`,
+     `/ai/*`, billing/usage reporting, `/console`, ClickHouse). Record it on
+     that list if it is new, and harvest nothing.
 
 5. **Act — breaking (fix now):**
    - Branch: `git switch -c fix/drift-<short-topic>`.
@@ -106,4 +139,20 @@ for the ground-truth checks (step 3).
 
 If a breaking change touches request payloads, flag whether a live tier run is
 needed (`docs/live-test-plan.md`); credentials come from the test Infisical
-project (dev env), never hardcoded. Never let live-tenant data into commits.
+project (dev env — **never** staging or prod), never hardcoded. Never let
+live-tenant data into commits.
+
+**Probe before provisioning.** Live verification of an asset type can be barred
+at the tenant, and finding out by creating billable infrastructure is the
+expensive way. One read-only call answers it:
+
+- `403 "... not enabled"` on a **read-only** endpoint → the product is off for
+  the whole tenant. No API key fixes this; route per D4.
+- `403 "Forbidden by role policy for ..."` → an IAM gate on the key, not the
+  product. The product is in scope; the key just lacks the grant.
+- Catalogue endpoints are a **false green**: `GET /dbaas-service-type` lists
+  ClickHouse and all its plans on a tenant that cannot touch the engine.
+  Successful plan discovery proves nothing about usability.
+
+Where a product is in scope but off for this tenant (VPC), live tests **skip**
+on the 403 rather than fail.
