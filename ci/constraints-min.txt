@@ -7,5 +7,5 @@
 # Kept honest by tests/unit/test_min_constraints.py: every runtime dependency
 # must have exactly one exact (==) pin whose major.minor matches the declared
 # pyproject floor — a missing, drifted, or stale pin fails the build.
-requests==2.30.0
+requests==2.34.2
 pydantic==2.5.0
