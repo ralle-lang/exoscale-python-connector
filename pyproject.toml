@@ -29,7 +29,14 @@ sos = ["boto3>=1.28"]
 dev = [
     "pytest>=7.4",
     "responses>=0.24",
-    "ruff>=0.4",
+    # Pinned exactly, unlike every other dep here. CI gates on
+    # `ruff format --check`, and ruff makes no formatter-stability promise
+    # across releases — a floating range means a new ruff can redden CI on an
+    # unrelated PR (0.16 did exactly that: it began formatting Python inside
+    # Markdown). Pinning makes the gate reproducible and turns a ruff upgrade
+    # into a deliberate commit that carries its own reformat. Dependabot's pip
+    # ecosystem proposes the bumps; see .github/dependabot.yml.
+    "ruff==0.16.1",
     "mypy>=1.8",
     "types-requests",
     "cryptography>=40",
