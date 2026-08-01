@@ -167,6 +167,8 @@ gets implemented together.
 | **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
 | **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
 | **ClickHouse DBaaS user create/reset response shape** — `POST /dbaas-clickhouse/{}/user` and `PUT /dbaas-clickhouse/{}/user/{}/password/reset` swapped the Operation envelope (`id`, `state`, `reference`, `message`, `reason`) for an inline user payload (`username`, `password`). Both connector methods return a raw `dict`, so nothing breaks today — but the documented gotcha *"passwords are never returned by create/reset"* (`docs/asset-types/dbaas.md`, `DBaaSServiceClient.reset_user_password` docstring) no longer holds for ClickHouse. Per D1 the spec alone does not settle this: verify live against a ClickHouse service first, then either scope the gotcha to the engines where it holds (pg, live-verified 2026-06-10) or surface the returned credential and skip the extra `reveal_user_password` round-trip. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #52 | ~1h (doc + optional convenience; needs a live ClickHouse service) |
+| **ClickHouse DBaaS delete-user path parameter** — `DELETE /dbaas-clickhouse/{}/user/{username}` became `DELETE /dbaas-clickhouse/{}/user/{user-uuid}` (path param renamed *and* retyped from the `dbaas-user-username` string to `format: uuid`), while ClickHouse `password/reset` and `password/reveal` still take `{username}` and every other engine (pg, mysql, valkey, kafka, opensearch) keeps `{username}` for delete. `DBaaSServiceClient.delete_user` interpolates a username for all engines, so if the live API really enforces a UUID this call is broken for `service_type="clickhouse"` — it was only ever live-verified against pg (2026-06-10). Per D1 the spec does not settle it, and the intra-engine inconsistency on a `[BETA]` endpoint reads like a partial upstream change: verify live against a ClickHouse service first, then either accept a UUID for ClickHouse (needs a user-listing lookup, since `GET /dbaas-clickhouse/{}/user` is the only place the uuid appears) or leave the code alone and record the spec divergence. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #57 (post-issue delta) | ~1h (needs the same live ClickHouse service as the row above) |
+| **VPC subnet `instances` attachment list** — `GET`/`PUT /vpc/{}/subnet/{}` gained an optional `instances` response property: a list of `{id, ipv4}` attachment entries naming the instances bound to the subnet and their leased addresses. Tolerated today by `extra="allow"`, but it is the natural read-side counterpart to the `attach`/`detach` ops the connector already ships, so model it on `VpcSubnet` as a typed list. Affects `src/exoscale_connector/resources/vpc.py`, `docs/asset-types/vpc.md` | drift #57 | ~0.5h |
 
 _Running total: ~3 days (~25h) — past the ~8–16h graduation window.
 **Graduated into milestone 0.6.0 as two issues:** KMS as its own issue (large,
@@ -182,9 +184,18 @@ DBaaS `version`, and SKS `nvidia-mig-profiles` — unit-tested, `ruff`/`mypy`/ll
 `--check` green; live verification per docs/live-test-plan.md and merge pending.
 KMS (#44) still open._
 
-_Post-graduation running total: ~1h (ClickHouse user create/reset response
-shape, drift #52). Rows above it were graduated into 0.6.0; the fresh backlog is
-well under the ~8–16h graduation window, so it keeps accruing._
+_Post-graduation running total: ~2.5h (ClickHouse user create/reset response
+shape from drift #52, plus the ClickHouse delete-user path parameter and the VPC
+subnet `instances` list from drift #57). Rows above them were graduated into
+0.6.0; the fresh backlog is well under the ~8–16h graduation window, so it keeps
+accruing._
+
+_drift #57 note: the two ClickHouse rows are both blocked on the same thing — a
+live ClickHouse service to verify against — so they should be picked up in one
+session rather than separately, whenever a live tier run is next scheduled
+(`docs/live-test-plan.md`, tier 4). The delete-user row is the first
+breaking-*shaped* drift that unit CI cannot catch: it is a path parameter, not a
+model field, so `test_model_schema_drift.py` stays green either way._
 
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
@@ -199,13 +210,16 @@ should **not** keep re-adding them to the backlog:
 
 - **`/organization`** — org/account management, out of the connector's remit.
 - **`/quota`** — account limits; read-only account metadata, not provisioning.
-- **`/usage-report`, `/live-balance`, `/env-impact`** — billing/usage
-  reporting, not the connector's job.
+- **`/usage-report`, `/live-balance`, `/env-impact`, `/environmental-impact/*`**
+  — billing/usage reporting, not the connector's job. (`#57` added
+  `POST /environmental-impact/estimate` and `GET /environmental-impact/report`
+  alongside the older `/env-impact/{period}`; same family, same verdict.)
 - **`/console`** — instance web-console access; interactive, not automation.
 - **`/ai/*` (AI / GPU inference)** — deferred: the product surface is new and
-  still churning (it moved again in #43, and again in #52 — `POST`/`PATCH
-  /ai/api-key` tightened `name` to a 1–50 char pattern and `POST /ai/deployment`
-  gained `product-name`). Revisit once it stabilises.
+  still churning (it moved again in #43, in #52 — `POST`/`PATCH /ai/api-key`
+  tightened `name` to a 1–50 char pattern and `POST /ai/deployment` gained
+  `product-name` — and again in #57, where `GET /ai/deployment` gained an
+  optional `visibility` query parameter). Revisit once it stabilises.
 
 ---
 
