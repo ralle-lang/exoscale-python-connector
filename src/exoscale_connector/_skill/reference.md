@@ -1893,6 +1893,15 @@ dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
   `start_maintenance` use the long type path (`pg` → `postgres`) like the rest of
   the type-specific methods; pass either form and the client translates.
 
+- **`delete_user` is unverified for ClickHouse.** Upstream moved that engine's
+  delete to `DELETE /dbaas-clickhouse/{name}/user/{user-uuid}` — path parameter
+  renamed *and* retyped to a UUID, which is consistent with ClickHouse carrying
+  a per-user `uuid` upstream. Every other engine still deletes by username, as
+  do ClickHouse's own `password/reset` and `password/reveal`. The connector
+  still sends whatever you pass, so `delete_user(..., service_type="clickhouse")`
+  may not resolve a username; it is pending live verification, and the connector
+  exposes no user-listing method to read a uuid from today.
+
 `ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
 kwargs) — use `get_or_none(name)` + `create(...)` explicitly.
 

@@ -302,6 +302,19 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 
         Live-verified 2026-06-10 (tier-4 pg lifecycle).
+
+        .. warning::
+           **ClickHouse is unverified.** Upstream moved this endpoint to
+           ``DELETE /dbaas-clickhouse/{name}/user/{user-uuid}`` — the path
+           parameter was renamed *and* retyped to a UUID, and ClickHouse does
+           carry a per-user ``uuid`` (its ``password/reset`` and
+           ``password/reveal`` endpoints still take a username, as does
+           ``delete`` on every other engine). This method interpolates whatever
+           you pass, so a username may no longer resolve for
+           ``service_type="clickhouse"``. Nothing here changed because the spec
+           alone does not settle it (D1) and the connector exposes no user
+           listing to obtain the uuid from; pending live verification against a
+           ClickHouse service.
         """
         return self.client.delete(
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}",
