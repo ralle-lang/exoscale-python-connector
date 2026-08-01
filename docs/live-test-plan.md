@@ -270,6 +270,20 @@ not hardcoded).
   read rather than forcing a major-version bump on the throwaway service.
 - **Cost**: cheapest pg plan is hourly; ~15 min ≈ €0.01–0.05 depending on plan tier in your account.
 - **Risk**: longest provisioning of any tier; secrets in responses (we assert presence, never log/print).
+- **ClickHouse is out of scope** (roadmap D4) — no ClickHouse steps belong in
+  this tier. The diagnostic below is kept because it generalises to any opt-in
+  product, and it is how ClickHouse was ruled out in the first place.
+
+  **Telling an enablement gate from a permission gate:** on a tenant without the
+  product, *every* operation returns `403 "... not enabled"` — including
+  read-only ones, which is the tell. An IAM role gate instead reads `Forbidden
+  by role policy for ...`. So probe with a read (for ClickHouse that was
+  `GET /dbaas-settings-clickhouse`): if a read that needs no privileges is
+  refused, the product is off for the whole tenant and no key will fix it.
+  Catalogue endpoints prove nothing — `GET /dbaas-service-type` cheerfully lists
+  ClickHouse and all 112 of its plans on a tenant that cannot touch the engine.
+  Where a product *is* in scope but off for this tenant (VPC), tests **skip** on
+  that 403 rather than fail.
 
 #### 16. `sks` (cluster + nodepool + kubeconfig) — `EXOSCALE_TEST_TIER_4_SKS=1`
 - **Ops**: cluster CRUD (`list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`); nodepool CRUD (`list_nodepools`, `get_nodepool`, `create_nodepool`, `update_nodepool`, `delete_nodepool`); `generate_kubeconfig`.

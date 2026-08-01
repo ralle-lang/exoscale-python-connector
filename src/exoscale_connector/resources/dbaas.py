@@ -302,6 +302,24 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 
         Live-verified 2026-06-10 (tier-4 pg lifecycle).
+
+        .. warning::
+           **ClickHouse is out of scope and unverified** (roadmap D4 — it is not
+           enabled on a default tenant, so it cannot be exercised here). Upstream
+           moved this endpoint to
+           ``DELETE /dbaas-clickhouse/{name}/user/{user-uuid}`` — the path
+           parameter was renamed *and* retyped to a UUID, and ClickHouse does
+           carry a per-user ``uuid`` (its ``password/reset`` and
+           ``password/reveal`` endpoints still take a username, as does
+           ``delete`` on every other engine). This method interpolates whatever
+           you pass, so a username may no longer resolve for
+           ``service_type="clickhouse"``. Nothing here changed because the spec
+           alone does not settle it (D1) and the connector exposes no user
+           listing to obtain the uuid from. Live verification was attempted
+           2026-08-01 and is blocked: ClickHouse is not enabled on the test
+           tenant (``403 "... not enabled"`` on every ClickHouse operation,
+           including read-only ones), which is what put the engine out of
+           scope. Every other engine deletes by username as documented.
         """
         return self.client.delete(
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}",

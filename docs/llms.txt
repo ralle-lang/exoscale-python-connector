@@ -1893,6 +1893,25 @@ dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
   `start_maintenance` use the long type path (`pg` → `postgres`) like the rest of
   the type-specific methods; pass either form and the client translates.
 
+- **ClickHouse is out of scope** (roadmap D4). It is not enabled on a default
+  Exoscale tenant — every ClickHouse operation returns `403 "... not enabled"`,
+  read-only ones included — so nothing about it can be live-verified here.
+  `service_type="clickhouse"` is still accepted by the engine-generic methods;
+  it is simply unsupported. The engine-agnostic `get_settings` /
+  `get_acl_config` / `start_maintenance` helpers below are unaffected and work
+  for pg, mysql, valkey and the rest.
+- **`delete_user` is unverified for ClickHouse.** Upstream moved that engine's
+  delete to `DELETE /dbaas-clickhouse/{name}/user/{user-uuid}` — path parameter
+  renamed *and* retyped to a UUID, which is consistent with ClickHouse carrying
+  a per-user `uuid` upstream. Every other engine still deletes by username, as
+  do ClickHouse's own `password/reset` and `password/reveal`. The connector
+  still sends whatever you pass, so `delete_user(..., service_type="clickhouse")`
+  may not resolve a username, and the connector exposes no user-listing method
+  to read a uuid from today. Live verification was attempted 2026-08-01 and is
+  blocked — ClickHouse is a per-account product and is not enabled on the test
+  tenant, so every ClickHouse operation returns `403 "... not enabled"`,
+  read-only ones included.
+
 `ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
 kwargs) — use `get_or_none(name)` + `create(...)` explicitly.
 
