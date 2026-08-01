@@ -6576,6 +6576,91 @@
         },
         "type": "object"
       },
+      "impact-breakdown": {
+        "properties": {
+          "impact": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/impact-value-with-unit"
+            },
+            "type": "object"
+          },
+          "zones": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/zone-impact"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "impact",
+          "zones"
+        ],
+        "type": "object"
+      },
+      "impact-error-response": {
+        "description": "Error response",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "status": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "impact-resource-tree-node": {
+        "description": "Hierarchical breakdown of impact for a given level in the catalog tree",
+        "properties": {
+          "impact": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/impact-value-with-unit"
+            },
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/impact-resource-tree-node"
+            },
+            "type": "object"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/impact-value-with-unit"
+          }
+        },
+        "required": [
+          "impact",
+          "usage",
+          "resources"
+        ],
+        "type": "object"
+      },
+      "impact-value-with-unit": {
+        "properties": {
+          "unit": {
+            "type": "string"
+          },
+          "value": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "unit",
+          "value"
+        ],
+        "type": "object"
+      },
       "inference-engine-parameter-entry": {
         "description": "inference-engine parameter definition",
         "properties": {
@@ -9961,8 +10046,7 @@
             "maxLength": 64,
             "pattern": "^[_A-Za-z0-9][-._A-Za-z0-9]{0,63}$",
             "title": "Role",
-            "type": "string",
-            "user_error": "Must consist of alpha-numeric characters, dots, underscores or dashes, may not start with dash or dot, max 64 characters"
+            "type": "string"
           }
         },
         "title": "PGAudit settings",
@@ -11246,6 +11330,27 @@
           "4G24Gb"
         ]
       },
+      "nvidia-mig-profile-b300.269gb": {
+        "enum": [
+          "1g.34gb",
+          "1g.34gb+me",
+          "1g.67gb",
+          "2g.67gb",
+          "3g.135gb",
+          "4g.135gb",
+          "7g.269gb"
+        ],
+        "type": "string",
+        "x-go-enum-varnames": [
+          "1G34Gb",
+          "1G34GbMe",
+          "1G67Gb",
+          "2G67Gb",
+          "3G135Gb",
+          "4G135Gb",
+          "7G269Gb"
+        ]
+      },
       "nvidia-mig-profile-rtxpro6000.96gb": {
         "enum": [
           "1g.24gb",
@@ -11281,6 +11386,10 @@
           "a30.24gb": {
             "$ref": "#/components/schemas/nvidia-mig-profile-a30.24gb",
             "description": "Nvidia A30 MIG Profile"
+          },
+          "b300.269gb": {
+            "$ref": "#/components/schemas/nvidia-mig-profile-b300.269gb",
+            "description": "Nvidia B300 MIG Profile"
           },
           "rtxpro6000.96gb": {
             "$ref": "#/components/schemas/nvidia-mig-profile-rtxpro6000.96gb",
@@ -12508,6 +12617,7 @@
               "creating",
               "deleting",
               "running",
+              "degraded",
               "scaling",
               "updating",
               "error"
@@ -12815,6 +12925,26 @@
             "description": "Subnet ID",
             "format": "uuid",
             "type": "string"
+          },
+          "instances": {
+            "description": "Instances attached to the subnet",
+            "items": {
+              "description": "Subnet attachements",
+              "properties": {
+                "id": {
+                  "description": "Instance uuid",
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "ipv4": {
+                  "description": "Instance Ipv4 address",
+                  "format": "ipv4",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
           },
           "ipv4-block": {
             "description": "Subnet ipv4 CIDR",
@@ -13144,6 +13274,28 @@
             "x-go-type": "Endpoint"
           }
         },
+        "type": "object"
+      },
+      "zone-impact": {
+        "description": "Hierarchical breakdown of impact in a given zone",
+        "properties": {
+          "impact": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/impact-value-with-unit"
+            },
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/impact-resource-tree-node"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "impact",
+          "resources"
+        ],
         "type": "object"
       },
       "zone-name": {
@@ -13543,7 +13695,16 @@
       "get": {
         "description": "List Deployments",
         "operationId": "list-deployments",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "visibility",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -15617,7 +15778,7 @@
         ]
       }
     },
-    "/dbaas-clickhouse/{service-name}/user/{username}": {
+    "/dbaas-clickhouse/{service-name}/user/{user-uuid}": {
       "delete": {
         "description": null,
         "operationId": "delete-dbaas-clickhouse-user",
@@ -15632,10 +15793,11 @@
           },
           {
             "in": "path",
-            "name": "username",
+            "name": "user-uuid",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/dbaas-user-username"
+              "format": "uuid",
+              "type": "string"
             }
           }
         ],
@@ -23931,6 +24093,137 @@
         "tags": [
           "organization"
         ]
+      }
+    },
+    "/environmental-impact/estimate": {
+      "post": {
+        "description": "",
+        "operationId": "get-impact-estimate",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "metadata": {
+                    "type": "object"
+                  },
+                  "sku": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sku"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "impact": {
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/impact-value-with-unit"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "impact"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Impact estimate"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/impact-error-response"
+                }
+              }
+            },
+            "description": "Invalid request (e.g. product does not exist)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/impact-error-response"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Return an estimate of the impact of a given usage",
+        "tags": []
+      }
+    },
+    "/environmental-impact/report": {
+      "get": {
+        "description": "",
+        "operationId": "get-impact-report",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/impact-breakdown"
+                }
+              }
+            },
+            "description": "Environmental impact report"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/impact-error-response"
+                }
+              }
+            },
+            "description": "Invalid request (e.g. to date before from date)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/impact-error-response"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Return an environmental impact report for the given period",
+        "tags": []
       }
     },
     "/event": {
@@ -32253,10 +32546,22 @@
       "x-weight": 460
     },
     {
+      "description": "View the impact of your past usage, and estimate the impact of future usage.",
+      "externalDocs": {
+        "description": "Read more",
+        "url": "https://www.exoscale.com/sustainability/"
+      },
+      "name": "environmental-impact",
+      "parent": "general",
+      "x-display-name": "Environmental Impact",
+      "x-icon": "exo-license",
+      "x-weight": 1150
+    },
+    {
       "description": "Operations for KMS Key lifecycle management.",
       "externalDocs": {
         "description": "Read more",
-        "url": "https://community.exoscale.com/documentation/kms/kms-key"
+        "url": "https://community.exoscale.com/documentation/security/kms/overview"
       },
       "name": "kms-key",
       "parent": "kms",
@@ -32456,7 +32761,7 @@
       "description": "A suite of cryptographic primitives offered by the Exoscale KMS.",
       "externalDocs": {
         "description": "Read more",
-        "url": "https://community.exoscale.com/documentation/kms/crypto"
+        "url": "https://community.exoscale.com/documentation/security/kms/overview"
       },
       "name": "crypto",
       "parent": "kms",
@@ -32527,7 +32832,7 @@
       "description": "Exoscale Key Management Service is a managed security service that lets you create, control and manage the lifecycle of cryptographic keys.",
       "externalDocs": {
         "description": "Read more",
-        "url": "https://community.exoscale.com/documentation/kms/"
+        "url": "https://community.exoscale.com/documentation/security/kms/"
       },
       "name": "kms",
       "x-display-name": "KMS",
