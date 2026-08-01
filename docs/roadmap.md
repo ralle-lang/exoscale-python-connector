@@ -166,8 +166,6 @@ gets implemented together.
 | **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
 | **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
 | **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
-| **ClickHouse DBaaS user create/reset response shape** — `POST /dbaas-clickhouse/{}/user` and `PUT /dbaas-clickhouse/{}/user/{}/password/reset` swapped the Operation envelope (`id`, `state`, `reference`, `message`, `reason`) for an inline user payload (`username`, `password`). Both connector methods return a raw `dict`, so nothing breaks today — but the documented gotcha *"passwords are never returned by create/reset"* (`docs/asset-types/dbaas.md`, `DBaaSServiceClient.reset_user_password` docstring) no longer holds for ClickHouse. Per D1 the spec alone does not settle this: verify live against a ClickHouse service first, then either scope the gotcha to the engines where it holds (pg, live-verified 2026-06-10) or surface the returned credential and skip the extra `reveal_user_password` round-trip. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #52 | ~1h (doc + optional convenience; needs a live ClickHouse service) |
-| **ClickHouse DBaaS delete-user path parameter** — `DELETE /dbaas-clickhouse/{}/user/{username}` became `DELETE /dbaas-clickhouse/{}/user/{user-uuid}` (path param renamed *and* retyped from the `dbaas-user-username` string to `format: uuid`), while ClickHouse `password/reset` and `password/reveal` still take `{username}` and every other engine (pg, mysql, valkey, kafka, opensearch) keeps `{username}` for delete. `DBaaSServiceClient.delete_user` interpolates a username for all engines, so if the live API really enforces a UUID this call is broken for `service_type="clickhouse"` — it was only ever live-verified against pg (2026-06-10). The schema corroborates the direction rather than suggesting a spec typo: `dbaas-clickhouse-user` carries a `uuid` property and `dbaas-clickhouse-user-role-input` *requires* one, while `dbaas-valkey-user` and friends have no uuid at all — addressing ClickHouse users by uuid matches that engine's own upstream model. Two things still block a code change, so per D1 it waits: `uuid` is *optional* in the response schema (only `username` is required), so it is unproven that a caller can actually obtain one; and the connector exposes no user listing to read it from. A real fix therefore means adding `list_users` (`GET /dbaas-{type}/{name}/user`, which exists only for clickhouse and valkey) plus username→uuid resolution inside `delete_user` — verify live first, then implement, or record the divergence if the API still accepts usernames during BETA. The wrong guess trades a maybe-broken call for a definitely-broken one. Documented as a known hazard in the meantime (docstring + `docs/asset-types/dbaas.md`, drift #57 triage). Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #57 (post-issue delta) | ~2–3h (list_users + resolution; needs the same live ClickHouse service as the row above) |
 | **VPC subnet `instances` attachment list** — `GET`/`PUT /vpc/{}/subnet/{}` gained an optional `instances` response property: a list of `{id, ipv4}` attachment entries naming the instances bound to the subnet and their leased addresses. Tolerated today by `extra="allow"`, but it is the natural read-side counterpart to the `attach`/`detach` ops the connector already ships, so model it on `VpcSubnet` as a typed list. Affects `src/exoscale_connector/resources/vpc.py`, `docs/asset-types/vpc.md` | drift #57 | ~0.5h |
 
 _Running total: ~3 days (~25h) — past the ~8–16h graduation window.
@@ -184,29 +182,27 @@ DBaaS `version`, and SKS `nvidia-mig-profiles` — unit-tested, `ruff`/`mypy`/ll
 `--check` green; live verification per docs/live-test-plan.md and merge pending.
 KMS (#44) still open._
 
-_Post-graduation running total: ~4–4.5h (ClickHouse user create/reset response
-shape from drift #52, plus the ClickHouse delete-user path parameter and the VPC
-subnet `instances` list from drift #57). Rows above them were graduated into
-0.6.0; the fresh backlog is still under the ~8–16h graduation window, so it keeps
-accruing._
+_Post-graduation running total: ~0.5h (the VPC subnet `instances` list from
+drift #57). Rows above it were graduated into 0.6.0; the fresh backlog is far
+under the ~8–16h graduation window, so it keeps accruing._
 
-_drift #57 note: the two ClickHouse rows are both blocked on the same thing — a
-live ClickHouse service to verify against — so they should be picked up in one
-session rather than separately, whenever a live tier run is next scheduled
-(`docs/live-test-plan.md`, tier 4). The delete-user row is the first
-breaking-*shaped* drift that unit CI cannot catch: it is a path parameter, not a
-model field, so `test_model_schema_drift.py` stays green either way._
+_drift #57 note: the delete-user change was the first breaking-*shaped* drift
+that unit CI cannot catch — a path parameter, not a model field, so
+`test_model_schema_drift.py` stays green either way. That class of drift is only
+findable by reading the path diff, which is worth remembering for future
+triage even now that ClickHouse itself is out of scope._
 
-_**Live verification attempted 2026-08-01 and blocked.** ClickHouse is not
-enabled on the test tenant: `POST /dbaas-clickhouse/{name}` and even the
-read-only `GET /dbaas-settings-clickhouse` both return
-`403 "... not enabled"`, which is tenant product enablement rather than an IAM
-role gate (that reads `Forbidden by role policy for ...`). Plan discovery via
-`GET /dbaas-service-type` succeeds and lists ClickHouse with 112 plans, so it
-gives a false green — do not take it as a signal the engine is usable. Both
-ClickHouse rows therefore stay blocked until the product is enabled on a tenant
-we can test against; nothing was provisioned and no cost was incurred. Details
-and the skip policy are recorded under tier 4 in `docs/live-test-plan.md`._
+_**Both ClickHouse rows retired 2026-08-01 — see D4.** Live verification was
+attempted and blocked: `POST /dbaas-clickhouse/{name}` and even the read-only
+`GET /dbaas-settings-clickhouse` return `403 "... not enabled"`, i.e. tenant
+product enablement rather than an IAM role gate (that reads `Forbidden by role
+policy for ...`). Plan discovery via `GET /dbaas-service-type` succeeds and
+lists ClickHouse with 112 plans, so it gives a false green — do not read it as
+the engine being usable. Since the engine cannot be enabled, exercised, or
+verified on a default tenant, ClickHouse moved to the out-of-scope list rather
+than staying as permanently-blocked backlog. Nothing was provisioned and no cost
+was incurred. The 403 diagnostic and skip policy stay recorded under tier 4 in
+`docs/live-test-plan.md` — they generalise to any opt-in product._
 
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
@@ -226,6 +222,16 @@ should **not** keep re-adding them to the backlog:
   `POST /environmental-impact/estimate` and `GET /environmental-impact/report`
   alongside the older `/env-impact/{period}`; same family, same verdict.)
 - **`/console`** — instance web-console access; interactive, not automation.
+- **`/dbaas-clickhouse/*` (ClickHouse DBaaS engine)** — not enabled on a default
+  tenant (`403 "... not enabled"` on every operation, read-only ones included),
+  so it cannot be exercised or verified here at all. Per D4 that makes it niche
+  and out of scope. Note this does *not* remove anything shipped: the generic
+  `get_settings` / `get_acl_config` / `start_maintenance` methods that came out
+  of the drift #43 ClickHouse row are engine-agnostic and serve pg, mysql,
+  valkey and the rest. `DBaaSServiceClient` still accepts
+  `service_type="clickhouse"` — it is simply unsupported and unverified, and
+  `delete_user` carries a docstring warning about the upstream
+  `{username}` → `{user-uuid}` path change (drift #57) for anyone who tries.
 - **`/ai/*` (AI / GPU inference)** — deferred: the product surface is new and
   still churning (it moved again in #43, in #52 — `POST`/`PATCH /ai/api-key`
   tightened `name` to a 1–50 char pattern and `POST /ai/deployment` gained
@@ -273,6 +279,42 @@ active milestone and is implemented in one focused session. Rationale: no
 appetite for tiny per-drift updates; breaking changes stay immediate while
 additive work accrues until it justifies a session, keeping GitHub clean and
 matching this file's "one heading = one issue, graduate when ripe" model.
+
+### D4 — Default-enabled products only (2026-08-01)
+If a product is not enabled on a default Exoscale tenant, it is out of scope.
+Opt-in products are niche by definition, and this is a hobby project with
+finite appetite.
+
+Rationale: the connector's value is verified knowledge — every asset page
+carries live-verified gotchas, and D1 makes the live API the arbiter whenever
+the spec and reality disagree. A product that cannot be enabled cannot be
+exercised, so it can only ever be modelled *from the spec* — precisely the
+thing D1 says not to trust. Shipping unverifiable surface trades the repo's
+main promise for coverage nobody asked for. ClickHouse is the worked example:
+it reached the backlog through two drift issues, survived a full triage cycle,
+and only revealed itself as unusable when a live run hit
+`403 "... not enabled"` on even its read-only endpoints (2026-08-01).
+
+Consequences:
+
+- Drift triage does **not** harvest opt-in products into the backlog. When a
+  drift lands on one, record it on the out-of-scope list and move on — the same
+  treatment `/organization` and `/ai/*` already get.
+- Probe cheaply before committing effort. A read-only call on the product is
+  enough, and it is the reliable signal: a tenant enablement gate rejects reads
+  as well (`... not enabled`), whereas an IAM role gate reads `Forbidden by role
+  policy for ...`. Catalogue endpoints are *not* a signal —
+  `GET /dbaas-service-type` cheerfully lists ClickHouse plans on a tenant that
+  cannot use the engine.
+- **Already-shipped clients stay.** This governs what gets harvested from here
+  on, not a demolition order. `VpcClient` shipped in 0.6.0 and VPC is itself a
+  per-account product (tier-1 live tests skip on its 403) — it stays: the code
+  exists, is unit-tested, and removing it would be pure churn. KMS is a
+  different case again — it is blocked by role policy, not enablement, so D4
+  does not touch it.
+- Nothing is removed from `DBaaSServiceClient` for ClickHouse. Engine-generic
+  methods still accept the type; it is unsupported and unverified, not
+  amputated.
 
 ### D2 — Catalogue knowledge is discovered, never hardcoded (2026-06-10)
 No enums of zones, instance types, families/sizes, templates, or DBaaS plans

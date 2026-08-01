@@ -202,6 +202,13 @@ dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
   `start_maintenance` use the long type path (`pg` → `postgres`) like the rest of
   the type-specific methods; pass either form and the client translates.
 
+- **ClickHouse is out of scope** (roadmap D4). It is not enabled on a default
+  Exoscale tenant — every ClickHouse operation returns `403 "... not enabled"`,
+  read-only ones included — so nothing about it can be live-verified here.
+  `service_type="clickhouse"` is still accepted by the engine-generic methods;
+  it is simply unsupported. The engine-agnostic `get_settings` /
+  `get_acl_config` / `start_maintenance` helpers below are unaffected and work
+  for pg, mysql, valkey and the rest.
 - **`delete_user` is unverified for ClickHouse.** Upstream moved that engine's
   delete to `DELETE /dbaas-clickhouse/{name}/user/{user-uuid}` — path parameter
   renamed *and* retyped to a UUID, which is consistent with ClickHouse carrying
