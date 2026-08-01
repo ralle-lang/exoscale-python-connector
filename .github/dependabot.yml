@@ -1,9 +1,21 @@
 # Keeps the SHA/major pins in .github/workflows current (including the
-# oasdiff action used by upstream-drift.yml). Runtime dependencies are
-# deliberately loose ranges in pyproject.toml and not managed here.
+# oasdiff action used by upstream-drift.yml), and proposes bumps for the one
+# exactly-pinned Python dev tool.
+#
+# Runtime dependencies stay deliberately loose ranges in pyproject.toml and are
+# effectively unmanaged: any new release already satisfies a `>=` floor, so the
+# pip updater has nothing to propose for them. In practice it only acts on
+# `ruff`, which is pinned exactly because CI gates on `ruff format --check` and
+# formatter output is not stable across ruff releases. A bump therefore arrives
+# as a reviewable PR whose own CI run proves whether the new version reformats
+# the tree — if it does, the reformat belongs in that PR.
 version: 2
 updates:
   - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
