@@ -270,6 +270,18 @@ not hardcoded).
   read rather than forcing a major-version bump on the throwaway service.
 - **Cost**: cheapest pg plan is hourly; ~15 min ≈ €0.01–0.05 depending on plan tier in your account.
 - **Risk**: longest provisioning of any tier; secrets in responses (we assert presence, never log/print).
+- **Tenant opt-in — ClickHouse**: like VPC, ClickHouse is a per-account product.
+  On a tenant without it, *every* ClickHouse operation returns
+  `403 "... not enabled"` — including the read-only
+  `GET /dbaas-settings-clickhouse`, which is how you tell tenant enablement
+  apart from an IAM role gate (a role gate reads `Forbidden by role policy
+  for ...`). `GET /dbaas-service-type` still lists ClickHouse and its plans on
+  such a tenant, so plan discovery succeeding proves nothing. Attempted
+  2026-08-01 on the test tenant and blocked at this gate; ClickHouse-specific
+  checks must **skip** on that 403 rather than fail, same policy as VPC.
+  The smallest plan on offer is `startup-8` (1 node / 4 vCPU / 8 GB / 180 GB) —
+  there is no hobbyist-tier ClickHouse, so this is materially pricier per hour
+  than the pg sequence above.
 
 #### 16. `sks` (cluster + nodepool + kubeconfig) — `EXOSCALE_TEST_TIER_4_SKS=1`
 - **Ops**: cluster CRUD (`list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`); nodepool CRUD (`list_nodepools`, `get_nodepool`, `create_nodepool`, `update_nodepool`, `delete_nodepool`); `generate_kubeconfig`.

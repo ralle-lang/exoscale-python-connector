@@ -197,6 +197,17 @@ session rather than separately, whenever a live tier run is next scheduled
 breaking-*shaped* drift that unit CI cannot catch: it is a path parameter, not a
 model field, so `test_model_schema_drift.py` stays green either way._
 
+_**Live verification attempted 2026-08-01 and blocked.** ClickHouse is not
+enabled on the test tenant: `POST /dbaas-clickhouse/{name}` and even the
+read-only `GET /dbaas-settings-clickhouse` both return
+`403 "... not enabled"`, which is tenant product enablement rather than an IAM
+role gate (that reads `Forbidden by role policy for ...`). Plan discovery via
+`GET /dbaas-service-type` succeeds and lists ClickHouse with 112 plans, so it
+gives a false green — do not take it as a signal the engine is usable. Both
+ClickHouse rows therefore stay blocked until the product is enabled on a tenant
+we can test against; nothing was provisioned and no cost was incurred. Details
+and the skip policy are recorded under tier 4 in `docs/live-test-plan.md`._
+
 _drift #43 note: the earlier InstancePool `error-reason` + `error`-state item
 (harvested from drift #40) was **retracted** — #43 reverses it upstream,
 removing `error-reason` from the instance-pool / load-balancer-service responses

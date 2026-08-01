@@ -1899,8 +1899,11 @@ dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
   a per-user `uuid` upstream. Every other engine still deletes by username, as
   do ClickHouse's own `password/reset` and `password/reveal`. The connector
   still sends whatever you pass, so `delete_user(..., service_type="clickhouse")`
-  may not resolve a username; it is pending live verification, and the connector
-  exposes no user-listing method to read a uuid from today.
+  may not resolve a username, and the connector exposes no user-listing method
+  to read a uuid from today. Live verification was attempted 2026-08-01 and is
+  blocked — ClickHouse is a per-account product and is not enabled on the test
+  tenant, so every ClickHouse operation returns `403 "... not enabled"`,
+  read-only ones included.
 
 `ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
 kwargs) — use `get_or_none(name)` + `create(...)` explicitly.
