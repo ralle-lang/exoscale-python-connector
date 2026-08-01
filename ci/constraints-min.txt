@@ -8,4 +8,4 @@
 # must have exactly one exact (==) pin whose major.minor matches the declared
 # pyproject floor — a missing, drifted, or stale pin fails the build.
 requests==2.30.0
-pydantic==2.5.0
+pydantic==2.13.4
