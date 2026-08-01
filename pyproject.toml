@@ -84,6 +84,12 @@ path = "src/exoscale_connector/__init__.py"
 line-length = 100
 target-version = "py39"
 src = ["src", "tests"]
+# The bundled skill is a generated artifact — scripts/generate_llms_txt.py owns
+# every byte of it, and test_llms_txt.py asserts it matches the generator. Ruff
+# 0.16+ formats Python code blocks inside Markdown, so without this it would
+# rewrite the embedded examples in reference.md and desync the bundle from its
+# generator. The directory contains no Python, so nothing is lost by skipping it.
+extend-exclude = ["src/exoscale_connector/_skill"]
 
 [tool.ruff.lint]
 # Note: the pyupgrade ("UP") rules are intentionally NOT enabled. We target
