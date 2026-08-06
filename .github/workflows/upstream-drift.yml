@@ -52,7 +52,7 @@ jobs:
 
       - name: Generate spec changelog
         if: steps.spec.outputs.changed == 'true'
-        uses: oasdiff/oasdiff-action/changelog@0ab8ad204b00d25acc5ae87106281433e288d0c1 # v0.1.10
+        uses: oasdiff/oasdiff-action/changelog@b7c3adeb54330db1903d27c61db520e5661ad55b # v0.1.11
         with:
           base: .github/upstream/openapi-v2.json
           revision: .drift/spec.json
