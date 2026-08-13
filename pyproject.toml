@@ -36,7 +36,7 @@ dev = [
     # Markdown). Pinning makes the gate reproducible and turns a ruff upgrade
     # into a deliberate commit that carries its own reformat. Dependabot's pip
     # ecosystem proposes the bumps; see .github/dependabot.yml.
-    "ruff==0.16.1",
+    "ruff==0.16.2",
     "mypy>=1.8",
     "types-requests",
     "cryptography>=40",
