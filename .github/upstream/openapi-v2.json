@@ -691,6 +691,95 @@
         },
         "type": "object"
       },
+      "dbaas-clickhouse-granted-role": {
+        "properties": {
+          "is-default": {
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Granted role name",
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "with-admin-option": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "dbaas-clickhouse-role": {
+        "properties": {
+          "granted-roles": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-granted-role"
+            },
+            "type": "array"
+          },
+          "name": {
+            "$ref": "#/components/schemas/dbaas-user-username",
+            "description": "Role name"
+          },
+          "privileges": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-role-privilege"
+            },
+            "type": "array"
+          },
+          "uuid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "dbaas-clickhouse-role-privilege": {
+        "properties": {
+          "column": {
+            "description": "Column",
+            "type": "string"
+          },
+          "database": {
+            "description": "Database",
+            "type": "string"
+          },
+          "grant-option": {
+            "type": "boolean"
+          },
+          "is-partial-revoke": {
+            "type": "boolean"
+          },
+          "name": {
+            "$ref": "#/components/schemas/dbaas-user-username",
+            "description": "Access type"
+          },
+          "table": {
+            "description": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "dbaas-clickhouse-roles": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/dbaas-clickhouse-role"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "dbaas-clickhouse-user": {
         "properties": {
           "required": {
@@ -6702,7 +6791,7 @@
         "type": "object"
       },
       "inference-engine-version": {
-        "default": "0.25.1",
+        "default": "0.26.0",
         "description": "Inference engine version",
         "enum": [
           "0.12.0",
@@ -6722,7 +6811,8 @@
           "0.23.0",
           "0.24.0",
           "0.25.0",
-          "0.25.1"
+          "0.25.1",
+          "0.26.0"
         ],
         "type": "string"
       },
@@ -7270,6 +7360,15 @@
             },
             "title": "ClickHouse server settings",
             "type": "object"
+          },
+          "tiered_storage_move_factor": {
+            "default": 0.2,
+            "description": "The percentage of free disk space required on local storage before data is moved to object storage. A value of 0.2 means data is moved when local storage has less than 20% free space.",
+            "example": 0.2,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Tiered storage move factor",
+            "type": "number"
           }
         },
         "title": "ClickHouse settings",
@@ -15681,6 +15780,79 @@
           }
         },
         "summary": "[BETA] Get DBaaS ClickHouse ACL configuration",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/role": {
+      "get": {
+        "description": null,
+        "operationId": "list-dbaas-clickhouse-roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbaas-clickhouse-roles"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] List DBaaS ClickHouse roles",
+        "tags": [
+          "dbaas"
+        ]
+      }
+    },
+    "/dbaas-clickhouse/{service-name}/role/{role-uuid}": {
+      "delete": {
+        "description": null,
+        "operationId": "delete-dbaas-clickhouse-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service-name",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/dbaas-service-name"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role-uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/operation"
+                }
+              }
+            },
+            "description": "200"
+          }
+        },
+        "summary": "[BETA] Delete a DBaaS ClickHouse role",
         "tags": [
           "dbaas"
         ]
