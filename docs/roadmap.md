@@ -184,7 +184,9 @@ KMS (#44) still open._
 
 _Post-graduation running total: ~0.5h (the VPC subnet `instances` list from
 drift #57). Rows above it were graduated into 0.6.0; the fresh backlog is far
-under the ~8–16h graduation window, so it keeps accruing._
+under the ~8–16h graduation window, so it keeps accruing. **Unchanged by drift
+#71** (2026-08-13): every change in that run landed on ClickHouse or `/ai/*`,
+both already out of scope, so nothing was harvested — see the out-of-scope list._
 
 _drift #57 note: the delete-user change was the first breaking-*shaped* drift
 that unit CI cannot catch — a path parameter, not a model field, so
@@ -232,11 +234,24 @@ should **not** keep re-adding them to the backlog:
   `service_type="clickhouse"` — it is simply unsupported and unverified, and
   `delete_user` carries a docstring warning about the upstream
   `{username}` → `{user-uuid}` path change (drift #57) for anyone who tries.
+  Drift #71 grew the engine again — a role sub-resource
+  (`GET /dbaas-clickhouse/{}/role`, `DELETE .../role/{role-uuid}`, with four new
+  `dbaas-clickhouse-role*` schemas) plus a `tiered_storage_move_factor` key in
+  the `clickhouse-settings` schema. Nothing harvested, per D4. The engine-generic
+  test from the #43 row was re-run before deciding: `/role` appears under
+  `/dbaas-clickhouse/` and nowhere else in the spec (`/iam-role` is unrelated),
+  so unlike settings/acl/maintenance it is genuinely ClickHouse-only and there is
+  no generic method hiding inside it.
 - **`/ai/*` (AI / GPU inference)** — deferred: the product surface is new and
   still churning (it moved again in #43, in #52 — `POST`/`PATCH /ai/api-key`
   tightened `name` to a 1–50 char pattern and `POST /ai/deployment` gained
-  `product-name` — and again in #57, where `GET /ai/deployment` gained an
-  optional `visibility` query parameter). Revisit once it stabilises.
+  `product-name` — again in #57, where `GET /ai/deployment` gained an
+  optional `visibility` query parameter, and again in #71, where
+  `inference-engine-version` moved its default `0.25.1` → `0.26.0` and added the
+  matching enum value on request and response). Revisit once it stabilises.
+  The #71 response-side enum addition is the only warning-level change oasdiff
+  has raised here so far; it is harmless because `/ai/*` is unmodelled, and the
+  D3 `Literal`-pin edge case still only applies to `iam_role.py`.
 
 ---
 
