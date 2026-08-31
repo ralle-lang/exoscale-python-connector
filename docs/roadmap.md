@@ -167,6 +167,16 @@ gets implemented together.
 | **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
 | **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
 | **VPC subnet `instances` attachment list** — `GET`/`PUT /vpc/{}/subnet/{}` gained an optional `instances` response property: a list of `{id, ipv4}` attachment entries naming the instances bound to the subnet and their leased addresses. Tolerated today by `extra="allow"`, but it is the natural read-side counterpart to the `attach`/`detach` ops the connector already ships, so model it on `VpcSubnet` as a typed list. Affects `src/exoscale_connector/resources/vpc.py`, `docs/asset-types/vpc.md` | drift #57 | ~0.5h |
+| **DBaaS `database` sub-resource** — `POST`/`GET`/`DELETE /dbaas-{pg,mysql}/{service-name}/database[/{database-name}]`. The client creates DBaaS **users** but has no way to create a **database** inside a service, so a provisioned pg/mysql service cannot be finished through the connector alone. Engine-generic in shape (pg + mysql today), so model it like the existing user methods rather than per-engine. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | coverage audit 2026-08-31 | ~3–4h |
+| **DBaaS CA certificate** — `GET /dbaas-ca-certificate`. The CA bundle needed to TLS-verify a connection to a DBaaS service. Direct counterpart to the shipped `get_connection_info()`, which today hands back a host/port the caller has no supported way to verify. Single read endpoint, no live provisioning needed to exercise | coverage audit 2026-08-31 | ~1h |
+| **SKS deprecated-resources pre-upgrade check** — `GET /sks-cluster-deprecated-resources/{id}`: "resources that are scheduled to be removed in future kubernetes releases". The missing safety step next to the already-complete SKS cluster/nodepool lifecycle — read-only, and the natural thing to call before a version upgrade. Affects `src/exoscale_connector/resources/sks.py`, `docs/asset-types/sks.md` | coverage audit 2026-08-31 | ~1h |
+| **DBaaS service logs + metrics** — `POST /dbaas-service-logs/{service-name}` and `POST /dbaas-service-metrics/{service-name}`. Engine-generic observability reads (POST-with-body despite being reads), so one pair of methods serves every engine. Affects `src/exoscale_connector/resources/dbaas.py` | coverage audit 2026-08-31 | ~2h |
+| **IAM organization policy** — `GET`/`PUT /iam-organization-policy` plus `POST /iam-organization-policy:reset`. Org-level policy sitting directly alongside the modelled `/iam-role` and the IAM policy cookbook (the one area the README claims real depth in). **Scope call needed first:** the out-of-scope list excludes `/organization`, which is a *different* path — this family has never actually been ruled on either way. `:reset` is destructive at org scope, so gate it like the other dangerous verbs and keep it off the CLI. Affects `src/exoscale_connector/resources/iam_role.py` or a new module, `docs/iam-policy-cookbook.md` | coverage audit 2026-08-31 | ~2–3h |
+| **Typed-field gaps on shipped models** — response fields present in the spec but absent from the pydantic models, so they are reachable only untyped via `extra="allow"`. The substantive ones: `Instance` (`anti-affinity-groups`, `elastic-ips`, `private-networks`, `ssh-keys`, `user-data`, `public-ip-assignment`, `mac-address`, `disk-encrypted`, `secureboot-enabled`, `tpm-enabled`), `SksCluster` (`oidc`, `feature-gates`, `level`, `enable-kube-proxy`), `InstancePool` (`elastic-ips`, `ssh-keys`, `user-data`, `min-available`), `PrivateNetwork` (`leases`, `options`, `vni`), `LoadBalancerService` (`healthcheck`, `healthcheck-status`). Full list: `python scripts/model_schema_drift.py --summary .github/upstream/openapi-v2.json`. Curate rather than model wholesale — the models are a deliberate subset (see the developer guide) | coverage audit 2026-08-31 | ~3–4h |
+| **DBaaS engine-specific tail** — pg `connection-pool` (`POST`/`GET`/`PUT`/`DELETE /dbaas-postgres/{}/connection-pool[/{name}]`), pg `user/{}/allow-replication`, pg `{service}/upgrade-check`, mysql `enable/writes`. Genuinely per-engine, so these do *not* collapse into generic methods the way settings/acl/maintenance did | coverage audit 2026-08-31 | ~3–4h |
+| **DBaaS Kafka sub-resources** — `topic/acl-config[/{acl-id}]`, `schema-registry/acl-config[/{acl-id}]`, `connect/password/reveal`. Kafka-only; verify the engine is enabled on the test tenant **before** committing to this row (D4 — ClickHouse was retired for exactly this reason) | coverage audit 2026-08-31 | ~3–4h |
+| **DBaaS migration family** — `/dbaas-{pg,mysql,valkey}/{}/migration/stop`, `GET /dbaas-migration-status/{name}`, `GET /dbaas-task-migration-check/{service}`, `GET /dbaas-task/{service}/{id}`. Coherent as one unit; `dbaas-task` is the generic async-task read the others report through | coverage audit 2026-08-31 | ~2–3h |
+| **DBaaS external endpoints + integrations** — ~15 paths: `/dbaas-external-endpoint-{datadog,prometheus,rsyslog,elasticsearch,opensearch}`, `/dbaas-external-endpoint/{}/attach\|detach`, `/dbaas-external-endpoint-types`, `/dbaas-external-endpoints`, `/dbaas-integration[-types,-settings]`, `/dbaas-external-integration*`. Log/metric shipping to third-party observability. Largest single item here and the least core to provisioning — the obvious first thing to descope if 0.7.0 runs long. Needs a scope call under D4: several endpoint types may not be enabled on a default tenant | coverage audit 2026-08-31 | ~8–12h |
 
 _Running total: ~3 days (~25h) — past the ~8–16h graduation window.
 **Graduated into milestone 0.6.0 as two issues:** KMS as its own issue (large,
@@ -182,11 +192,37 @@ DBaaS `version`, and SKS `nvidia-mig-profiles` — unit-tested, `ruff`/`mypy`/ll
 `--check` green; live verification per docs/live-test-plan.md and merge pending.
 KMS (#44) still open._
 
-_Post-graduation running total: ~0.5h (the VPC subnet `instances` list from
-drift #57). Rows above it were graduated into 0.6.0; the fresh backlog is far
-under the ~8–16h graduation window, so it keeps accruing. **Unchanged by drift
-#71** (2026-08-13): every change in that run landed on ClickHouse or `/ai/*`,
-both already out of scope, so nothing was harvested — see the out-of-scope list._
+_Post-graduation running total: **~29–38h (~4–5 days)** — well past the ~8–16h
+graduation window. **Graduated into milestone 0.7.0 as one batched issue**, per
+D3 and because no single row is large and self-contained the way KMS was in
+0.6.0. Rough tiers, in the order they should be tackled and descoped:_
+
+| Tier | Rows | Estimate |
+|---|---|---|
+| **A — core gaps** | DBaaS `database`, DBaaS CA certificate, SKS deprecated-resources, DBaaS logs/metrics, IAM organization policy | ~9–11h |
+| **B — typed-field gaps** | Unmodelled response fields on shipped models | ~3–4h |
+| **C — tail** | DBaaS engine-specific, Kafka sub-resources, migration family, external endpoints/integrations | ~16–23h |
+| **carried** | VPC subnet `instances` list (drift #57) | ~0.5h |
+
+_Tier C is the descope valve: external endpoints/integrations alone is ~8–12h
+and the least core to provisioning. Two rows (IAM organization policy, external
+endpoints) need a **scope call before implementation**, not after._
+
+_**Where the tier A/B/C rows came from — and the process gap they expose (D5).**
+Not from drift. The backlog above them is drift-fed, and the weekly watch only
+ever reports what *changed* since the accepted snapshot; APIv2 surface that has
+been present all along and was simply never modelled is invisible to it
+permanently, and is not on the out-of-scope list either. So a quiet drift queue
+never meant coverage was complete. These rows came from auditing the committed
+snapshot directly (261 paths, subtracting everything reachable via the
+engine-generic `dbaas-{type}/…` interpolation, the mixins, and the documented
+out-of-scope list). Worth repeating periodically rather than never — it is
+offline work against `.github/upstream/openapi-v2.json`, needs no network, and
+`scripts/model_schema_drift.py --summary` already covers the field-level half._
+
+_**Unchanged by drift #71** (2026-08-13): every change in that run landed on
+ClickHouse or `/ai/*`, both already out of scope, so nothing was harvested — see
+the out-of-scope list._
 
 _drift #57 note: the delete-user change was the first breaking-*shaped* drift
 that unit CI cannot catch — a path parameter, not a model field, so
@@ -219,8 +255,12 @@ should **not** keep re-adding them to the backlog:
 
 - **`/organization`** — org/account management, out of the connector's remit.
 - **`/quota`** — account limits; read-only account metadata, not provisioning.
-- **`/usage-report`, `/live-balance`, `/env-impact`, `/environmental-impact/*`**
-  — billing/usage reporting, not the connector's job. (`#57` added
+- **`/usage-report`, `/live-balance`, `/env-impact`, `/environmental-impact/*`,
+  `/sos-buckets-usage`** — billing/usage reporting, not the connector's job.
+  (`/sos-buckets-usage` was ruled out here on 2026-08-31 during the coverage
+  audit: it is per-bucket usage accounting, the same family and the same verdict
+  as the rest of this row. Reverse it if usage reporting ever becomes in scope —
+  it is one read endpoint.) (`#57` added
   `POST /environmental-impact/estimate` and `GET /environmental-impact/report`
   alongside the older `/env-impact/{period}`; same family, same verdict.)
 - **`/console`** — instance web-console access; interactive, not automation.
@@ -330,6 +370,37 @@ Consequences:
 - Nothing is removed from `DBaaSServiceClient` for ClickHouse. Engine-generic
   methods still accept the type; it is unsupported and unverified, not
   amputated.
+
+### D5 — Coverage is audited periodically, not inferred from a quiet drift queue (2026-08-31)
+
+The additive backlog is **drift-fed**: rows arrive from the weekly
+`upstream-drift` watch, which reports only what *changed* since the last
+accepted snapshot. That makes it structurally blind to APIv2 surface that has
+been present all along and was simply never modelled — such surface never
+appears in a diff, so it can never enter the backlog, and unless someone rules
+on it, it is not on the out-of-scope list either. An empty drift queue therefore
+says "nothing moved upstream", never "coverage is complete". Reading it as the
+latter is the mistake this decision exists to prevent.
+
+So: audit coverage directly against the committed snapshot from time to time
+(release boundaries are the natural cadence), independently of drift. It is
+offline work — no network, no tenant, no cost:
+
+- **Path-level.** Enumerate `paths` in `.github/upstream/openapi-v2.json` and
+  subtract what the connector reaches. Beware the obvious shortcut: grepping
+  `src/` for a path family **over-reports gaps badly**, because the DBaaS
+  engines are never spelled literally — `dbaas.py` interpolates
+  `f"dbaas-{self._url_type(service_type)}/…"`, so `/dbaas-mysql`, `/dbaas-kafka`
+  and friends look unmodelled while being fully covered. Same for the mixins
+  (`_reverse_dns.py`) and the SKS sub-resource endpoints. Resolve how a path is
+  *constructed* before calling it a gap.
+- **Field-level.** `python scripts/model_schema_drift.py --summary
+  .github/upstream/openapi-v2.json` already prints unmodelled optional fields per
+  model. They are informational by design (`extra="allow"`), but the list mixes
+  incidental fields with substantive ones — curate, do not model wholesale.
+
+The 2026-08-31 audit that produced the tier A/B/C rows found ~29–38h of
+unmodelled surface behind a drift queue that had been quiet since #71.
 
 ### D2 — Catalogue knowledge is discovered, never hardcoded (2026-06-10)
 No enums of zones, instance types, families/sizes, templates, or DBaaS plans
