@@ -95,8 +95,20 @@ src = ["src", "tests"]
 # every byte of it, and test_llms_txt.py asserts it matches the generator. Ruff
 # 0.16+ formats Python code blocks inside Markdown, so without this it would
 # rewrite the embedded examples in reference.md and desync the bundle from its
-# generator. The directory contains no Python, so nothing is lost by skipping it.
-extend-exclude = ["src/exoscale_connector/_skill"]
+# generator. Every path feeding that gate must be listed — outputs AND inputs:
+#   - the two output copies of the bundle. The generator writes the same bytes
+#     into the wheel (`_skill/`) and into the repo-local skill dir, and
+#     `generate_llms_txt.py --check` — a CI gate — byte-compares every copy.
+#   - the asset-type pages, which the generator embeds verbatim (see its
+#     ASSET_PAGES_DIR glob). Reformatting an *input* changes what the generator
+#     would emit, desyncing the committed bundle just as surely as editing an
+#     output would.
+# None of these directories contains Python, so nothing is lost by skipping them.
+extend-exclude = [
+    "src/exoscale_connector/_skill",
+    ".claude/skills/exoscale-connector",
+    "docs/asset-types",
+]
 
 [tool.ruff.lint]
 # Note: the pyupgrade ("UP") rules are intentionally NOT enabled. We target
