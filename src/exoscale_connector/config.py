@@ -117,9 +117,21 @@ class ClientConfig:
         return _ENDPOINT_TEMPLATE.format(zone=effective)
 
 
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_FALSE_VALUES = frozenset({"0", "false", "no", "off"})
+
+
 def _env_bool(name: str, *, default: bool) -> bool:
-    """Parse a boolean-ish environment variable, falling back to ``default``."""
-    raw = os.environ.get(name)
-    if raw is None:
+    """Parse a boolean environment variable; unset or blank means ``default``.
+
+    Anything that is not a recognised true/false spelling raises, so a typo can
+    never silently flip a safety default such as TLS verification.
+    """
+    raw = (os.environ.get(name) or "").strip().lower()
+    if not raw:
         return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
+    if raw in _TRUE_VALUES:
+        return True
+    if raw in _FALSE_VALUES:
+        return False
+    raise ConfigError(f"{name} must be true/false (1/0, yes/no, on/off), got {raw!r}")

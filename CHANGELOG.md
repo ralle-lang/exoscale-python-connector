@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`DnsDomainClient.ensure()` works.** It always raised `ValueError`
   because its snake_case `name_field` was looked up in the kebab-case
   payload (#106).
+- **A blank `EXOSCALE_VERIFY_TLS` no longer disables TLS verification.**
+  Unset or empty now keeps verification on, `false`/`0`/`no`/`off` turn it
+  off, and an unrecognised value raises `ConfigError` instead of failing
+  open (#107).
 
 ## [0.6.1] - 2026-10-07
 
