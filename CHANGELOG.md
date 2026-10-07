@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-07
+
+Bug-fix release from the 2026-09-16 codebase audit and the SDK 0.16.4 drift
+triage. No breaking changes; the fixes add a few backward-compatible
+extras (`signed=` on requests, `SksNodepoolTaint`, `IAMUser.pending`).
+
 ### Fixed
 - **IAM user `get`, `create` and `update` work.** APIv2 has no
   `GET /user/{id}` (404 even for existing users, verified live), so `get()`
@@ -169,7 +175,8 @@ upstream-drift triage. Purely additive: no existing behaviour changes.
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.3.0...v0.4.0
