@@ -253,6 +253,8 @@ def test_cli_reports_missing_payload_file(tmp_path, capsys) -> None:
 def test_object_storage_cli_reports_request_failure(monkeypatch, capsys) -> None:
     from exoscale_connector.cli import object_storage
 
+    # Stub the client class too: CI runs without the optional boto3 extra.
+    monkeypatch.setattr(object_storage, "BucketClient", lambda config, zone=None: object())
     monkeypatch.setattr(
         object_storage, "_dispatch", _raise(requests.exceptions.Timeout("read timed out"))
     )
