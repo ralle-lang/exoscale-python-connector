@@ -487,3 +487,57 @@ def test_get_parses_version_field(client, base_url) -> None:
     )
     svc = DBaaSServiceClient(client).get("my1")
     assert svc.version == "8"
+
+
+@responses.activate
+def test_create_awaits_spec_operation_then_refetches(client, base_url) -> None:
+    # Spec: POST /dbaas-{engine}/{name} answers with an operation envelope.
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-postgres/pg-new",
+        json={"id": "op-1", "state": "pending", "reference": {"id": "pg-new"}},
+        status=200,
+    )
+    responses.add(
+        responses.GET, f"{base_url}/operation/op-1", json={"id": "op-1", "state": "success"}
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-postgres/pg-new",
+        json={"name": "pg-new", "type": "pg", "state": "rebuilding"},
+    )
+    svc = DBaaSServiceClient(client).create(
+        {"plan": "hobbyist-2"}, service_type="pg", name="pg-new"
+    )
+    assert svc.name == "pg-new"
+    assert [c.request.url.rsplit("/", 1)[-1] for c in responses.calls] == [
+        "pg-new",
+        "op-1",
+        "pg-new",
+    ]
+
+
+@responses.activate
+def test_create_user_returns_settled_operation(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-postgres/pg-prod/user",
+        json={"id": "op-2", "state": "pending"},
+    )
+    responses.add(
+        responses.GET, f"{base_url}/operation/op-2", json={"id": "op-2", "state": "success"}
+    )
+    result = DBaaSServiceClient(client).create_user("pg-prod", "app", service_type="pg")
+    assert result["state"] == "success"
+
+
+@responses.activate
+def test_sub_resource_wait_false_skips_polling(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/dbaas-postgres/pg-prod/maintenance/start",
+        json={"id": "op-3", "state": "pending"},
+    )
+    result = DBaaSServiceClient(client).start_maintenance("pg-prod", service_type="pg", wait=False)
+    assert result["state"] == "pending"
+    assert len(responses.calls) == 1

@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `{"rules": [...]}`, so reads were empty and the typed helpers built an
   undefined body. New `IAMAssumeRolePolicy` (with `with_rules()`);
   `set_assume_role_policy()` takes it or a dict (#111).
+- **DBaaS mutations await their operation.** Create/update, the user methods,
+  `start_maintenance` and `delete` returned or discarded the operation the
+  API answers with, so `wait=` was a no-op and failures never surfaced. They
+  now await it by default (`wait=False` opts out); user/maintenance methods
+  still return a dict, now the settled envelope (#112).
 
 ## [0.6.1] - 2026-10-07
 

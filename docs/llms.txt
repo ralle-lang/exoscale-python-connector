@@ -298,9 +298,9 @@ Inherits the common operations (see above) plus the methods below, if any.
 
 - `create(payload: Any, *, service_type: str, name: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> DBaaSService`
   Create a managed database service and return it.
-- `create_user(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+- `create_user(name: str, username: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
   Create a database user (``POST dbaas-{type}/{name}/user``).
-- `delete_user(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+- `delete_user(name: str, username: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
   Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 - `ensure(payload: Any, **kwargs: Any) -> DBaaSService`
   Not supported: DBaaS ``create`` needs ``service_type``/``name`` kwargs.
@@ -314,11 +314,11 @@ Inherits the common operations (see above) plus the methods below, if any.
   Return the configurable settings schema for an engine type.
 - `list_service_types(*, zone: Optional[str] = None) -> List[dict]`
   Return available DBaaS service types from the ``dbaas-service-type`` endpoint.
-- `reset_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+- `reset_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
   Reset a user's password (``PUT .../user/{username}/password/reset``).
 - `reveal_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
   Return the revealed credentials for a service user.
-- `start_maintenance(name: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+- `start_maintenance(name: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
   Trigger the service's pending maintenance update immediately.
 - `update(name: str, payload: Any, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> DBaaSService`
   Update a service (``PUT dbaas-{type}/{name}``) and return its new state.
@@ -1826,6 +1826,13 @@ plans = dbaas.list_service_types()
   IP-based, one per node (a single string for Grafana). Both are populated by the live API; they are not duplicates.
 - **Provisioning takes 5–15 minutes** on the cheapest plans; longer on
   larger plans. Use a generous timeout in `wait_for_state`.
+- **Mutations return an operation, awaited by default.** Per the spec,
+  create/update, `create_user`/`delete_user`/`reset_user_password`,
+  `start_maintenance` and `delete` all answer with an operation. The
+  connector awaits it unless `wait=False`; the user/maintenance methods
+  return the settled envelope as a dict. A settled operation does **not**
+  mean the service is `running` (it passes through `rebuilding`), so
+  `wait_for_state` remains the follow-up after create.
 - **The create response carries no `reference`** — the connector
   re-fetches from the type-specific path it just hit. Live test registers
   cleanup BEFORE create to avoid orphan leakage if the re-fetch fails.
