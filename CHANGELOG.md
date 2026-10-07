@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sends `GET /zone` unsigned: the endpoint is public, but a signed request is
   checked against the key's IAM policy, so a restricted key got `403`. Mirrors
   the official SDKs. `ExoscaleClient.request()`/`get()` gain `signed=` (#92).
+- **Operation waits survive a transient 429/5xx poll.** `wait_operation()`
+  aborted on the first rate-limited or 5xx `GET /operation/{id}`, although the
+  mutation was still running server-side. Retryable statuses now count against
+  `max_poll_failures` like connection drops; other errors still surface at
+  once (#93).
 
 ## [0.6.0] - 2026-07-08
 
