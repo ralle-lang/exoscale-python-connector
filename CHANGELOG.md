@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Zone listing works with least-privilege keys.** `ZoneClient.list()` now
+  sends `GET /zone` unsigned: the endpoint is public, but a signed request is
+  checked against the key's IAM policy, so a restricted key got `403`. Mirrors
+  the official SDKs. `ExoscaleClient.request()`/`get()` gain `signed=` (#92).
+
 ## [0.6.0] - 2026-07-08
 
 Additive APIv2 coverage — new asset types and typed-coverage gaps surfaced by the

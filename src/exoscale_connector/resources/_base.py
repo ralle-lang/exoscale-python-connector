@@ -32,6 +32,9 @@ class ResourceClient(Generic[ModelT]):
     list_key: Optional[str] = None
     name_field: str = "name"
     id_field: str = "id"
+    # Public collections are listed unsigned: a signed request makes the API
+    # evaluate IAM, so a least-privilege key would be refused a public listing.
+    public_list: bool = False
     # Most mutations are asynchronous; wait for the operation by default so callers
     # get a settled resource back. Override per call with ``wait=``.
     wait_for_operations: bool = True
@@ -62,7 +65,9 @@ class ResourceClient(Generic[ModelT]):
         pagination, this method must grow cursor handling or it will silently
         truncate results.
         """
-        payload = self.client.get(self.collection_path, zone=self._zone(zone))
+        payload = self.client.get(
+            self.collection_path, zone=self._zone(zone), signed=not self.public_list
+        )
         items = _extract_list(payload, self.list_key)
         resources = [self.model.model_validate(item) for item in items]
         if labels:

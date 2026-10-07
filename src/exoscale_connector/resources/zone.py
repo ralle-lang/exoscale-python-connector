@@ -38,3 +38,5 @@ class ZoneClient(ResourceClient[Zone]):
     model = Zone
     list_key = "zones"
     id_field = "name"
+    # GET /zone is public; signing it subjects the call to the key's IAM policy.
+    public_list = True

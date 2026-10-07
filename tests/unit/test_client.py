@@ -20,6 +20,25 @@ def test_get_returns_parsed_body(client, base_url) -> None:
 
 
 @responses.activate
+def test_requests_are_signed_by_default(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/instance", json={"instances": []}, status=200)
+    client.get("instance")
+    assert responses.calls[0].request.headers["Authorization"].startswith("EXO2-HMAC-SHA256 ")
+
+
+@responses.activate
+def test_unsigned_request_carries_no_credentials(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/zone", status=503)
+    responses.add(responses.GET, f"{base_url}/zone", json={"zones": []}, status=200)
+    client.get("zone", signed=False)
+    # Retries keep the opt-out too, and the session stays signed for later calls.
+    assert all("Authorization" not in c.request.headers for c in responses.calls)
+    responses.add(responses.GET, f"{base_url}/instance", json={"instances": []}, status=200)
+    client.get("instance")
+    assert "Authorization" in responses.calls[-1].request.headers
+
+
+@responses.activate
 def test_404_raises_not_found(client, base_url) -> None:
     responses.add(
         responses.GET, f"{base_url}/instance/missing", json={"message": "nope"}, status=404
