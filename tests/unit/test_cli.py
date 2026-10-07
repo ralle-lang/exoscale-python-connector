@@ -22,14 +22,22 @@ import requests
 from exoscale_connector.cli._base import run_resource_cli
 from exoscale_connector.cli.dbaas import main as dbaas_main
 from exoscale_connector.cli.dns import main as dns_main
+from exoscale_connector.cli.event import main as event_main
 from exoscale_connector.cli.kms import main as kms_main
 from exoscale_connector.cli.sks import main as sks_main
+from exoscale_connector.cli.template import main as template_main
+from exoscale_connector.cli.vpc import main as vpc_main
 from exoscale_connector.errors import APIError
+from exoscale_connector.resources.block_volume_snapshot import BlockVolumeSnapshotClient
 from exoscale_connector.resources.dbaas import DBaaSServiceClient
 from exoscale_connector.resources.dns import DnsDomainClient
+from exoscale_connector.resources.event import EventClient
 from exoscale_connector.resources.kms import KmsKeyClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
 from exoscale_connector.resources.sks import SksClusterClient
+from exoscale_connector.resources.snapshot import SnapshotClient
+from exoscale_connector.resources.template import TemplateClient
+from exoscale_connector.resources.vpc import VpcClient
 
 
 @pytest.fixture(autouse=True)
@@ -298,3 +306,167 @@ def test_bare_harness_keeps_create_by_default(capsys) -> None:
     with pytest.raises(SystemExit):
         _sg_cli(["--help"])
     assert "{list,get,find,create,delete}" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ #
+# Harness: payload sources, credentials, help, umbrella exit codes
+# ------------------------------------------------------------------ #
+
+
+def test_create_reads_payload_file(monkeypatch, tmp_path) -> None:
+    spy = _stub(monkeypatch, SecurityGroupClient, "create", {"id": "sg-new"})
+    payload = tmp_path / "sg.json"
+    payload.write_text('{"name": "web"}', encoding="utf-8")
+    assert _sg_cli(["create", "--file", str(payload), "--no-wait"]) == 0
+    assert spy.calls == [(({"name": "web"},), {"wait": False})]
+
+
+def test_create_reads_payload_from_stdin(monkeypatch) -> None:
+    spy = _stub(monkeypatch, SecurityGroupClient, "create", {"id": "sg-new"})
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"name": "web"}'))
+    assert _sg_cli(["create", "--file", "-", "--no-wait"]) == 0
+    assert spy.calls[0][0] == ({"name": "web"},)
+
+
+@pytest.mark.parametrize(
+    "raw,message", [("not json", "invalid JSON payload"), ("[1]", "must be a JSON object")]
+)
+def test_create_rejects_bad_payload(raw, message, capsys) -> None:
+    assert _sg_cli(["create", "--json", raw]) == 1
+    assert message in capsys.readouterr().err
+
+
+def test_missing_credentials_is_reported(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("EXOSCALE_API_KEY")
+    assert _sg_cli(["list"]) == 1
+    assert "EXOSCALE_API_KEY" in capsys.readouterr().err
+
+
+def test_find_without_match_prints_null(monkeypatch, capsys) -> None:
+    _stub(monkeypatch, SecurityGroupClient, "find_by_name", None)
+    assert _sg_cli(["find", "--name", "nope"]) == 0
+    assert _out(capsys) is None
+
+
+def test_no_command_help_goes_to_stderr(capsys) -> None:
+    assert _sg_cli([]) == 2
+    captured = capsys.readouterr()
+    assert "usage:" in captured.err
+    assert captured.out == ""
+
+
+def test_umbrella_propagates_asset_failure(monkeypatch, capsys) -> None:
+    from exoscale_connector.cli.main import main as umbrella_main
+
+    monkeypatch.setattr(SecurityGroupClient, "list", _raise(APIError("denied", status_code=403)))
+    assert umbrella_main(["security-group", "list"]) == 1
+
+
+# ------------------------------------------------------------------ #
+# kms
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.parametrize(
+    "argv,method,expected",
+    [
+        (["list"], "list", ((), {})),
+        (["get", "--id", "k"], "get", (("k",), {})),
+        (["enable", "--id", "k"], "enable", (("k",), {})),
+        (["disable", "--id", "k"], "disable", (("k",), {})),
+        (["rotate", "--id", "k"], "rotate", (("k",), {})),
+        (
+            ["enable-rotation", "--id", "k", "--period", "30"],
+            "enable_rotation",
+            (("k",), {"rotation_period": 30}),
+        ),
+        (["disable-rotation", "--id", "k"], "disable_rotation", (("k",), {})),
+        (["list-rotations", "--id", "k"], "list_rotations", (("k",), {})),
+        (
+            ["schedule-deletion", "--id", "k", "--delay-days", "7"],
+            "schedule_deletion",
+            (("k",), {"delay_days": 7}),
+        ),
+        (["cancel-deletion", "--id", "k"], "cancel_deletion", (("k",), {})),
+        (["replicate", "--id", "k", "--to-zone", "at-vie-1"], "replicate", (("k", "at-vie-1"), {})),
+        (["create", "--json", '{"name": "app-key"}'], "create", (({"name": "app-key"},), {})),
+    ],
+)
+def test_kms_routes_each_verb(monkeypatch, capsys, argv, method, expected) -> None:
+    spy = _stub(monkeypatch, KmsKeyClient, method, {})
+    assert kms_main(argv) == 0
+    assert spy.calls == [expected]
+
+
+# ------------------------------------------------------------------ #
+# vpc / template / event
+# ------------------------------------------------------------------ #
+
+
+def test_vpc_list_vpcs(monkeypatch, capsys) -> None:
+    spy = _stub(monkeypatch, VpcClient, "list", [{"id": "v1"}])
+    assert vpc_main(["list-vpcs"]) == 0
+    assert spy.calls == [((), {})]
+    assert _out(capsys) == [{"id": "v1"}]
+
+
+def test_vpc_subnet_sub_resource(monkeypatch, capsys) -> None:
+    lst = _stub(monkeypatch, VpcClient, "list_subnets", [{"id": "s1"}])
+    create = _stub(monkeypatch, VpcClient, "create_subnet", {"id": "op"})
+    delete = _stub(monkeypatch, VpcClient, "delete_subnet", {"id": "op"})
+    assert vpc_main(["list-subnets", "--vpc-id", "v1"]) == 0
+    assert vpc_main(["create-subnet", "--vpc-id", "v1", "--json", '{"name": "app"}']) == 0
+    assert vpc_main(["delete-subnet", "--vpc-id", "v1", "--id", "s1", "--no-wait"]) == 0
+    assert lst.calls == [(("v1",), {})]
+    assert create.calls == [(("v1", {"name": "app"}), {"wait": True})]
+    assert delete.calls == [(("v1", "s1"), {"wait": False})]
+
+
+def test_template_find_and_create(monkeypatch, capsys) -> None:
+    find = _stub(monkeypatch, TemplateClient, "find_by_name", {"id": "t1"})
+    create = _stub(monkeypatch, TemplateClient, "create", {"id": "t2"})
+    assert template_main(["find-template", "--name", "Linux Debian 12"]) == 0
+    assert template_main(["create-template", "--json", '{"name": "img"}', "--no-wait"]) == 0
+    assert find.calls == [(("Linux Debian 12",), {})]
+    assert create.calls == [(({"name": "img"},), {"wait": False})]
+
+
+def test_event_list(monkeypatch, capsys) -> None:
+    spy = _stub(monkeypatch, EventClient, "list", [{"id": "e1"}])
+    assert event_main(["list-events"]) == 0
+    assert spy.calls == [((), {})]
+
+
+@pytest.mark.parametrize(
+    "module,cls",
+    [("snapshot", SnapshotClient), ("block_volume_snapshot", BlockVolumeSnapshotClient)],
+)
+def test_snapshot_clis_list_and_delete(monkeypatch, capsys, module, cls) -> None:
+    main = importlib.import_module(f"exoscale_connector.cli.{module}").main
+    lst = _stub(monkeypatch, cls, "list", [{"id": "s1"}])
+    delete = _stub(monkeypatch, cls, "delete", {"state": "success"})
+    assert main(["list"]) == 0
+    assert main(["delete", "--id", "s1", "--no-wait"]) == 0
+    assert lst.calls == [((), {})]
+    assert delete.calls == [(("s1",), {"wait": False})]
+
+
+# ------------------------------------------------------------------ #
+# object storage (bespoke dispatch over BucketClient)
+# ------------------------------------------------------------------ #
+
+
+def test_object_storage_routes_bucket_and_object_verbs(monkeypatch, capsys) -> None:
+    pytest.importorskip("boto3")
+    from exoscale_connector.cli.object_storage import main as sos_main
+    from exoscale_connector.resources.object_storage import BucketClient
+
+    create = _stub(monkeypatch, BucketClient, "create", None)
+    lst = _stub(monkeypatch, BucketClient, "list_objects", [])
+    sign = _stub(monkeypatch, BucketClient, "presign_put", "https://signed")
+    assert sos_main(["create", "--name", "b1"]) == 0
+    assert sos_main(["list-objects", "--bucket", "b1", "--prefix", "logs/"]) == 0
+    assert sos_main(["presign", "--bucket", "b1", "--key", "k", "--method", "put"]) == 0
+    assert create.calls == [(("b1",), {})]
+    assert lst.calls == [(("b1",), {"prefix": "logs/", "limit": None})]
+    assert sign.calls == [(("b1", "k"), {"expires_in": 3600})]
