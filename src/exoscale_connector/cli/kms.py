@@ -14,13 +14,12 @@ CLI arguments leak into the process list. Use
 
 from __future__ import annotations
 
-import json
 import sys
 from typing import Any, Optional, Sequence
 
 from ..errors import ExoscaleError
 from ..resources.kms import KmsKeyClient
-from ._base import base_parser, dump, execute_cli
+from ._base import add_payload_args, base_parser, dump, execute_cli, load_payload
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -37,12 +36,7 @@ def _build_parser() -> Any:
     p_get.add_argument("--id", required=True)
 
     p_create = sub.add_parser("create", help="Create a KMS key from a JSON payload")
-    p_create.add_argument(
-        "--json",
-        dest="json_payload",
-        default=None,
-        help='Inline JSON body, e.g. \'{"name": "my-key", "usage": "encrypt-decrypt"}\'',
-    )
+    add_payload_args(p_create, required=False)
 
     # Single-id sub-actions: verb -> (command name, help).
     for name, helptext in (
@@ -79,7 +73,7 @@ def _dispatch(kms: KmsKeyClient, args: Any) -> Any:
     if cmd == "get":
         return dump(kms.get(args.id))
     if cmd == "create":
-        return dump(kms.create(_parse_optional_json(getattr(args, "json_payload", None))))
+        return dump(kms.create(load_payload(args)))
     if cmd == "enable":
         return kms.enable(args.id)
     if cmd == "disable":
@@ -99,19 +93,6 @@ def _dispatch(kms: KmsKeyClient, args: Any) -> Any:
     if cmd == "replicate":
         return kms.replicate(args.id, args.to_zone)
     raise ExoscaleError(f"unknown command: {cmd}")
-
-
-def _parse_optional_json(raw: Optional[str]) -> dict:
-    """Parse an optional inline JSON body; empty/absent means a body-less POST."""
-    if not raw:
-        return {}
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ExoscaleError(f"invalid JSON payload: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ExoscaleError("payload must be a JSON object")
-    return data
 
 
 if __name__ == "__main__":

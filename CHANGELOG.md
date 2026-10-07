@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI errors no longer dump tracebacks.** Connection errors and timeouts, a
   missing or unreadable `--file`, and Ctrl-C now print a one-line `error:`
   message and exit 1 (130 for Ctrl-C), like API errors already did (#113).
+- **`exoscale-dbaas create` and `exoscale-kms create` accept `--file`**
+  (`-` = stdin) besides `--json`, so payloads with secrets such as
+  `admin-password` no longer have to sit in the process list. The body
+  stays optional (#114).
 
 ## [0.6.1] - 2026-10-07
 

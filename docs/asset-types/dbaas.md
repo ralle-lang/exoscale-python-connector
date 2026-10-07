@@ -44,6 +44,9 @@ are addressed by name rather than id:
 exoscale-dbaas list
 exoscale-dbaas get --name <name>
 exoscale-dbaas create --type pg --name my-pg-1 --json '{"plan": "hobbyist-2"}'
+# Payloads with secrets (e.g. admin-password): read them from stdin or a file
+# so they never appear in the process list.
+printf '%s' "$PG_CREATE_BODY" | exoscale-dbaas create --type pg --name my-pg-1 --file -
 exoscale-dbaas delete --name <name>
 ```
 

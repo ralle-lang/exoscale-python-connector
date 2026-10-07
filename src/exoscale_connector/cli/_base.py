@@ -96,9 +96,13 @@ def base_parser(prog: str, description: str) -> Tuple[argparse.ArgumentParser, A
     return parser, sub
 
 
-def add_payload_args(subparser: argparse.ArgumentParser) -> None:
-    """Add the mutually-exclusive ``--json`` / ``--file`` payload source."""
-    src = subparser.add_mutually_exclusive_group(required=True)
+def add_payload_args(subparser: argparse.ArgumentParser, *, required: bool = True) -> None:
+    """Add the mutually-exclusive ``--json`` / ``--file`` payload source.
+
+    With ``required=False`` both may be omitted; :func:`load_payload` then
+    returns an empty payload.
+    """
+    src = subparser.add_mutually_exclusive_group(required=required)
     src.add_argument(
         "--json",
         help="Inline JSON payload (visible in the process list; prefer --file for secrets)",
@@ -114,7 +118,9 @@ def _add_no_wait(subparser: argparse.ArgumentParser) -> None:
 
 
 def load_payload(args: argparse.Namespace) -> dict:
-    """Read a create payload from ``--json`` or ``--file`` (``-`` = stdin)."""
+    """Read a payload from ``--json`` or ``--file`` (``-`` = stdin); neither = ``{}``."""
+    if args.json is None and args.file is None:
+        return {}
     if args.json is not None:
         raw = args.json
     elif args.file == "-":

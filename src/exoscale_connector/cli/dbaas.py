@@ -12,13 +12,12 @@ duplicated credential/JSON/error handling.
 
 from __future__ import annotations
 
-import json
 import sys
 from typing import Any, Optional, Sequence
 
 from ..errors import ExoscaleError
 from ..resources.dbaas import DBaaSServiceClient
-from ._base import base_parser, dump, execute_cli
+from ._base import add_payload_args, base_parser, dump, execute_cli, load_payload
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -53,13 +52,7 @@ def _build_parser() -> Any:
         required=True,
         help="Service name (encoded in the URL path, not the payload)",
     )
-    p_create.add_argument(
-        "--json",
-        default=None,
-        dest="json_payload",
-        metavar="JSON",
-        help="Inline JSON body with type-specific settings (optional)",
-    )
+    add_payload_args(p_create, required=False)
 
     p_delete = sub.add_parser("delete", help="Delete a service by name")
     p_delete.add_argument("--name", required=True, help="Service name")
@@ -74,24 +67,11 @@ def _dispatch(dbaas: DBaaSServiceClient, args: Any) -> Any:
     if args.command == "get":
         return dump(dbaas.get(args.name))
     if args.command == "create":
-        payload = _parse_optional_json(getattr(args, "json_payload", None))
+        payload = load_payload(args)
         return dump(dbaas.create(payload, service_type=args.service_type, name=args.name))
     if args.command == "delete":
         return dump(dbaas.delete(args.name))
     raise ExoscaleError(f"unknown command: {args.command}")
-
-
-def _parse_optional_json(raw: Optional[str]) -> dict:
-    """Parse an optional inline JSON body; empty/absent means a body-less POST."""
-    if not raw:
-        return {}
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ExoscaleError(f"invalid JSON payload: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ExoscaleError("payload must be a JSON object")
-    return data
 
 
 if __name__ == "__main__":

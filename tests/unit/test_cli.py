@@ -10,7 +10,9 @@ spies fully isolate the CLI.
 
 from __future__ import annotations
 
+import io
 import json
+import sys
 from typing import Any, List
 
 import pytest
@@ -19,10 +21,12 @@ import requests
 from exoscale_connector.cli._base import run_resource_cli
 from exoscale_connector.cli.dbaas import main as dbaas_main
 from exoscale_connector.cli.dns import main as dns_main
+from exoscale_connector.cli.kms import main as kms_main
 from exoscale_connector.cli.sks import main as sks_main
 from exoscale_connector.errors import APIError
 from exoscale_connector.resources.dbaas import DBaaSServiceClient
 from exoscale_connector.resources.dns import DnsDomainClient
+from exoscale_connector.resources.kms import KmsKeyClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
 from exoscale_connector.resources.sks import SksClusterClient
 
@@ -245,3 +249,30 @@ def test_object_storage_cli_reports_request_failure(monkeypatch, capsys) -> None
     )
     assert object_storage.main(["list"]) == 1
     assert capsys.readouterr().err.startswith("error: request failed")
+
+
+# ------------------------------------------------------------------ #
+# dbaas / kms create: optional --json or --file ('-' = stdin)
+# ------------------------------------------------------------------ #
+
+
+def test_dbaas_create_reads_secret_payload_from_stdin(monkeypatch, capsys) -> None:
+    # Secrets (admin-password) belong on stdin/--file, not in the process list.
+    spy = _stub(monkeypatch, DBaaSServiceClient, "create", {"name": "pg-1"})
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"plan": "hobbyist-2", "admin-password": "x"}'))
+    assert dbaas_main(["create", "--type", "pg", "--name", "pg-1", "--file", "-"]) == 0
+    assert spy.calls == [
+        (({"plan": "hobbyist-2", "admin-password": "x"},), {"service_type": "pg", "name": "pg-1"})
+    ]
+
+
+def test_dbaas_create_still_accepts_inline_json(monkeypatch, capsys) -> None:
+    spy = _stub(monkeypatch, DBaaSServiceClient, "create", {"name": "pg-1"})
+    assert dbaas_main(["create", "--type", "pg", "--name", "pg-1", "--json", '{"plan": "x"}']) == 0
+    assert spy.calls[0][0] == ({"plan": "x"},)
+
+
+def test_kms_create_without_payload_sends_empty_body(monkeypatch, capsys) -> None:
+    spy = _stub(monkeypatch, KmsKeyClient, "create", {"id": "k1"})
+    assert kms_main(["create"]) == 0
+    assert spy.calls == [(({},), {})]
