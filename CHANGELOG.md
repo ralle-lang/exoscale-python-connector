@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`DnsDomainClient.ensure()` works.** It always raised `ValueError`
+  because its snake_case `name_field` was looked up in the kebab-case
+  payload (#106).
+
 ## [0.6.1] - 2026-10-07
 
 Bug-fix release from the 2026-09-16 codebase audit and the SDK 0.16.4 drift
