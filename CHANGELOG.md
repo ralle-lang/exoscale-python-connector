@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the wire name `service-level`, so reads always returned `None` and
   model-built create payloads omitted the required `level`. Model-built
   payloads also no longer send an empty read-only `nodepools` list (#110).
+- **IAM assume-role policies use the spec shape.** `assume_role_policy` was
+  typed as the per-service `IAMPolicy`, but the API defines a flat
+  `{"rules": [...]}`, so reads were empty and the typed helpers built an
+  undefined body. New `IAMAssumeRolePolicy` (with `with_rules()`);
+  `set_assume_role_policy()` takes it or a dict (#111).
 
 ## [0.6.1] - 2026-10-07
 

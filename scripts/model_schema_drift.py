@@ -88,6 +88,7 @@ SCHEMA_ALIASES: Dict[str, str] = {
     "BlockVolumeSnapshotRef": "block-storage-snapshot-ref",
     "ElasticIPHealthcheck": "elastic-ip-healthcheck",
     "IAMPolicy": "iam-policy",
+    "IAMAssumeRolePolicy": "iam-assume-role-policy",
     "IAMPolicyService": "iam-service-policy",
     "IAMPolicyRule": "iam-service-policy-rule",
     # VPC sub-resources: the spec schemas are the unprefixed `subnet` / `route`.

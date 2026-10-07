@@ -15,7 +15,7 @@ Everything below imports from one module:
 
 ```python
 from exoscale_connector.resources.iam_role import (
-    IAMPolicy, IAMPolicyService, IAMPolicyRule,
+    IAMPolicy, IAMPolicyService, IAMPolicyRule, IAMAssumeRolePolicy,
     RuleAction, ServiceType, ServiceStrategy,   # optional enums, for autocomplete
     IAMRole, IAMRoleClient,
 )
@@ -132,7 +132,9 @@ permissions, labels). Use `set_policy` / `set_assume_role_policy`:
 
 ```python
 roles.set_policy(role_id, IAMPolicy.allow_services(["compute", "dns"]))
-roles.set_assume_role_policy(role_id, IAMPolicy.deny_all())
+roles.set_assume_role_policy(
+    role_id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true"))
+)
 ```
 
 ## Inspecting an existing role's policy
