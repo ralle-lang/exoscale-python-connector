@@ -22,6 +22,14 @@ from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
 
+class SksNodepoolTaint(ExoscaleModel):
+    """A Kubernetes taint applied to every node in a nodepool."""
+
+    value: Optional[str] = None
+    # "NoExecute" | "NoSchedule" | "PreferNoSchedule"
+    effect: Optional[str] = None
+
+
 class SksNodepool(ExoscaleModel):
     """A pool of worker nodes within an SKS cluster.
 
@@ -44,7 +52,8 @@ class SksNodepool(ExoscaleModel):
     anti_affinity_groups: Optional[List[Reference]] = None
     private_networks: Optional[List[Reference]] = None
     labels: Optional[Dict[str, str]] = None
-    taints: Optional[Dict[str, str]] = None
+    # Keyed by taint key, e.g. {"dedicated": {"value": "gpu", "effect": "NoSchedule"}}
+    taints: Optional[Dict[str, SksNodepoolTaint]] = None
     instance_prefix: Optional[str] = None
     public_ip_assignment: Optional[str] = None
     # Nvidia MIG (Multi-Instance GPU) profiles to enable on GPU nodes, keyed by

@@ -7,9 +7,15 @@ and kebab-case payload serialisation.
 
 from __future__ import annotations
 
+import json
+
 import responses
 
-from exoscale_connector.resources.sks import SksClusterClient, SksNodepool  # noqa: E402
+from exoscale_connector.resources.sks import (  # noqa: E402
+    SksClusterClient,
+    SksNodepool,
+    SksNodepoolTaint,
+)
 
 # ------------------------------------------------------------------ #
 # Cluster tests
@@ -225,3 +231,41 @@ def test_nodepool_nvidia_mig_profiles_round_trips(client, base_url) -> None:
     # And it serialises back under the kebab-case alias.
     typed = SksNodepool(name="gpu", nvidia_mig_profiles={"a30.24gb": {"enabled": True}})
     assert typed.to_api_payload()["nvidia-mig-profiles"] == {"a30.24gb": {"enabled": True}}
+
+
+@responses.activate
+def test_tainted_nodepool_parses_through_cluster_reads(client, base_url) -> None:
+    # A taint is a {value, effect} object, never a string; one tainted pool
+    # must not break cluster get/list for the whole zone.
+    tainted = {
+        "id": "np1",
+        "name": "gpu",
+        "taints": {"dedicated": {"value": "gpu", "effect": "NoSchedule"}},
+    }
+    cluster = {"id": "cl1", "name": "prod", "nodepools": [tainted]}
+    responses.add(responses.GET, f"{base_url}/sks-cluster", json={"sks-clusters": [cluster]})
+    responses.add(responses.GET, f"{base_url}/sks-cluster/cl1", json=cluster)
+    responses.add(responses.GET, f"{base_url}/sks-cluster/cl1/nodepool/np1", json=tainted)
+
+    sks = SksClusterClient(client)
+    assert sks.list()[0].nodepools[0].taints["dedicated"].effect == "NoSchedule"
+    assert sks.get("cl1").nodepools[0].taints["dedicated"].value == "gpu"
+    assert sks.get_nodepool("cl1", "np1").taints["dedicated"] == SksNodepoolTaint(
+        value="gpu", effect="NoSchedule"
+    )
+
+
+@responses.activate
+def test_create_nodepool_serialises_taints(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/sks-cluster/cl1/nodepool",
+        json={"id": "op5", "state": "success"},
+        status=200,
+    )
+    nodepool = SksNodepool(
+        name="gpu", taints={"dedicated": SksNodepoolTaint(value="gpu", effect="NoSchedule")}
+    )
+    SksClusterClient(client).create_nodepool("cl1", nodepool)
+    sent = json.loads(responses.calls[0].request.body)
+    assert sent["taints"] == {"dedicated": {"value": "gpu", "effect": "NoSchedule"}}

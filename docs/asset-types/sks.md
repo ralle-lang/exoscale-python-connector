@@ -7,6 +7,11 @@ instances spun up by Exoscale's control plane.
 ## Model
 
 ```python
+class SksNodepoolTaint(ExoscaleModel):
+    value: Optional[str]
+    effect: Optional[str]                        # "NoExecute" | "NoSchedule" | "PreferNoSchedule"
+
+
 class SksNodepool(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -21,7 +26,7 @@ class SksNodepool(ExoscaleModel):
     anti_affinity_groups: Optional[List[Reference]]
     private_networks: Optional[List[Reference]]
     labels: Optional[Dict[str, str]]
-    taints: Optional[Dict[str, str]]
+    taints: Optional[Dict[str, SksNodepoolTaint]]  # keyed by taint key
     instance_prefix: Optional[str]
     public_ip_assignment: Optional[str]
     nvidia_mig_profiles: Optional[Dict[str, Any]]  # MIG profiles for GPU nodes, keyed by GPU model

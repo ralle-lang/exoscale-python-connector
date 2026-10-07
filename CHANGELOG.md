@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Tainted SKS nodepools no longer break cluster reads.** `SksNodepool.taints`
+  was typed `Dict[str, str]`, but each taint is a `{value, effect}` object, so
+  one tainted pool made `get()`/`list()` raise for the whole zone. New
+  `SksNodepoolTaint` model; `taints` is now `Dict[str, SksNodepoolTaint]` (#98).
 - **Zone listing works with least-privilege keys.** `ZoneClient.list()` now
   sends `GET /zone` unsigned: the endpoint is public, but a signed request is
   checked against the key's IAM policy, so a restricted key got `403`. Mirrors
