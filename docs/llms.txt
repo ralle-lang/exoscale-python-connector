@@ -994,7 +994,7 @@ An Exoscale SKS (managed Kubernetes) cluster.
 | `version` | `version` | Optional[str] |
 | `endpoint` | `endpoint` | Optional[str] |
 | `cni` | `cni` | Optional[str] |
-| `service_level` | `service-level` | Optional[str] |
+| `service_level` | `level` | Optional[str] |
 | `addons` | `addons` | Optional[List[str]] |
 | `nodepools` | `nodepools` | List[SksNodepool] |
 | `labels` | `labels` | Optional[Dict[str, str]] |
@@ -3459,7 +3459,7 @@ class SksCluster(ExoscaleModel):
     version: Optional[str]                       # Kubernetes version
     endpoint: Optional[str]                      # control-plane API URL
     cni: Optional[str]                           # "calico" | "cilium"
-    service_level: Optional[str]                 # "starter" | "pro"
+    service_level: Optional[str]                 # "starter" | "pro"; wire field `level`
     addons: Optional[List[str]]
     labels: Optional[Dict[str, str]]
     auto_upgrade: Optional[bool]
@@ -3551,7 +3551,8 @@ sks.delete(cluster.id)
 - **Cluster create field is `level`, not `service-level`.** An initial test
   payload used `service-level` and the API responded with
   `400: missing keys 'level'`. Allowed values: `starter` (free control
-  plane) or `pro` (paid SLA).
+  plane) or `pro` (paid SLA). The model attribute is `service_level`, mapped to the
+  `level` wire field in both directions (`SksCluster(level=...)` works too).
 - **Kubeconfig requires `user` AND `groups`** in the request body.
   `groups` is a list of Kubernetes groups (e.g. `["system:masters"]` for
   cluster-admin). Missing `groups` returns `400: missing keys 'groups'`.

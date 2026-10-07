@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The spec has `:resize-volume` return the volume itself; that body now
   yields a settled `Operation` referencing the volume. Spec-based; not
   live-verified (#109).
+- **`SksCluster.service_level` maps to the API's `level` field.** It used
+  the wire name `service-level`, so reads always returned `None` and
+  model-built create payloads omitted the required `level`. Model-built
+  payloads also no longer send an empty read-only `nodepools` list (#110).
 
 ## [0.6.1] - 2026-10-07
 
