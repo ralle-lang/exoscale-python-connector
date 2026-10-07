@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`-` = stdin) besides `--json`, so payloads with secrets such as
   `admin-password` no longer have to sit in the process list. The body
   stays optional (#114).
+- **`exoscale-snapshot` and `exoscale-block-volume-snapshot` no longer offer
+  `create`.** Neither collection supports POST, so the verb could only fail;
+  snapshots are created from the instance or volume (#115).
 
 ## [0.6.1] - 2026-10-07
 

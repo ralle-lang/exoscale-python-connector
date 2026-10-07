@@ -1,9 +1,8 @@
 """CLI entry point: ``exoscale-snapshot``.
 
-Exposes list / get / find / delete for compute snapshots. Creation is not
-available directly (snapshots are triggered via an instance action); the
-``create`` verb from the shared harness is intentionally excluded by using
-a custom description that documents this constraint.
+Exposes list / get / find / delete for compute snapshots. ``/snapshot`` has
+no POST, so the harness's ``create`` verb is excluded via ``verbs=``;
+snapshots are triggered by an instance action instead.
 
 Use ``exoscale-snapshot delete --id <id>`` to remove a snapshot, or trigger
 creation via the instance client / Ansible.
@@ -28,6 +27,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "this CLI does not expose a create verb."
         ),
         argv=argv,
+        verbs=("list", "get", "find", "delete"),
     )
 
 

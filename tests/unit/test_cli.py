@@ -10,6 +10,7 @@ spies fully isolate the CLI.
 
 from __future__ import annotations
 
+import importlib
 import io
 import json
 import sys
@@ -276,3 +277,24 @@ def test_kms_create_without_payload_sends_empty_body(monkeypatch, capsys) -> Non
     spy = _stub(monkeypatch, KmsKeyClient, "create", {"id": "k1"})
     assert kms_main(["create"]) == 0
     assert spy.calls == [(({},), {})]
+
+
+# ------------------------------------------------------------------ #
+# Read-only collections: no phantom create verb
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.parametrize("module", ["snapshot", "block_volume_snapshot"])
+def test_snapshot_clis_expose_no_create_verb(module, capsys) -> None:
+    # /snapshot and /block-storage-snapshot have no POST in the spec.
+    main = importlib.import_module(f"exoscale_connector.cli.{module}").main
+    with pytest.raises(SystemExit) as exc:
+        main(["create", "--json", "{}"])
+    assert exc.value.code == 2
+    assert "invalid choice: 'create'" in capsys.readouterr().err
+
+
+def test_bare_harness_keeps_create_by_default(capsys) -> None:
+    with pytest.raises(SystemExit):
+        _sg_cli(["--help"])
+    assert "{list,get,find,create,delete}" in capsys.readouterr().out
