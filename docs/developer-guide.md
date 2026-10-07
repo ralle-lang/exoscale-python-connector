@@ -46,8 +46,8 @@ the API returns either the resource directly or an **async operation** envelope
 (`{id, state, reference}`). `ResourceClient` recognises the operation, polls it
 via `ExoscaleClient.wait_operation()` until `state == "success"`, then re-fetches
 the resource by `reference.id`. The poll loop tolerates a short run of transient
-failures (connection drops, timeouts, a sporadic 404 while the operation is still
-propagating) — up to `ClientConfig.max_poll_failures` (default 3) consecutive
+failures (connection drops, timeouts, a retryable HTTP status such as 429/503,
+a sporadic 404 while the operation is still propagating) — up to `ClientConfig.max_poll_failures` (default 3) consecutive
 failures are swallowed, the counter resetting on every successful poll. Errors
 become typed exceptions (`NotFoundError` on 404, `APIError` otherwise,
 `OperationError` on a failed op).

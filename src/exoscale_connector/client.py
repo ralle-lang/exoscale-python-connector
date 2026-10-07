@@ -194,8 +194,9 @@ class ExoscaleClient:
         if it does not complete within ``timeout`` (defaults to
         ``config.operation_timeout``).
 
-        A short run of transient poll failures (connection drops, timeouts, or a
-        sporadic 404 while the operation is still propagating) is tolerated: up to
+        A short run of transient poll failures (connection drops, timeouts, a
+        retryable HTTP status such as 429/503, or a sporadic 404 while the
+        operation is still propagating) is tolerated: up to
         ``config.max_poll_failures`` *consecutive* failures are swallowed before the
         underlying error is surfaced. The counter resets on every successful poll.
         """
@@ -223,9 +224,16 @@ class ExoscaleClient:
                 last = Operation.model_validate(
                     self.request("GET", f"operation/{operation_id}", zone=zone, max_retries=0)
                 )
-            except (requests.exceptions.RequestException, NotFoundError):
+            except (requests.exceptions.RequestException, APIError) as exc:
                 # Tolerate a brief run of transient poll failures rather than
-                # aborting a long-running operation on a single hiccup.
+                # aborting a long-running operation on a single hiccup. Other
+                # API errors (e.g. 403) are not transient and surface at once.
+                if (
+                    isinstance(exc, APIError)
+                    and not isinstance(exc, NotFoundError)
+                    and exc.status_code not in self.config.retryable_statuses_idempotent
+                ):
+                    raise
                 consecutive_failures += 1
                 if consecutive_failures > self.config.max_poll_failures:
                     raise

@@ -260,6 +260,40 @@ def test_wait_operation_tolerates_sporadic_404(client, base_url) -> None:
     assert op.state == "success"
 
 
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+@responses.activate
+def test_wait_operation_tolerates_retryable_status(client, base_url, status) -> None:
+    # Polls run with max_retries=0, so the loop itself must absorb these.
+    responses.add(responses.GET, f"{base_url}/operation/op8", json={"message": "x"}, status=status)
+    responses.add(
+        responses.GET,
+        f"{base_url}/operation/op8",
+        json={"id": "op8", "state": "success"},
+        status=200,
+    )
+    op = client.wait_operation("op8", poll_interval=0)
+    assert op.state == "success"
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_wait_operation_surfaces_retryable_status_after_budget(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/operation/op9", json={"message": "x"}, status=503)
+    with pytest.raises(APIError) as excinfo:
+        client.wait_operation("op9", poll_interval=0)
+    assert excinfo.value.status_code == 503
+    assert len(responses.calls) == client.config.max_poll_failures + 1
+
+
+@responses.activate
+def test_wait_operation_raises_non_transient_status_at_once(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/operation/op10", json={"message": "no"}, status=403)
+    with pytest.raises(APIError) as excinfo:
+        client.wait_operation("op10", poll_interval=0)
+    assert excinfo.value.status_code == 403
+    assert len(responses.calls) == 1
+
+
 @responses.activate
 def test_wait_operation_surfaces_after_too_many_poll_failures(client, base_url) -> None:
     # config.max_poll_failures defaults to 3, so the 4th consecutive drop surfaces.
