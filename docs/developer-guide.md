@@ -240,7 +240,7 @@ ruff format --check src tests scripts    # formatting (separate CI gate)
 mypy src                                 # type-check
 ```
 
-- **`ruff` is pinned exactly** (`ruff==0.16.1` in the `dev` extra) — the only
+- **`ruff` is pinned exactly** (see the `dev` extra in `pyproject.toml`) — the only
   pinned dependency in the project. CI gates on `ruff format --check`, and ruff
   does not promise stable formatter output across releases, so a floating range
   would let a new ruff redden CI on an unrelated change. Upgrades arrive as
