@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET /user/{id}` (404 even for existing users, verified live), so `get()`
   always failed and `create()`/`update()` raised after succeeding.
   `IAMUserClient.get` now resolves from the list; `IAMUser` gains `pending` (#101).
+- **VPC route create and subnet update no longer fail after succeeding.**
+  Both return the resource directly (per the spec), but the connector treated
+  the body as an operation and polled a non-existent operation id until it
+  raised `NotFoundError`. They now return a settled `Operation` whose
+  `reference_id` is the route/subnet id. Spec-based; not live-verified (#102).
 - **Grafana DBaaS services can be read.** `DBaaSConnectionInfo.uri` was typed
   `List[str]`, but Grafana returns a single string, so `get()`, `create()`,
   `update()` and `get_connection_info()` raised for Grafana. It is now

@@ -108,7 +108,8 @@ def test_create_route_omits_name(client, base_url) -> None:
     responses.add(
         responses.POST,
         f"{base_url}/vpc/v1/subnet/s1/route",
-        json={"id": "op4", "state": "success"},
+        # Spec: the route itself, not an operation envelope.
+        json={"id": "r-1", "destination": "0.0.0.0/0", "target": "10.0.0.1"},
         status=200,
     )
     op = VpcClient(client).create_route(
@@ -117,9 +118,26 @@ def test_create_route_omits_name(client, base_url) -> None:
         VpcRoute(destination="0.0.0.0/0", target="10.0.0.1"),
     )
     assert op.state == "success"
+    assert op.reference_id == "r-1"
+    assert len(responses.calls) == 1  # nothing polled
     sent = json.loads(responses.calls[0].request.body)
     assert sent == {"destination": "0.0.0.0/0", "target": "10.0.0.1"}
     assert "name" not in sent
+
+
+@responses.activate
+def test_update_subnet_returns_settled_operation_for_direct_body(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/vpc/v1/subnet/s1",
+        # Spec: the subnet itself, not an operation envelope.
+        json={"id": "s1", "name": "app", "ipv4-block": "10.0.0.0/24"},
+        status=200,
+    )
+    op = VpcClient(client).update_subnet("v1", "s1", {"name": "app"})
+    assert op.state == "success"
+    assert op.reference_id == "s1"
+    assert len(responses.calls) == 1
 
 
 @responses.activate

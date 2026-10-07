@@ -105,3 +105,9 @@ vpc.delete(vpc_id)
   dropped upstream; a route is identified by its `destination`/`target`.
 - **VPC create is async.** `create` returns the operation; the new VPC id is on
   `operation.reference_id` once it settles (awaited by default).
+- **Route create and subnet update are synchronous.** Per the spec, they return
+  the route/subnet itself, not an operation. The connector still returns an
+  `Operation` for a uniform API: `state == "success"` and `reference_id` set to
+  the new route's (or the subnet's) id, and nothing is polled. **Not
+  live-verified:** VPC is not enabled on the test tenant (403), so this follows
+  the spec alone.
