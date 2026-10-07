@@ -7,6 +7,7 @@ import json
 import responses
 
 from exoscale_connector.resources.iam_role import (
+    IAMAssumeRolePolicy,
     IAMPolicy,
     IAMPolicyRule,
     IAMPolicyService,
@@ -226,13 +227,16 @@ def test_assume_role_policy_parsed(client, base_url) -> None:
         json={
             "id": "role-1",
             "name": "assumable",
-            "assume-role-policy": {"default-service-strategy": "allow", "services": {}},
+            "assume-role-policy": {
+                "rules": [{"action": "allow", "expression": "caller.name == 'ci'"}]
+            },
         },
         status=200,
     )
     role = IAMRoleClient(client).get("role-1")
     assert role.assume_role_policy is not None
-    assert role.assume_role_policy.default_service_strategy == "allow"
+    assert role.assume_role_policy.rules[0].action == "allow"
+    assert role.assume_role_policy.rules[0].expression == "caller.name == 'ci'"
 
 
 @responses.activate
@@ -261,11 +265,11 @@ def test_set_assume_role_policy_puts_to_generic_update(client, base_url) -> None
         status=200,
     )
     op = IAMRoleClient(client).set_assume_role_policy(
-        "role-1", {"default-service-strategy": "deny"}
+        "role-1", IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true"))
     )
     assert op.state == "success"
     sent = json.loads(responses.calls[0].request.body)
-    assert sent == {"assume-role-policy": {"default-service-strategy": "deny"}}
+    assert sent == {"assume-role-policy": {"rules": [{"action": "deny", "expression": "true"}]}}
 
 
 def test_policy_preserves_unknown_fields() -> None:

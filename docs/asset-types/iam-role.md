@@ -34,7 +34,7 @@ class IAMRole(ExoscaleModel):
     permissions: Optional[List[str]]
     labels: Optional[Dict[str, str]]
     policy: Optional[IAMPolicy]               # permission policy
-    assume_role_policy: Optional[IAMPolicy]   # who/what may assume the role
+    assume_role_policy: Optional[IAMAssumeRolePolicy]  # {rules: [...]}: who/what may assume the role
 ```
 
 > Inline `policy` / `assume_role_policy` work on **create**. To change them on an
@@ -119,10 +119,16 @@ role = roles.create(IAMRole(
   the generic `PUT /iam-role/{id}` body instead (`{"assume-role-policy": ...}`),
   which is what `set_assume_role_policy()` does. Only the permission `policy`
   has a dedicated sub-endpoint (`PUT :policy`).
-- **`assume_role_policy` is write-only-ish.** The API accepts it on create and
-  update, but a `get()` on an ordinary role does **not** echo
-  `assume-role-policy` back (it comes through as `None`) — confirmed live. The
-  permission `policy`, by contrast, does round-trip on `get()`.
+- **The assume-role policy is a flat rule list, not a permission policy.** Its
+  spec shape is `{"rules": [{"action", "expression", "resources"}]}` —
+  build it with `IAMAssumeRolePolicy.with_rules(IAMPolicyRule.allow(...))`.
+  Earlier releases typed it as `IAMPolicy`
+  (`default-service-strategy` / `services`), which the API does not define.
+- **Does `get()` echo `assume-role-policy`?** Live runs saw it come back as
+  `None` on ordinary roles, but those runs sent the old `IAMPolicy` shape, so
+  the API may simply have ignored the body. Re-verify with the spec shape
+  before relying on either behaviour. The permission `policy` does round-trip
+  on `get()`.
 
 ## End-to-end example
 

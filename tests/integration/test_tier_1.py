@@ -21,7 +21,13 @@ from exoscale_connector.errors import APIError
 from exoscale_connector.resources.anti_affinity_group import AntiAffinityGroupClient
 from exoscale_connector.resources.api_key import ApiKeyClient
 from exoscale_connector.resources.dns import DnsDomainClient
-from exoscale_connector.resources.iam_role import IAMPolicy, IAMRole, IAMRoleClient
+from exoscale_connector.resources.iam_role import (
+    IAMAssumeRolePolicy,
+    IAMPolicy,
+    IAMPolicyRule,
+    IAMRole,
+    IAMRoleClient,
+)
 from exoscale_connector.resources.private_network import PrivateNetworkClient
 from exoscale_connector.resources.security_group import (
     SecurityGroupClient,
@@ -258,11 +264,13 @@ def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> Non
     assert with_policy.policy is not None
     assert "compute" in (with_policy.policy.services or {})
 
-    # assume-role-policy: Exoscale accepts the PUT but does not echo the policy
-    # back on GET for an ordinary (non-assumable) role, so we verify the call is
-    # accepted — set_assume_role_policy raises on an API/operation failure — rather
-    # than asserting a GET round-trip.
-    roles.set_assume_role_policy(role_id, IAMPolicy.deny_all())
+    # assume-role-policy: earlier runs saw no echo on GET, but they sent the old
+    # IAMPolicy shape, which the API may have ignored. Until a run with the spec
+    # {rules: [...]} shape settles it, only verify the call is accepted —
+    # set_assume_role_policy raises on an API/operation failure.
+    roles.set_assume_role_policy(
+        role_id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true"))
+    )
 
     assert_safe_name(name)
     roles.delete(role_id)

@@ -147,6 +147,22 @@ class IAMPolicy(ExoscaleModel):
         )
 
 
+class IAMAssumeRolePolicy(ExoscaleModel):
+    """Conditions under which a role may be assumed.
+
+    Unlike :class:`IAMPolicy` this is not per-service: it is a single,
+    top-to-bottom list of :class:`IAMPolicyRule` (spec schema
+    ``iam-assume-role-policy``).
+    """
+
+    rules: Optional[List[IAMPolicyRule]] = None
+
+    @classmethod
+    def with_rules(cls, *rules: IAMPolicyRule) -> IAMAssumeRolePolicy:
+        """An assume-role policy built from ``rules``, evaluated top-to-bottom."""
+        return cls(rules=list(rules))
+
+
 class IAMRole(ExoscaleModel):
     """An Exoscale IAM role."""
 
@@ -160,8 +176,9 @@ class IAMRole(ExoscaleModel):
     labels: Optional[Dict[str, str]] = None
     # The role's permission policy (what a key bound to this role may do).
     policy: Optional[IAMPolicy] = None
-    # Conditions under which this role may be assumed; same policy shape.
-    assume_role_policy: Optional[IAMPolicy] = None
+    # Conditions under which this role may be assumed: a flat rule list, not
+    # the per-service shape of ``policy``.
+    assume_role_policy: Optional[IAMAssumeRolePolicy] = None
 
 
 class IAMRoleClient(ResourceClient[IAMRole]):
@@ -194,7 +211,7 @@ class IAMRoleClient(ResourceClient[IAMRole]):
     def set_assume_role_policy(
         self,
         role_id: str,
-        policy: Union[IAMPolicy, dict],
+        policy: Union[IAMAssumeRolePolicy, dict],
         *,
         zone: Optional[str] = None,
         wait: Optional[bool] = None,
