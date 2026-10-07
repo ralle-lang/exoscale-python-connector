@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API answers with, so `wait=` was a no-op and failures never surfaced. They
   now await it by default (`wait=False` opts out); user/maintenance methods
   still return a dict, now the settled envelope (#112).
+- **CLI errors no longer dump tracebacks.** Connection errors and timeouts, a
+  missing or unreadable `--file`, and Ctrl-C now print a one-line `error:`
+  message and exit 1 (130 for Ctrl-C), like API errors already did (#113).
 
 ## [0.6.1] - 2026-10-07
 

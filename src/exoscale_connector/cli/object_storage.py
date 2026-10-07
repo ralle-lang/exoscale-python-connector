@@ -29,12 +29,12 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from ..config import ClientConfig
 from ..errors import ExoscaleError
 from ..resources.object_storage import BucketClient
-from ._base import dump, print_result
+from ._base import dump, print_result, run_guarded
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -46,13 +46,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.print_help(sys.stderr)
         return 2
 
-    try:
+    def call() -> Any:
         config = ClientConfig.from_env(zone=args.zone)
-        bucket_client = BucketClient(config, zone=args.zone)
-        result = _dispatch(bucket_client, args)
-    except ExoscaleError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+        return _dispatch(BucketClient(config, zone=args.zone), args)
+
+    ok, result = run_guarded(call)
+    if not ok:
+        return int(result)
 
     print_result(result, args.output)
     return 0

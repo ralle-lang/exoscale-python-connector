@@ -14,11 +14,13 @@ import json
 from typing import Any, List
 
 import pytest
+import requests
 
 from exoscale_connector.cli._base import run_resource_cli
 from exoscale_connector.cli.dbaas import main as dbaas_main
 from exoscale_connector.cli.dns import main as dns_main
 from exoscale_connector.cli.sks import main as sks_main
+from exoscale_connector.errors import APIError
 from exoscale_connector.resources.dbaas import DBaaSServiceClient
 from exoscale_connector.resources.dns import DnsDomainClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
@@ -197,3 +199,49 @@ def test_no_command_prints_help_exit_2(capsys) -> None:
     assert dns_main([]) == 2
     assert sks_main([]) == 2
     assert dbaas_main([]) == 2
+
+
+# ------------------------------------------------------------------ #
+# Error contract: an "error:" line on stderr and an exit code, no traceback
+# ------------------------------------------------------------------ #
+
+
+def _raise(exc: BaseException):
+    def fn(self, *args, **kwargs):
+        raise exc
+
+    return fn
+
+
+@pytest.mark.parametrize(
+    "exc,code,message",
+    [
+        (APIError("boom", status_code=500), 1, "error: boom"),
+        (requests.exceptions.ConnectionError("connection dropped"), 1, "error: request failed"),
+        (KeyboardInterrupt(), 130, "error: interrupted"),
+    ],
+)
+def test_cli_reports_failures_without_traceback(monkeypatch, capsys, exc, code, message) -> None:
+    monkeypatch.setattr(SecurityGroupClient, "list", _raise(exc))
+    assert _sg_cli(["list"]) == code
+    err = capsys.readouterr().err
+    assert err.startswith(message)
+    assert "Traceback" not in err
+
+
+def test_cli_reports_missing_payload_file(tmp_path, capsys) -> None:
+    missing = tmp_path / "nope.json"
+    assert _sg_cli(["create", "--file", str(missing)]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error: cannot read payload file")
+    assert "Traceback" not in err
+
+
+def test_object_storage_cli_reports_request_failure(monkeypatch, capsys) -> None:
+    from exoscale_connector.cli import object_storage
+
+    monkeypatch.setattr(
+        object_storage, "_dispatch", _raise(requests.exceptions.Timeout("read timed out"))
+    )
+    assert object_storage.main(["list"]) == 1
+    assert capsys.readouterr().err.startswith("error: request failed")
