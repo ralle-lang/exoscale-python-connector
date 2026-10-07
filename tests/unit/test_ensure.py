@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import responses
 
+from exoscale_connector.resources.dns import DnsDomain, DnsDomainClient
 from exoscale_connector.resources.instance import InstanceClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
 
@@ -88,3 +89,34 @@ def test_list_without_labels_returns_everything(client, base_url) -> None:
         status=200,
     )
     assert len(InstanceClient(client).list()) == 2
+
+
+@pytest.mark.parametrize(
+    "payload", [{"unicode-name": "example.com"}, DnsDomain(unicode_name="example.com")]
+)
+@responses.activate
+def test_ensure_keys_on_snake_case_name_field(client, base_url, payload) -> None:
+    # DnsDomainClient.name_field is "unicode_name" but payloads are kebab-keyed.
+    responses.add(
+        responses.GET,
+        f"{base_url}/dns-domain",
+        json={"dns-domains": [{"id": "d-1", "unicode-name": "example.com"}]},
+        status=200,
+    )
+    domain = DnsDomainClient(client).ensure(payload)
+    assert domain.id == "d-1"
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_ensure_creates_dns_domain_when_absent(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/dns-domain", json={"dns-domains": []}, status=200)
+    responses.add(
+        responses.POST,
+        f"{base_url}/dns-domain",
+        json={"id": "d-2", "unicode-name": "new.example"},
+        status=200,
+    )
+    domain = DnsDomainClient(client).ensure({"unicode-name": "new.example"})
+    assert domain.id == "d-2"
+    assert b'"unicode-name"' in responses.calls[1].request.body

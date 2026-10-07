@@ -13,7 +13,7 @@ from typing import Any, Generic, List, Optional, Type, TypeVar
 
 from ..client import ExoscaleClient
 from ..errors import NotFoundError
-from ..models import ExoscaleModel, Operation, to_api_payload
+from ..models import ExoscaleModel, Operation, to_api_payload, to_kebab
 
 ModelT = TypeVar("ModelT", bound=ExoscaleModel)
 
@@ -123,7 +123,7 @@ class ResourceClient(Generic[ModelT]):
         # _resolve_mutation can still hit the right endpoint.
         fallback_id: Optional[str] = None
         if self.id_field == "name" and isinstance(api_payload, dict):
-            candidate = api_payload.get("name") or api_payload.get(self.name_field)
+            candidate = api_payload.get("name") or _payload_get(api_payload, self.name_field)
             if isinstance(candidate, str):
                 fallback_id = candidate
         response = self.client.post(self.collection_path, zone=zone, json=api_payload)
@@ -154,7 +154,7 @@ class ResourceClient(Generic[ModelT]):
            non-standard ``create`` signature (DBaaS) don't support ``ensure``.
         """
         api_payload = to_api_payload(payload)
-        name = api_payload.get(self.name_field) if isinstance(api_payload, dict) else None
+        name = _payload_get(api_payload, self.name_field) if isinstance(api_payload, dict) else None
         if not isinstance(name, str) or not name.strip():
             raise ValueError(
                 f"ensure() needs a {self.name_field!r} in the payload to key the lookup on"
@@ -238,6 +238,11 @@ def _labels_match(resource: Any, wanted: dict) -> bool:
     if not isinstance(actual, dict):
         return False
     return all(actual.get(key) == value for key, value in wanted.items())
+
+
+def _payload_get(payload: dict, field: str) -> Any:
+    """Read a model attribute name from an alias-keyed (kebab-case) payload."""
+    return payload.get(to_kebab(field), payload.get(field))
 
 
 def _looks_like_operation(payload: dict) -> bool:
