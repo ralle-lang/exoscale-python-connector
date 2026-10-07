@@ -181,6 +181,22 @@ def test_resize_sends_size_payload(client, base_url) -> None:
 
 
 @responses.activate
+def test_resize_settles_spec_shaped_volume_body_without_polling(client, base_url) -> None:
+    # The spec says :resize-volume answers with the volume itself; its "state"
+    # is a volume state, not an operation state, so nothing must be polled.
+    responses.add(
+        responses.PUT,
+        f"{base_url}/block-storage/vol-1:resize-volume",
+        json={"id": "vol-1", "name": "data", "size": 500, "state": "attached"},
+        status=200,
+    )
+    op = BlockVolumeClient(client).resize("vol-1", 500)
+    assert op.state == "success"
+    assert op.reference_id == "vol-1"
+    assert len(responses.calls) == 1
+
+
+@responses.activate
 def test_create_snapshot_posts_to_volume_action(client, base_url) -> None:
     responses.add(
         responses.POST,

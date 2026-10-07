@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Unset or empty now keeps verification on, `false`/`0`/`no`/`off` turn it
   off, and an unrecognised value raises `ConfigError` instead of failing
   open (#107).
+- **Block volume `resize()` no longer polls the volume id as an operation.**
+  The spec has `:resize-volume` return the volume itself; that body now
+  yields a settled `Operation` referencing the volume. Spec-based; not
+  live-verified (#109).
 
 ## [0.6.1] - 2026-10-07
 

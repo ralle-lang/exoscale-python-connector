@@ -74,6 +74,11 @@ volumes.delete(vol.id)
   instance for the size change to propagate. A resize on a detached
   volume returns a success-looking response but the size never changes.
 - **Resize only grows**: can't shrink a volume.
+- **Resize may answer with the volume, not an operation.** The spec documents
+  the `:resize-volume` 200 response as the volume itself. The connector returns
+  a settled `Operation` (`state == "success"`, `reference_id` = the volume id)
+  for that shape without polling, and still awaits a real operation envelope.
+  **Not live-verified:** live runs have only seen 400/409 on this endpoint.
 - **Attach requires `standard.small` or larger** — `standard.tiny` is
   rejected with `409: Instance size must be at least small`.
 - **Delete fails (412) if attached**: detach first. The Tier 3 test wraps
