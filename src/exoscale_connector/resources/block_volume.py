@@ -16,6 +16,10 @@ from pydantic import Field
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
+# Operation envelopes only ever carry these states; a volume body also has a
+# ``state`` ("attached", "detached", ...), so the field's presence proves nothing.
+_OPERATION_STATES = frozenset({"pending", "success", "failure", "timeout", "interrupted"})
+
 
 class BlockVolumeSnapshotRef(ExoscaleModel):
     """Lightweight reference to a block-storage snapshot attached to a volume."""
@@ -109,6 +113,11 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         but the live API actually expects **bytes** (verified empirically). We
         keep the caller-facing parameter in GiB — matching ``create`` and the
         ``get`` response — and convert to bytes for the wire format.
+
+        The spec documents the 200 response as the volume itself rather than an
+        operation; that body is returned as a settled operation referencing the
+        volume, without polling. Only 400/409 responses have been observed live
+        so far, so the success shape follows the spec and is not live-verified.
         """
         zone = self._zone(zone)
         # 1 GiB == 1024**3 bytes. Convert here so callers keep using GiB.
@@ -153,7 +162,17 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         zone: Optional[str],
         wait: Optional[bool],
     ) -> Operation:
-        """Parse an operation envelope and await completion if configured to do so."""
+        """Parse an operation envelope and await completion if configured to do so.
+
+        A direct resource body (no ``reference``, no operation state) becomes a
+        settled operation referencing that resource instead of being polled.
+        """
+        state = str(response.get("state") or "").lower()
+        if response and "reference" not in response and state not in _OPERATION_STATES:
+            resource_id = response.get("id")
+            return Operation(
+                state="success", reference=Reference(id=resource_id) if resource_id else None
+            )
         operation = Operation.model_validate(response)
         if self._should_wait(wait) and operation.id:
             operation = self.client.wait_operation(operation, zone=zone)
