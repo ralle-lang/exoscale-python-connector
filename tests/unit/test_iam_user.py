@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
 import responses
 
+from exoscale_connector.errors import NotFoundError
 from exoscale_connector.resources.iam_user import IAMUser, IAMUserClient
 
 
@@ -50,11 +52,17 @@ def test_find_by_email_missing_returns_none(client, base_url) -> None:
 
 
 @responses.activate
-def test_get_by_id(client, base_url) -> None:
+def test_get_by_id_resolves_from_list(client, base_url) -> None:
+    # APIv2 has no GET /user/{id}; get() must resolve the user from the list.
     responses.add(
         responses.GET,
-        f"{base_url}/user/user-1",
-        json={"id": "user-1", "email": "alice@example.com", "role": {"id": "role-1"}},
+        f"{base_url}/user",
+        json={
+            "users": [
+                {"id": "user-0", "email": "bob@example.com"},
+                {"id": "user-1", "email": "alice@example.com", "role": {"id": "role-1"}},
+            ]
+        },
         status=200,
     )
     user = IAMUserClient(client).get("user-1")
@@ -62,6 +70,15 @@ def test_get_by_id(client, base_url) -> None:
     assert user.email == "alice@example.com"
     assert user.role is not None
     assert user.role.id == "role-1"
+    assert all("/user/" not in c.request.url for c in responses.calls)
+
+
+@responses.activate
+def test_get_missing_id_raises_not_found(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/user", json={"users": []}, status=200)
+    with pytest.raises(NotFoundError):
+        IAMUserClient(client).get("user-x")
+    assert IAMUserClient(client).get_or_none("user-x") is None
 
 
 @responses.activate
@@ -74,13 +91,14 @@ def test_create_awaits_operation_and_refetches(client, base_url) -> None:
     )
     responses.add(
         responses.GET,
-        f"{base_url}/user/user-new",
-        json={"id": "user-new", "email": "charlie@example.com"},
+        f"{base_url}/user",
+        json={"users": [{"id": "user-new", "email": "charlie@example.com", "pending": True}]},
         status=200,
     )
     created = IAMUserClient(client).create({"email": "charlie@example.com"})
     assert created.id == "user-new"
     assert created.email == "charlie@example.com"
+    assert created.pending is True
 
 
 @responses.activate
@@ -93,8 +111,8 @@ def test_update_awaits_operation_and_refetches(client, base_url) -> None:
     )
     responses.add(
         responses.GET,
-        f"{base_url}/user/user-1",
-        json={"id": "user-1", "email": "alice@example.com", "role": {"id": "role-2"}},
+        f"{base_url}/user",
+        json={"users": [{"id": "user-1", "email": "alice@example.com", "role": {"id": "role-2"}}]},
         status=200,
     )
     updated = IAMUserClient(client).update("user-1", {"role": {"id": "role-2"}})

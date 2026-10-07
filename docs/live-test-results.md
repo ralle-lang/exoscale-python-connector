@@ -346,3 +346,21 @@ needs a publicly downloadable disk image.
 
 The test image and its SOS bucket (`exo-connector-templates`, `at-vie-1`)
 were deleted after the run — no permanent fixtures remain.
+
+## Read-only smoke — 2026-10-07 (zone `at-vie-1`)
+
+**Context:** a read-only check for audit finding #101. The spec has no
+`GET /user/{id}`. `tests/integration/test_smoke.py` ran in full: 25 passed,
+2 skipped (`vpc` 403 not enabled, `kms` 403 role policy, both known).
+
+**Spec-vs-reality findings (documented in iam-user.md gotchas):**
+
+10. **`GET /user/{id}` does not exist** — it returns 404 for a user id taken
+    straight from `GET /user`, exactly as for a made-up id. `IAMUserClient.get`
+    now resolves users from the list; the new
+    `test_iam_user_get_resolves_existing_user` covers it live.
+
+Also confirmed live on the same run: zone listing works without signing (#92),
+and SKS/DBaaS reads parse after the model fixes in #98/#99. No tainted
+nodepool or Grafana service exists on the tenant, so those two shapes are
+still covered by unit tests only.

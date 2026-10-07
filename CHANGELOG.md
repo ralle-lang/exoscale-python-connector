@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **IAM user `get`, `create` and `update` work.** APIv2 has no
+  `GET /user/{id}` (404 even for existing users, verified live), so `get()`
+  always failed and `create()`/`update()` raised after succeeding.
+  `IAMUserClient.get` now resolves from the list; `IAMUser` gains `pending` (#101).
 - **Grafana DBaaS services can be read.** `DBaaSConnectionInfo.uri` was typed
   `List[str]`, but Grafana returns a single string, so `get()`, `create()`,
   `update()` and `get_connection_info()` raised for Grafana. It is now
