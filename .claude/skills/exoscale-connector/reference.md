@@ -56,10 +56,10 @@ A thin, signed HTTP client for one set of Exoscale credentials.
 - `delete(path: str, *, zone: Optional[str] = None, params: Optional[dict] = None) -> dict`
 - `from_env(*, zone: Optional[str] = None) -> "'ExoscaleClient'"`
   Convenience constructor: build config from the environment, then a client.
-- `get(path: str, *, zone: Optional[str] = None, params: Optional[dict] = None) -> dict`
+- `get(path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, signed: bool = True) -> dict`
 - `post(path: str, *, zone: Optional[str] = None, json: Any = None) -> dict`
 - `put(path: str, *, zone: Optional[str] = None, json: Any = None) -> dict`
-- `request(method: str, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, json: Any = None, max_retries: Optional[int] = None) -> dict`
+- `request(method: str, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, json: Any = None, max_retries: Optional[int] = None, signed: bool = True) -> dict`
   Send a signed request to ``<base>/<path>`` and return the parsed body.
 - `wait_operation(operation: Union[Operation, dict, str], *, zone: Optional[str] = None, timeout: Optional[float] = None, poll_interval: float = 2.0) -> Operation`
   Poll an async operation until it succeeds, then return the final state.
@@ -3989,5 +3989,9 @@ names = [z.name for z in zones]
 
 - **Read-only.** The inherited mutating verbs exist on the class but are not
   supported by the API.
+- **Listed unsigned.** `GET /zone` is public, but a *signed* request is
+  checked against the key's IAM policy, so a least-privilege key (e.g.
+  DBaaS-only) would get `403`. `list()` therefore sends no credentials — any key,
+  or none, can list zones. The vendor SDKs do the same.
 - **Live verification:** smoke test (`test_list_zones`) ran 2026-06-10
   against `at-vie-1` (see [live-test-results](../live-test-results.md)).

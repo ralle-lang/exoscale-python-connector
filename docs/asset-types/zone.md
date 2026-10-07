@@ -33,5 +33,9 @@ names = [z.name for z in zones]
 
 - **Read-only.** The inherited mutating verbs exist on the class but are not
   supported by the API.
+- **Listed unsigned.** `GET /zone` is public, but a *signed* request is
+  checked against the key's IAM policy, so a least-privilege key (e.g.
+  DBaaS-only) would get `403`. `list()` therefore sends no credentials — any key,
+  or none, can list zones. The vendor SDKs do the same.
 - **Live verification:** smoke test (`test_list_zones`) ran 2026-06-10
   against `at-vie-1` (see [live-test-results](../live-test-results.md)).

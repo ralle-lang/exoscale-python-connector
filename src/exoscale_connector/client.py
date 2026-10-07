@@ -46,6 +46,15 @@ _TRANSIENT_EXCEPTIONS = (
 logger = logging.getLogger("exoscale_connector")
 
 
+def _no_auth(request: requests.PreparedRequest) -> requests.PreparedRequest:
+    """Per-request auth override that leaves the request unsigned.
+
+    ``requests`` falls back to the session's auth when a request passes
+    ``auth=None``, so opting out of signing needs an explicit no-op callable.
+    """
+    return request
+
+
 class ExoscaleClient:
     """A thin, signed HTTP client for one set of Exoscale credentials.
 
@@ -78,6 +87,7 @@ class ExoscaleClient:
         params: Optional[dict] = None,
         json: Any = None,
         max_retries: Optional[int] = None,
+        signed: bool = True,
     ) -> dict:
         """Send a signed request to ``<base>/<path>`` and return the parsed body.
 
@@ -94,6 +104,10 @@ class ExoscaleClient:
         ``max_retries`` overrides the config retry budget for this one call; pass
         ``0`` to issue a single attempt (used by the operation poll loop, which
         owns its own transient-failure tolerance via ``config.max_poll_failures``).
+
+        ``signed=False`` sends the request without credentials, for public
+        endpoints where the API would otherwise evaluate IAM on a signed request
+        (``GET /zone`` rejects keys whose policy does not cover it).
         """
         url = f"{self.config.base_url(zone)}/{path.lstrip('/')}"
         verb = method.upper()
@@ -115,6 +129,7 @@ class ExoscaleClient:
                     json=json,
                     timeout=self.config.timeout,
                     verify=self.config.verify_tls,
+                    auth=None if signed else _no_auth,
                 )
             except _TRANSIENT_EXCEPTIONS as exc:
                 # No response arrived. Safe to retry only for idempotent verbs;
@@ -140,8 +155,15 @@ class ExoscaleClient:
                 continue
             _raise_for_response(method, url, response)
 
-    def get(self, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None) -> dict:
-        return self.request("GET", path, zone=zone, params=params)
+    def get(
+        self,
+        path: str,
+        *,
+        zone: Optional[str] = None,
+        params: Optional[dict] = None,
+        signed: bool = True,
+    ) -> dict:
+        return self.request("GET", path, zone=zone, params=params, signed=signed)
 
     def post(self, path: str, *, zone: Optional[str] = None, json: Any = None) -> dict:
         return self.request("POST", path, zone=zone, json=json)
