@@ -84,6 +84,15 @@ def test_list_is_reachable(live_client, label, client_cls) -> None:
     assert isinstance(items, list)
 
 
+def test_iam_user_get_resolves_existing_user(live_client) -> None:
+    """APIv2 has no GET /user/{id}; get() must still find a listed user."""
+    users = IAMUserClient(live_client)
+    listed = users.list()
+    if not listed:
+        pytest.skip("no IAM users on this tenant")
+    assert users.get(listed[0].id).id == listed[0].id
+
+
 def test_object_storage_list_is_reachable(live_client) -> None:
     """Object Storage uses the S3 (boto3) path; skip if boto3 isn't installed."""
     pytest.importorskip("boto3")

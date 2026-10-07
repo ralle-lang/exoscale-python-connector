@@ -14,6 +14,7 @@ class IAMUser(ExoscaleModel):
     email: Optional[str]      # the unique human identifier
     role_id: Optional[str]    # bound role
     role: Optional[Reference]
+    pending: Optional[bool]   # True until the invitation is accepted
 ```
 
 ## CLI
@@ -43,6 +44,11 @@ found = users.find_by_name("alice@example.com")  # name_field="email"
 
 - **`find_by_name` matches `email`**, not a separate `name` field — the
   client sets `name_field = "email"` because users have no other label.
+- **There is no `GET /user/{id}`.** The API 404s on it even for existing
+  users (verified live 2026-10-07). `get()` therefore lists `/user` and
+  matches by id — one list call per lookup — and the re-fetch after
+  `create()` / `update()` goes through the same path. A freshly invited user
+  is listed with `pending: true`.
 - **`create` triggers an email side-effect.** Calling `users.create({...})`
   with an unverified address will either bounce or spam someone — do not
   call from automated tests. The connector keeps the method available for
