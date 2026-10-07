@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Grafana DBaaS services can be read.** `DBaaSConnectionInfo.uri` was typed
+  `List[str]`, but Grafana returns a single string, so `get()`, `create()`,
+  `update()` and `get_connection_info()` raised for Grafana. It is now
+  `Union[str, List[str]]` (#99).
 - **Tainted SKS nodepools no longer break cluster reads.** `SksNodepool.taints`
   was typed `Dict[str, str]`, but each taint is a `{value, effect}` object, so
   one tainted pool made `get()`/`list()` raise for the whole zone. New
