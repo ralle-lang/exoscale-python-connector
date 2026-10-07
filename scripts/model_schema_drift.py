@@ -130,10 +130,6 @@ ALLOWED_DIVERGENCES: Dict[str, Dict[str, str]] = {
     "SSHKey": {
         "public-key": "create-request field; the spec ssh-key response schema omits it",
     },
-    "SksCluster": {
-        # Documented in docs/asset-types/sks.md (Gotchas): create field is `level`.
-        "service-level": "exposes the cluster `level` concept; spec property is named level",
-    },
 }
 
 

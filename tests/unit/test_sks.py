@@ -12,6 +12,7 @@ import json
 import responses
 
 from exoscale_connector.resources.sks import (  # noqa: E402
+    SksCluster,
     SksClusterClient,
     SksNodepool,
     SksNodepoolTaint,
@@ -269,3 +270,18 @@ def test_create_nodepool_serialises_taints(client, base_url) -> None:
     SksClusterClient(client).create_nodepool("cl1", nodepool)
     sent = json.loads(responses.calls[0].request.body)
     assert sent["taints"] == {"dedicated": {"value": "gpu", "effect": "NoSchedule"}}
+
+
+def test_cluster_service_level_maps_to_level_wire_field() -> None:
+    # The API field is "level" (verified live); "service-level" was never sent back.
+    cluster = SksCluster.model_validate({"id": "cl1", "level": "pro"})
+    assert cluster.service_level == "pro"
+    payload = SksCluster(name="c", version="1.31", service_level="starter").to_api_payload()
+    assert payload["level"] == "starter"
+    assert "service-level" not in payload
+
+
+def test_cluster_payload_omits_empty_readonly_nodepools() -> None:
+    assert "nodepools" not in SksCluster(name="c", version="1.31").to_api_payload()
+    with_pools = SksCluster.model_validate({"id": "cl1", "nodepools": [{"id": "np1"}]})
+    assert with_pools.model_dump(by_alias=True)["nodepools"][0]["id"] == "np1"

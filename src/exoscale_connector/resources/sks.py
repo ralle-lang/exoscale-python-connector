@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import Field
+from pydantic import Field, SerializerFunctionWrapHandler, model_serializer
 
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
@@ -74,13 +74,23 @@ class SksCluster(ExoscaleModel):
     # The TLS endpoint used to reach the Kubernetes API server
     endpoint: Optional[str] = None
     cni: Optional[str] = None
-    # "starter" | "pro"
-    service_level: Optional[str] = None
+    # "starter" | "pro". The wire field is ``level`` (verified live); the
+    # attribute keeps its descriptive name and accepts either spelling.
+    service_level: Optional[str] = Field(default=None, alias="level")
     addons: Optional[List[str]] = None
     nodepools: List[SksNodepool] = Field(default_factory=list)
     labels: Optional[Dict[str, str]] = None
     auto_upgrade: Optional[bool] = None
     created_at: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_nodepools(self, handler: SerializerFunctionWrapHandler) -> Dict[str, Any]:
+        # nodepools is read-only (managed via the nodepool endpoints); never
+        # send an empty default list in a create/update body.
+        data: Dict[str, Any] = handler(self)
+        if data.get("nodepools") == []:
+            del data["nodepools"]
+        return data
 
 
 class SksClusterClient(ResourceClient[SksCluster]):
