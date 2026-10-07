@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import random
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ..errors import NotFoundError
 from ..models import ExoscaleModel
@@ -39,9 +39,10 @@ class DBaaSConnectionInfo(ExoscaleModel):
     dbname: Optional[str] = None
     # Aiven PEM CA cert for TLS verification (a single PEM-encoded string).
     ca: Optional[str] = None
-    # Raw connection URI(s). The API returns this as a LIST for PostgreSQL
-    # (primary + read replicas), not a string — verified against the live API.
-    uri: Optional[List[str]] = None
+    # Raw connection URI(s). The shape is per engine: a LIST for PostgreSQL
+    # (primary + read replicas — verified against the live API) and the other
+    # data engines, but a single string for Grafana.
+    uri: Optional[Union[str, List[str]]] = None
 
 
 class DBaaSService(ExoscaleModel):

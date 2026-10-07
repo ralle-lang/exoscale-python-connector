@@ -68,7 +68,9 @@ EXEMPT_MODELS: Dict[str, str] = {
         "(dbaas-service-pg / -mysql / -kafka / ...); no single 1:1 schema to diff against"
     ),
     "DBaaSConnectionInfo": (
-        "synthetic connection-info helper assembled by the client; no spec schema"
+        "connection-info is defined per engine in the spec and its shape varies "
+        "(e.g. uri is a list for pg, a string for grafana), so there is no single "
+        "schema to compare against"
     ),
 }
 

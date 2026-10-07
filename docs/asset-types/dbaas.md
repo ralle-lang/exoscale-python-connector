@@ -14,9 +14,9 @@ class DBaaSConnectionInfo(ExoscaleModel):
     user: Optional[str]
     dbname: Optional[str]
     ca: Optional[str]              # PEM-encoded TLS CA cert (single string)
-    # The wire field is a LIST of URIs for Postgres (primary + replicas).
-    # Other service types may differ — this is the most general shape.
-    uri: Optional[List[str]]
+    # A LIST of URIs for Postgres (primary + replicas) and the other data
+    # engines; a single string for Grafana.
+    uri: Optional[Union[str, List[str]]]
 
 
 class DBaaSService(ExoscaleModel):
@@ -99,14 +99,15 @@ plans = dbaas.list_service_types()
   the detail body via the type-specific `dbaas-<long-type>/<name>` path.
 - **`DELETE /dbaas-service/<name>` IS valid** (delete uses the generic
   path even though GET doesn't). Same path, different methods. ¯\\_(ツ)_/¯
-- **`connection-info.uri` is a LIST**, not a string. Postgres returns
-  multiple endpoint URIs (primary + replicas). The model field reflects
-  this.
+- **`connection-info.uri` is usually a LIST**, not a string. Postgres
+  returns multiple endpoint URIs (primary + replicas), as do the other data
+  engines — but **Grafana returns a single string**. The model accepts both,
+  so check `isinstance(uri, str)` before iterating.
 - **There are TWO `uri` fields with different shapes.** `DBaaSService.uri`
   is a scalar `Optional[str]` — the canonical hostname-based URI for the
   service. `DBaaSConnectionInfo.uri` (nested inside `connection_info`) is
-  `Optional[List[str]]` — the per-endpoint URIs, typically IP-based, one
-  per node. Both are populated by the live API; they are not duplicates.
+  `Optional[Union[str, List[str]]]` — the per-endpoint URIs, typically
+  IP-based, one per node (a single string for Grafana). Both are populated by the live API; they are not duplicates.
 - **Provisioning takes 5–15 minutes** on the cheapest plans; longer on
   larger plans. Use a generous timeout in `wait_for_state`.
 - **The create response carries no `reference`** — the connector
@@ -147,7 +148,7 @@ wait_for_state(lambda: dbaas.get(name), "running", timeout=1800, interval=15)
 # Connection info (don't print the values)
 conn = dbaas.get_connection_info(name, service_type="pg")
 assert conn.uri_params.host and conn.uri_params.port
-assert conn.connection_info.uri  # list of URIs
+assert conn.connection_info.uri  # list of URIs (a single string for Grafana)
 
 # Reveal admin password (single-shot endpoint)
 pw = dbaas.reveal_user_password(name, "avnadmin", service_type="pg")

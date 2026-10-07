@@ -61,6 +61,47 @@ def test_list_returns_empty_list_when_no_services(client, base_url) -> None:
 
 
 @responses.activate
+def test_connection_info_uri_accepts_per_engine_shapes(client, base_url) -> None:
+    # Grafana returns connection-info.uri as a string; Postgres as a list.
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-service",
+        json={
+            "dbaas-services": [
+                {"name": "graf", "type": "grafana"},
+                {"name": "pg-prod", "type": "pg"},
+            ]
+        },
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-grafana/graf",
+        json={"name": "graf", "type": "grafana", "connection-info": {"uri": "https://g.example"}},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-postgres/pg-prod",
+        json={
+            "name": "pg-prod",
+            "type": "pg",
+            "connection-info": {"uri": ["postgres://a.example", "postgres://b.example"]},
+        },
+        status=200,
+    )
+    dbaas = DBaaSServiceClient(client)
+    assert dbaas.get("graf").connection_info.uri == "https://g.example"
+    assert dbaas.get_connection_info("graf", service_type="grafana").connection_info.uri == (
+        "https://g.example"
+    )
+    assert dbaas.get("pg-prod").connection_info.uri == [
+        "postgres://a.example",
+        "postgres://b.example",
+    ]
+
+
+@responses.activate
 def test_get_fetches_service_by_name(client, base_url) -> None:
     """get() does a two-step lookup: list -> find type -> type-specific detail.
 
