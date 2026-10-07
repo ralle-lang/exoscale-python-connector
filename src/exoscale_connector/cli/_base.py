@@ -259,15 +259,17 @@ def run_resource_cli(
     argv: Optional[Sequence[str]] = None,
     primary: Optional[PrimaryResource] = None,
     sub_resources: Sequence[SubResource] = (),
+    verbs: Optional[Sequence[str]] = None,
 ) -> int:
     """Run a standard resource CLI for ``resource_cls``.
 
     With neither ``primary`` nor ``sub_resources``, exposes the bare verbs
-    ``list``/``get``/``find``/``create``/``delete``. Pass ``primary`` (and
+    ``list``/``get``/``find``/``create``/``delete`` — or only ``verbs``, for a
+    collection that does not support them all. Pass ``primary`` (and
     optionally ``sub_resources``) for multi-resource CLIs that need
     ``<verb>-<noun>`` commands instead.
     """
-    parser = _build_parser(prog, description, primary, sub_resources)
+    parser = _build_parser(prog, description, primary, sub_resources, verbs)
     return execute_cli(parser, resource_cls, _dispatch, argv=argv)
 
 
@@ -285,10 +287,12 @@ def _build_parser(
     description: str,
     primary: Optional[PrimaryResource],
     sub_resources: Sequence[SubResource],
+    verbs: Optional[Sequence[str]] = None,
 ) -> argparse.ArgumentParser:
     parser, sub = base_parser(prog, description)
     bare = primary is None and not sub_resources
-    _add_primary_verbs(sub, primary or _BARE, bare=bare)
+    default = PrimaryResource(singular="", plural="", verbs=tuple(verbs)) if verbs else _BARE
+    _add_primary_verbs(sub, primary or default, bare=bare)
     for spec in sub_resources:
         _add_sub_verbs(sub, spec)
     return parser

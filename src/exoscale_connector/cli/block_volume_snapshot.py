@@ -1,11 +1,9 @@
 """CLI entry point: ``exoscale-block-volume-snapshot``.
 
 Thin wrapper over the shared harness for block storage snapshot management.
-Note: direct creation via this collection is not supported by the APIv2.
-Snapshots are created via 'POST /block-storage/{id}:create-snapshot' (on the
-volume). The 'create' subcommand from the shared harness is present but will
-fail at the API level if called directly — use the volume client or Ansible
-playbooks to trigger snapshot creation instead.
+``/block-storage-snapshot`` has no POST, so the harness's ``create`` verb is
+excluded via ``verbs=``. Snapshots are created on the volume
+('POST /block-storage/{id}:create-snapshot') — use the block volume client.
 """
 
 from __future__ import annotations
@@ -27,6 +25,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "('POST /block-storage/{id}:create-snapshot'), not via this CLI."
         ),
         argv=argv,
+        verbs=("list", "get", "find", "delete"),
     )
 
 
