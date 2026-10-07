@@ -22,6 +22,8 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Sequence, Tuple, Type
 
+import requests
+
 from ..client import ExoscaleClient
 from ..errors import ExoscaleError
 from ..models import ExoscaleModel
@@ -118,8 +120,11 @@ def load_payload(args: argparse.Namespace) -> dict:
     elif args.file == "-":
         raw = sys.stdin.read()
     else:
-        with open(args.file, encoding="utf-8") as handle:
-            raw = handle.read()
+        try:
+            with open(args.file, encoding="utf-8") as handle:
+                raw = handle.read()
+        except OSError as exc:
+            raise ExoscaleError(f"cannot read payload file {args.file!r}: {exc}") from exc
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -185,6 +190,26 @@ def print_result(result: Any, output: str = "json") -> None:
         print_json(result)
 
 
+def run_guarded(call: Callable[[], Any]) -> Tuple[bool, Any]:
+    """Run ``call``, turning expected failures into an ``error:`` line on stderr.
+
+    Returns ``(True, result)`` on success, else ``(False, exit_code)``: 1 for a
+    connector or request error (connection drop, timeout), 130 for Ctrl-C.
+    No traceback is printed for any of them.
+    """
+    try:
+        return True, call()
+    except ExoscaleError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return False, 1
+    except requests.exceptions.RequestException as exc:
+        print(f"error: request failed: {exc}", file=sys.stderr)
+        return False, 1
+    except KeyboardInterrupt:
+        print("error: interrupted", file=sys.stderr)
+        return False, 130
+
+
 def execute_cli(
     parser: argparse.ArgumentParser,
     resource_cls: Type[ResourceClient],
@@ -194,21 +219,22 @@ def execute_cli(
 ) -> int:
     """Parse ``argv``, build the client/resource, run ``dispatch``, print JSON.
 
-    Returns a process exit code: 0 on success, 1 on a connector error (reported
-    on stderr without a traceback), 2 when no command was given.
+    Returns a process exit code: 0 on success, 1 on a connector or request
+    error, 130 on Ctrl-C (each reported on stderr without a traceback), 2 when
+    no command was given.
     """
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):
         parser.print_help(sys.stderr)
         return 2
 
-    try:
+    def call() -> Any:
         client = ExoscaleClient.from_env(zone=args.zone)
-        resource = resource_cls(client, zone=args.zone)
-        result = dispatch(resource, args)
-    except ExoscaleError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+        return dispatch(resource_cls(client, zone=args.zone), args)
+
+    ok, result = run_guarded(call)
+    if not ok:
+        return int(result)
 
     print_result(result, getattr(args, "output", "json"))
     return 0
