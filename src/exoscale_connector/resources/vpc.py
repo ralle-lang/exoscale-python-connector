@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from ..models import ExoscaleModel, Operation, to_api_payload
-from ._base import ResourceClient
+from ..models import ExoscaleModel, Operation, Reference, to_api_payload
+from ._base import ResourceClient, _looks_like_operation
 
 
 class VpcRoute(ExoscaleModel):
@@ -258,7 +258,17 @@ class VpcClient(ResourceClient[Vpc]):
     def _wait_sub_operation(
         self, response: dict, *, zone: Optional[str], wait: Optional[bool]
     ) -> Operation:
-        """Parse a sub-resource mutation response and await completion by default."""
+        """Parse a sub-resource mutation response and await completion by default.
+
+        Route create and subnet update are synchronous upstream: the spec has
+        them return the resource itself, not an operation. Those bodies become
+        a settled Operation referencing the resource, so nothing is polled.
+        """
+        if response and not _looks_like_operation(response):
+            resource_id = response.get("id")
+            return Operation(
+                state="success", reference=Reference(id=resource_id) if resource_id else None
+            )
         operation = Operation.model_validate(response)
         if self._should_wait(wait) and operation.id:
             operation = self.client.wait_operation(operation, zone=zone)
