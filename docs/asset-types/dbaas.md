@@ -110,6 +110,13 @@ plans = dbaas.list_service_types()
   IP-based, one per node (a single string for Grafana). Both are populated by the live API; they are not duplicates.
 - **Provisioning takes 5–15 minutes** on the cheapest plans; longer on
   larger plans. Use a generous timeout in `wait_for_state`.
+- **Mutations return an operation, awaited by default.** Per the spec,
+  create/update, `create_user`/`delete_user`/`reset_user_password`,
+  `start_maintenance` and `delete` all answer with an operation. The
+  connector awaits it unless `wait=False`; the user/maintenance methods
+  return the settled envelope as a dict. A settled operation does **not**
+  mean the service is `running` (it passes through `rebuilding`), so
+  `wait_for_state` remains the follow-up after create.
 - **The create response carries no `reference`** — the connector
   re-fetches from the type-specific path it just hit. Live test registers
   cleanup BEFORE create to avoid orphan leakage if the re-fetch fails.

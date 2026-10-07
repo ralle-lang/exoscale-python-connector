@@ -21,8 +21,8 @@ import time
 from typing import Any, Dict, List, Optional, Union
 
 from ..errors import NotFoundError
-from ..models import ExoscaleModel
-from ._base import ResourceClient
+from ..models import ExoscaleModel, Operation
+from ._base import ResourceClient, _looks_like_operation
 
 
 class DBaaSConnectionInfo(ExoscaleModel):
@@ -165,10 +165,20 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         )
         return self.model.model_validate(payload)
 
-    # The DBaaS API does not return an async operation on create; the service
-    # is either ready or still building when the POST resolves.  We do not wait
-    # for a separate operation object.
-    wait_for_operations: bool = False
+    def _settle(self, response: Any, *, zone: Optional[str], wait: Optional[bool]) -> Any:
+        """Await an operation envelope (the spec's response for DBaaS mutations).
+
+        Returns the settled envelope as a dict, or ``response`` unchanged when it
+        is not an operation. A settled operation does not mean the service is
+        ``running`` — it moves through ``rebuilding`` first; use
+        :meth:`wait_for_state` for that.
+        """
+        if not isinstance(response, dict) or not _looks_like_operation(response):
+            return response
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation.model_dump(by_alias=True, exclude_none=True)
 
     def create(  # type: ignore[override]
         self,
@@ -185,9 +195,9 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         which type-specific endpoint to call:
         ``POST dbaas-{service_type}/{name}``.
 
-        The create endpoint returns the service body directly (no async
-        operation), so after the POST resolves the client re-fetches via
-        :meth:`get` to return a consistently typed model.
+        The spec has the POST answer with an operation, which is awaited by
+        default (``wait=False`` skips that); the service is then re-fetched for
+        a consistently typed model.
 
         Args:
             payload: Service configuration as a dict or pydantic model.
@@ -196,8 +206,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
             service_type: Exoscale service type identifier, e.g. ``"pg"``.
             name: The desired service name (becomes part of the URL path).
             zone: Target zone, overrides the client default.
-            wait: Unused for DBaaS (no async operation), accepted for API
-                  consistency with other clients.
+            wait: Await the create operation (default: the client's
+                  ``wait_for_operations``).
         """
         zone = self._zone(zone)
         body: Dict[str, Any] = {}
@@ -208,7 +218,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
         # Type-specific create endpoint: POST dbaas-{url-type}/{name}
         url_path = f"dbaas-{self._url_type(service_type)}/{name}"
-        self.client.post(url_path, zone=zone, json=body or None)
+        self._settle(self.client.post(url_path, zone=zone, json=body or None), zone=zone, wait=wait)
         # Re-fetch via the SAME type-specific endpoint. The generic
         # ``dbaas-service/{name}`` is list-only — GETting an individual service
         # there always returns 404 (verified empirically). Retry briefly to
@@ -248,9 +258,9 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
         This is the path for plan changes, maintenance-window configuration
         (``{"maintenance": {"dow": "sunday", "time": "04:00:00"}}``) and
-        type-specific settings (``pg-settings`` etc.). Like create, the DBaaS
-        API answers directly without an async operation; the service is
-        re-fetched after the PUT for a consistently typed result.
+        type-specific settings (``pg-settings`` etc.). The update operation is
+        awaited by default, then the service is re-fetched for a consistently
+        typed result.
 
         Live-verified 2026-06-10 (tier-4 pg lifecycle, maintenance-window
         update).
@@ -262,7 +272,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         elif hasattr(payload, "model_dump"):
             body = payload.model_dump(by_alias=True, exclude_none=True)
         url_path = f"dbaas-{self._url_type(service_type)}/{name}"
-        self.client.put(url_path, zone=zone, json=body or None)
+        self._settle(self.client.put(url_path, zone=zone, json=body or None), zone=zone, wait=wait)
         result = self.client.get(url_path, zone=zone)
         return self.model.model_validate(result)
 
@@ -277,20 +287,23 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         *,
         service_type: str,
         zone: Optional[str] = None,
+        wait: Optional[bool] = None,
     ) -> dict:
         """Create a database user (``POST dbaas-{type}/{name}/user``).
 
-        Returns the raw response dict (schema is type-specific). Retrieve the
+        Returns the settled operation envelope as a dict. Retrieve the
         password afterwards with :meth:`reveal_user_password` — and treat it
         as the secret it is.
 
         Live-verified 2026-06-10 (tier-4 pg lifecycle).
         """
-        return self.client.post(
+        zone = self._zone(zone)
+        response = self.client.post(
             f"dbaas-{self._url_type(service_type)}/{name}/user",
-            zone=self._zone(zone),
+            zone=zone,
             json={"username": username},
         )
+        return self._settle(response, zone=zone, wait=wait)
 
     def delete_user(
         self,
@@ -299,6 +312,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         *,
         service_type: str,
         zone: Optional[str] = None,
+        wait: Optional[bool] = None,
     ) -> dict:
         """Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 
@@ -322,10 +336,11 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
            including read-only ones), which is what put the engine out of
            scope. Every other engine deletes by username as documented.
         """
-        return self.client.delete(
-            f"dbaas-{self._url_type(service_type)}/{name}/user/{username}",
-            zone=self._zone(zone),
+        zone = self._zone(zone)
+        response = self.client.delete(
+            f"dbaas-{self._url_type(service_type)}/{name}/user/{username}", zone=zone
         )
+        return self._settle(response, zone=zone, wait=wait)
 
     def reset_user_password(
         self,
@@ -334,6 +349,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         *,
         service_type: str,
         zone: Optional[str] = None,
+        wait: Optional[bool] = None,
     ) -> dict:
         """Reset a user's password (``PUT .../user/{username}/password/reset``).
 
@@ -343,10 +359,12 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         .. warning::
            Implemented from the API reference — pending live verification.
         """
-        return self.client.put(
+        zone = self._zone(zone)
+        response = self.client.put(
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}/password/reset",
-            zone=self._zone(zone),
+            zone=zone,
         )
+        return self._settle(response, zone=zone, wait=wait)
 
     def get_connection_info(
         self,
@@ -432,18 +450,25 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         )
 
     def start_maintenance(
-        self, name: str, *, service_type: str, zone: Optional[str] = None
+        self,
+        name: str,
+        *,
+        service_type: str,
+        zone: Optional[str] = None,
+        wait: Optional[bool] = None,
     ) -> dict:
         """Trigger the service's pending maintenance update immediately.
 
         Wraps ``PUT /dbaas-{type}/{name}/maintenance/start`` (available for
         every engine). Runs the maintenance that would otherwise wait for the
-        configured window; returns the raw operation-envelope dict.
+        configured window; returns the settled operation envelope as a dict
+        (``wait=False`` returns it unawaited).
         """
-        return self.client.put(
-            f"dbaas-{self._url_type(service_type)}/{name}/maintenance/start",
-            zone=self._zone(zone),
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"dbaas-{self._url_type(service_type)}/{name}/maintenance/start", zone=zone
         )
+        return self._settle(response, zone=zone, wait=wait)
 
     def list_service_types(self, *, zone: Optional[str] = None) -> List[dict]:
         """Return available DBaaS service types from the ``dbaas-service-type`` endpoint.
