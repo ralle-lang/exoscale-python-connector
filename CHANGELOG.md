@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Python 3.9 is end-of-life and 3.10 reaches end-of-life in October 2026;
   users on either should stay on 0.6.x. CI now tests 3.11 and 3.13, and the
   minimum-dependency job runs on 3.11 (#121).
+- CI's upper bound moves from Python 3.13 to 3.14, now declared in the
+  classifiers.
 
 ## [0.6.2] - 2026-10-08
 
