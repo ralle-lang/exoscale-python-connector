@@ -285,3 +285,38 @@ def test_cluster_payload_omits_empty_readonly_nodepools() -> None:
     assert "nodepools" not in SksCluster(name="c", version="1.31").to_api_payload()
     with_pools = SksCluster.model_validate({"id": "cl1", "nodepools": [{"id": "np1"}]})
     assert with_pools.model_dump(by_alias=True)["nodepools"][0]["id"] == "np1"
+
+
+@responses.activate
+def test_list_deprecated_resources_parses_bare_array(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/sks-cluster-deprecated-resources/c-1",
+        json=[
+            {
+                "group": "policy",
+                "version": "v1beta1",
+                "resource": "podsecuritypolicies",
+                "removed-release": "1.25",
+            }
+        ],
+    )
+    found = SksClusterClient(client).list_deprecated_resources("c-1")
+    assert [(r.resource, r.removed_release) for r in found] == [("podsecuritypolicies", "1.25")]
+
+
+@responses.activate
+def test_list_deprecated_resources_accepts_keyed_body(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/sks-cluster-deprecated-resources/c-1",
+        json={"sks-cluster-deprecated-resources": [{"resource": "ingresses"}]},
+    )
+    found = SksClusterClient(client).list_deprecated_resources("c-1")
+    assert [r.resource for r in found] == ["ingresses"]
+
+
+@responses.activate
+def test_list_deprecated_resources_empty(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/sks-cluster-deprecated-resources/c-1", json=[])
+    assert SksClusterClient(client).list_deprecated_resources("c-1") == []

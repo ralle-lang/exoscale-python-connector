@@ -88,6 +88,7 @@ SCHEMA_ALIASES: dict[str, str] = {
     "BlockVolumeSnapshotRef": "block-storage-snapshot-ref",
     "ElasticIPHealthcheck": "elastic-ip-healthcheck",
     "DBaaSServiceLogs": "dbaas-service-logs",
+    "SksDeprecatedResource": "sks-cluster-deprecated-resource",
     "IAMPolicy": "iam-policy",
     "IAMAssumeRolePolicy": "iam-assume-role-policy",
     "IAMPolicyService": "iam-service-policy",

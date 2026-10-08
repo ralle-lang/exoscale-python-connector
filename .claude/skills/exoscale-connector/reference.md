@@ -1041,6 +1041,18 @@ An Exoscale SKS (managed Kubernetes) cluster.
 | `auto_upgrade` | `auto-upgrade` | bool \| None |
 | `created_at` | `created-at` | str \| None |
 
+#### model `SksDeprecatedResource`
+
+A Kubernetes API in use on a cluster that a later release removes.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `group` | `group` | str \| None |
+| `version` | `version` | str \| None |
+| `resource` | `resource` | str \| None |
+| `subresource` | `subresource` | str \| None |
+| `removed_release` | `removed-release` | str \| None |
+
 #### model `SksNodepool`
 
 A pool of worker nodes within an SKS cluster.
@@ -1090,6 +1102,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Request a new kubeconfig for a cluster.
 - `get_nodepool(cluster_id: str, nodepool_id: str, *, zone: str | None = None) -> SksNodepool`
   Fetch a single nodepool by id.
+- `list_deprecated_resources(cluster_id: str, *, zone: str | None = None) -> list[SksDeprecatedResource]`
+  List deprecated Kubernetes APIs still in use on a cluster.
 - `list_nodepools(cluster_id: str, *, zone: str | None = None) -> list[SksNodepool]`
   Return all nodepools belonging to a cluster.
 - `list_versions(*, zone: str | None = None) -> list[str]`
@@ -3636,6 +3650,11 @@ np_id = op.reference_id
 sks.update_nodepool(cluster.id, np_id, {"size": 3})
 sks.update_nodepool(cluster.id, np_id, {"size": 1})
 
+# Before a version upgrade: which Kubernetes APIs in use does a later release
+# remove? Migrate anything whose removed_release <= the target version first.
+for r in sks.list_deprecated_resources(cluster.id):
+    print(r.group, r.version, r.resource, "removed in", r.removed_release)
+
 # Cleanup (nodepool first, then cluster)
 sks.delete_nodepool(cluster.id, np_id)
 sks.delete(cluster.id)
@@ -3643,6 +3662,8 @@ sks.delete(cluster.id)
 
 #### Gotchas
 
+- **`list_deprecated_resources()` is pending live verification** (implemented
+  from the API reference). It is read-only and safe to call at any time.
 - **Don't hardcode the Kubernetes `version` — discover it.** Call
   `list_versions()` (wraps `GET /sks-cluster-version`) and pick from the
   returned list. The accepted set shifts over time as Exoscale ships new

@@ -117,6 +117,11 @@ np_id = op.reference_id
 sks.update_nodepool(cluster.id, np_id, {"size": 3})
 sks.update_nodepool(cluster.id, np_id, {"size": 1})
 
+# Before a version upgrade: which Kubernetes APIs in use does a later release
+# remove? Migrate anything whose removed_release <= the target version first.
+for r in sks.list_deprecated_resources(cluster.id):
+    print(r.group, r.version, r.resource, "removed in", r.removed_release)
+
 # Cleanup (nodepool first, then cluster)
 sks.delete_nodepool(cluster.id, np_id)
 sks.delete(cluster.id)
@@ -124,6 +129,8 @@ sks.delete(cluster.id)
 
 ## Gotchas
 
+- **`list_deprecated_resources()` is pending live verification** (implemented
+  from the API reference). It is read-only and safe to call at any time.
 - **Don't hardcode the Kubernetes `version` — discover it.** Call
   `list_versions()` (wraps `GET /sks-cluster-version`) and pick from the
   returned list. The accepted set shifts over time as Exoscale ships new
