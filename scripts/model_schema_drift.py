@@ -66,6 +66,7 @@ EXEMPT_MODELS: dict[str, str] = {
         "flattened superset of the dbaas-service-* discriminated union "
         "(dbaas-service-pg / -mysql / -kafka / ...); no single 1:1 schema to diff against"
     ),
+    "DBaaSLogEntry": "inline item schema of dbaas-service-logs.logs; no named component",
     "DBaaSConnectionInfo": (
         "connection-info is defined per engine in the spec and its shape varies "
         "(e.g. uri is a list for pg, a string for grafana), so there is no single "
@@ -86,6 +87,7 @@ SCHEMA_ALIASES: dict[str, str] = {
     "SshKeyReference": "ssh-key-ref",
     "BlockVolumeSnapshotRef": "block-storage-snapshot-ref",
     "ElasticIPHealthcheck": "elastic-ip-healthcheck",
+    "DBaaSServiceLogs": "dbaas-service-logs",
     "IAMPolicy": "iam-policy",
     "IAMAssumeRolePolicy": "iam-assume-role-policy",
     "IAMPolicyService": "iam-service-policy",

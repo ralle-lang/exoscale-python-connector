@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - DBaaS `create_database` / `delete_database` for pg and mysql services, and
   the `databases` field on `DBaaSService` (#78).
+- DBaaS `get_ca_certificate`, `get_logs` (typed, cursor-paged) and
+  `get_metrics` (#78).
 
 ### Changed
 

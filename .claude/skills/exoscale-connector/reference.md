@@ -269,6 +269,17 @@ Connection parameters embedded in a service detail response.
 | `ca` | `ca` | str \| None |
 | `uri` | `uri` | str \| list[str] \| None |
 
+#### model `DBaaSLogEntry`
+
+One service log line.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `time` | `time` | str \| None |
+| `node` | `node` | str \| None |
+| `unit` | `unit` | str \| None |
+| `message` | `message` | str \| None |
+
 #### model `DBaaSService`
 
 An Exoscale managed database service.
@@ -288,6 +299,16 @@ An Exoscale managed database service.
 | `uri` | `uri` | str \| None |
 | `connection_info` | `connection-info` | DBaaSConnectionInfo \| None |
 | `databases` | `databases` | list[str] \| None |
+
+#### model `DBaaSServiceLogs`
+
+A page of service logs; pass :attr:`offset` back to fetch the next one.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `logs` | `logs` | list[DBaaSLogEntry] \| None |
+| `offset` | `offset` | str \| None |
+| `first_log_offset` | `first-log-offset` | str \| None |
 
 #### client `DBaaSServiceClient`
 
@@ -313,8 +334,14 @@ Inherits the common operations (see above) plus the methods below, if any.
   Fetch a DBaaS service by name.
 - `get_acl_config(name: str, *, service_type: str, zone: str | None = None) -> dict`
   Return the ACL configuration for a service.
+- `get_ca_certificate(*, zone: str | None = None) -> str`
+  Return the PEM CA certificate that signs DBaaS server certificates.
 - `get_connection_info(name: str, *, service_type: str, zone: str | None = None) -> DBaaSService`
   Fetch the full service detail including ``connection-info`` and ``uri-params``.
+- `get_logs(name: str, *, limit: int | None = None, offset: str | None = None, sort_order: str | None = None, zone: str | None = None) -> DBaaSServiceLogs`
+  Fetch a page of service logs (``POST /dbaas-service-logs/{name}``).
+- `get_metrics(name: str, *, period: str | None = None, zone: str | None = None) -> dict`
+  Fetch service metrics (``POST /dbaas-service-metrics/{name}``).
 - `get_settings(service_type: str, *, zone: str | None = None) -> dict`
   Return the configurable settings schema for an engine type.
 - `list_service_types(*, zone: str | None = None) -> list[dict]`
@@ -1929,6 +1956,32 @@ dbaas.delete_database(name, "app", service_type="pg")
 - `lc_collate` / `lc_ctype` are PostgreSQL locale settings; passing them for
   mysql raises `ValueError`.
 - Both methods await their operation unless `wait=False`.
+
+##### TLS trust, logs and metrics
+
+Engine-generic reads, all implemented from the API reference — pending live
+verification:
+
+```python
+# The CA that signs every DBaaS server certificate. Pin it to verify the host
+# from get_connection_info(), e.g. libpq sslmode=verify-full sslrootcert=<file>.
+pem = dbaas.get_ca_certificate()
+
+# Logs page through an opaque cursor: pass the previous page's offset back.
+page = dbaas.get_logs(name, limit=100, sort_order="desc")
+for entry in page.logs or []:
+    print(entry.time, entry.node, entry.message)
+older = dbaas.get_logs(name, offset=page.offset)
+
+# Metrics for a period (hour / day / week / month / year); engine-specific
+# series, so a raw dict.
+metrics = dbaas.get_metrics(name, period="day")
+```
+
+- `get_logs` and `get_metrics` are reads even though the API exposes them as
+  `POST` (the options travel in the body); they never change the service.
+- Log lines can contain query text or client addresses — treat them like any
+  other operational data and keep them out of shared CI output.
 
 ##### Generic engine sub-resources (settings / ACL / maintenance)
 
