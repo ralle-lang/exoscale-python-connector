@@ -46,6 +46,20 @@ class SksCluster(ExoscaleModel):
     auto_upgrade: Optional[bool]
     created_at: Optional[str]
     nodepools: Optional[List[SksNodepool]]       # embedded in detail responses
+    oidc: Optional[SksOidc]                      # API-server OpenID Connect
+    feature_gates: Optional[List[str]]           # Kubernetes alpha feature gates
+    enable_kube_proxy: Optional[bool]
+    default_security_group_id: Optional[str]     # read-only
+
+
+class SksOidc(ExoscaleModel):
+    client_id: Optional[str]                     # required with issuer_url
+    issuer_url: Optional[str]
+    username_claim: Optional[str]
+    username_prefix: Optional[str]
+    groups_claim: Optional[str]
+    groups_prefix: Optional[str]
+    required_claim: Optional[Dict[str, str]]
 ```
 
 ## Addons

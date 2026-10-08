@@ -28,6 +28,10 @@ class InstancePool(ExoscaleModel):
     deploy_target: Optional[Reference]
     ssh_key: Optional[Reference]
     created_at: Optional[str]
+    elastic_ips: Optional[List[Reference]]
+    ssh_keys: Optional[List[SshKeyReference]]   # every key; ssh_key is the shorthand
+    user_data: Optional[str]                    # cloud-init for new members, base64
+    min_available: Optional[int]                # floor kept during rolling operations
 ```
 
 ## CLI

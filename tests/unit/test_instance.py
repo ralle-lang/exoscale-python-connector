@@ -154,3 +154,36 @@ def test_get_parses_deploy_target_reference(client, base_url) -> None:
     instance = InstanceClient(client).get("i1")
     assert instance.deploy_target is not None
     assert instance.deploy_target.id == "dt1"
+
+
+def test_instance_parses_attachment_and_security_fields() -> None:
+    from exoscale_connector.resources.instance import Instance
+
+    inst = Instance.model_validate(
+        {
+            "id": "i-1",
+            "anti-affinity-groups": [{"id": "aag-1"}],
+            "elastic-ips": [{"id": "eip-1"}],
+            "private-networks": [{"id": "pn-1", "mac-address": "aa:bb:cc:dd:ee:ff"}],
+            "ssh-keys": [{"name": "ops"}, {"name": "ci"}],
+            "user-data": "I2Nsb3VkLWNvbmZpZw==",
+            "public-ip-assignment": "dual",
+            "mac-address": "11:22:33:44:55:66",
+            "disk-encrypted": True,
+            "secureboot-enabled": False,
+            "tpm-enabled": True,
+        }
+    )
+    assert [a.id for a in inst.anti_affinity_groups] == ["aag-1"]
+    assert inst.elastic_ips[0].id == "eip-1"
+    assert inst.private_networks[0].mac_address == "aa:bb:cc:dd:ee:ff"
+    assert [k.name for k in inst.ssh_keys] == ["ops", "ci"]
+    assert inst.public_ip_assignment == "dual"
+    assert (inst.disk_encrypted, inst.secureboot_enabled, inst.tpm_enabled) == (True, False, True)
+
+
+def test_instance_without_new_fields_serialises_without_them() -> None:
+    from exoscale_connector.resources.instance import Instance
+
+    payload = Instance(name="web").to_api_payload()
+    assert "elastic-ips" not in payload and "ssh-keys" not in payload

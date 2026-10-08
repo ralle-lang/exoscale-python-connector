@@ -169,3 +169,10 @@ def test_delete_subnet_returns_settled_operation(client, base_url) -> None:
     )
     op = VpcClient(client).delete_subnet("v1", "s1")
     assert op.state == "success"
+
+
+def test_subnet_parses_attached_instances() -> None:
+    subnet = VpcSubnet.model_validate(
+        {"id": "sn-1", "instances": [{"id": "i-1", "ipv4": "172.16.0.10"}]}
+    )
+    assert [(i.id, i.ipv4) for i in subnet.instances] == [("i-1", "172.16.0.10")]

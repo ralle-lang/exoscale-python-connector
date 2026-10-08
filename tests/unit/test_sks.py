@@ -320,3 +320,34 @@ def test_list_deprecated_resources_accepts_keyed_body(client, base_url) -> None:
 def test_list_deprecated_resources_empty(client, base_url) -> None:
     responses.add(responses.GET, f"{base_url}/sks-cluster-deprecated-resources/c-1", json=[])
     assert SksClusterClient(client).list_deprecated_resources("c-1") == []
+
+
+def test_sks_cluster_parses_oidc_and_api_server_options() -> None:
+    cluster = SksCluster.model_validate(
+        {
+            "id": "c-1",
+            "oidc": {
+                "client-id": "k8s",
+                "issuer-url": "https://idp.example",
+                "groups-claim": "groups",
+                "required-claim": {"aud": "k8s"},
+            },
+            "feature-gates": ["InPlacePodVerticalScaling"],
+            "enable-kube-proxy": False,
+            "default-security-group-id": "sg-1",
+        }
+    )
+    assert cluster.oidc.issuer_url == "https://idp.example"
+    assert cluster.oidc.required_claim == {"aud": "k8s"}
+    assert cluster.feature_gates == ["InPlacePodVerticalScaling"]
+    assert cluster.enable_kube_proxy is False
+    assert cluster.default_security_group_id == "sg-1"
+
+
+def test_sks_oidc_serialises_kebab_case_on_create() -> None:
+    from exoscale_connector.resources.sks import SksOidc
+
+    payload = SksCluster(
+        name="c", oidc=SksOidc(client_id="k8s", issuer_url="https://idp.example")
+    ).to_api_payload()
+    assert payload["oidc"] == {"client-id": "k8s", "issuer-url": "https://idp.example"}

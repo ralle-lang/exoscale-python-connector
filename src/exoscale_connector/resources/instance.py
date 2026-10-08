@@ -18,6 +18,13 @@ class SshKeyReference(ExoscaleModel):
     name: str | None = None
 
 
+class InstancePrivateNetwork(ExoscaleModel):
+    """A private network attachment on an instance, with its interface MAC."""
+
+    id: str | None = None
+    mac_address: str | None = None
+
+
 class Instance(ExoscaleModel):
     """An Exoscale compute instance."""
 
@@ -41,6 +48,20 @@ class Instance(ExoscaleModel):
     # with DeployTargetClient. Round-tripped on the response.
     deploy_target: Reference | None = None
     created_at: str | None = None
+    # Attachments. Response-side; manage them through the dedicated
+    # attach/detach endpoints (or the create payload), not via update().
+    anti_affinity_groups: list[Reference] | None = None
+    elastic_ips: list[Reference] | None = None
+    private_networks: list[InstancePrivateNetwork] | None = None
+    # Every key on the instance; `ssh_key` above is the single-key shorthand.
+    ssh_keys: list[SshKeyReference] | None = None
+    # Cloud-init user data, base64-encoded.
+    user_data: str | None = None
+    public_ip_assignment: str | None = None  # "inet4" | "dual" | "none"
+    mac_address: str | None = None
+    disk_encrypted: bool | None = None
+    secureboot_enabled: bool | None = None
+    tpm_enabled: bool | None = None
 
 
 class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):

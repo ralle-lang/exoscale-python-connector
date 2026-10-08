@@ -126,3 +126,21 @@ def test_scale_awaits_pending_operation(client, base_url) -> None:
     )
     op = InstancePoolClient(client).scale("pool-1", 3)
     assert op.state == "success"
+
+
+def test_instance_pool_parses_keys_eips_and_min_available() -> None:
+    from exoscale_connector.resources.instance_pool import InstancePool
+
+    pool = InstancePool.model_validate(
+        {
+            "id": "p-1",
+            "elastic-ips": [{"id": "eip-1"}],
+            "ssh-keys": [{"name": "ops"}],
+            "user-data": "I2Nsb3VkLWNvbmZpZw==",
+            "min-available": 2,
+        }
+    )
+    assert pool.elastic_ips[0].id == "eip-1"
+    assert pool.ssh_keys[0].name == "ops"
+    assert pool.user_data == "I2Nsb3VkLWNvbmZpZw=="
+    assert pool.min_available == 2

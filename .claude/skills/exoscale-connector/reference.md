@@ -643,6 +643,25 @@ An Exoscale compute instance.
 | `manager` | `manager` | Reference \| None |
 | `deploy_target` | `deploy-target` | Reference \| None |
 | `created_at` | `created-at` | str \| None |
+| `anti_affinity_groups` | `anti-affinity-groups` | list[Reference] \| None |
+| `elastic_ips` | `elastic-ips` | list[Reference] \| None |
+| `private_networks` | `private-networks` | list[InstancePrivateNetwork] \| None |
+| `ssh_keys` | `ssh-keys` | list[SshKeyReference] \| None |
+| `user_data` | `user-data` | str \| None |
+| `public_ip_assignment` | `public-ip-assignment` | str \| None |
+| `mac_address` | `mac-address` | str \| None |
+| `disk_encrypted` | `disk-encrypted` | bool \| None |
+| `secureboot_enabled` | `secureboot-enabled` | bool \| None |
+| `tpm_enabled` | `tpm-enabled` | bool \| None |
+
+#### model `InstancePrivateNetwork`
+
+A private network attachment on an instance, with its interface MAC.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | str \| None |
+| `mac_address` | `mac-address` | str \| None |
 
 #### model `SshKeyReference`
 
@@ -704,6 +723,10 @@ An Exoscale instance pool (autoscaling group of identical instances).
 | `deploy_target` | `deploy-target` | Reference \| None |
 | `ssh_key` | `ssh-key` | Reference \| None |
 | `created_at` | `created-at` | str \| None |
+| `elastic_ips` | `elastic-ips` | list[Reference] \| None |
+| `ssh_keys` | `ssh-keys` | list[SshKeyReference] \| None |
+| `user_data` | `user-data` | str \| None |
+| `min_available` | `min-available` | int \| None |
 
 #### client `InstancePoolClient`
 
@@ -838,6 +861,15 @@ An Exoscale Network Load Balancer and its services.
 | `labels` | `labels` | dict[str, str] \| None |
 | `services` | `services` | list[LoadBalancerService] |
 
+#### model `LoadBalancerServerStatus`
+
+Healthcheck result for one backend server.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `public_ip` | `public-ip` | str \| None |
+| `status` | `status` | str \| None |
+
 #### model `LoadBalancerService`
 
 A listener/backend service belonging to a Load Balancer.
@@ -851,14 +883,24 @@ A listener/backend service belonging to a Load Balancer.
 | `port` | `port` | int \| None |
 | `target_port` | `target-port` | int \| None |
 | `strategy` | `strategy` | str \| None |
-| `healthcheck_mode` | `healthcheck-mode` | str \| None |
-| `healthcheck_port` | `healthcheck-port` | int \| None |
-| `healthcheck_uri` | `healthcheck-uri` | str \| None |
-| `healthcheck_interval` | `healthcheck-interval` | int \| None |
-| `healthcheck_timeout` | `healthcheck-timeout` | int \| None |
-| `healthcheck_retries` | `healthcheck-retries` | int \| None |
-| `healthcheck_tls_sni` | `healthcheck-tls-sni` | str \| None |
+| `instance_pool` | `instance-pool` | Reference \| None |
+| `healthcheck` | `healthcheck` | LoadBalancerServiceHealthcheck \| None |
+| `healthcheck_status` | `healthcheck-status` | list[LoadBalancerServerStatus] \| None |
 | `state` | `state` | str \| None |
+
+#### model `LoadBalancerServiceHealthcheck`
+
+How the load balancer probes a service's backends.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `mode` | `mode` | str \| None |
+| `port` | `port` | int \| None |
+| `uri` | `uri` | str \| None |
+| `interval` | `interval` | int \| None |
+| `timeout` | `timeout` | int \| None |
+| `retries` | `retries` | int \| None |
+| `tls_sni` | `tls-sni` | str \| None |
 
 #### client `LoadBalancerClient`
 
@@ -955,6 +997,29 @@ An Exoscale Private Network (layer-2 segment within a zone).
 | `end_ip` | `end-ip` | str \| None |
 | `netmask` | `netmask` | str \| None |
 | `labels` | `labels` | dict[str, str] \| None |
+| `options` | `options` | PrivateNetworkOptions \| None |
+| `leases` | `leases` | list[PrivateNetworkLease] \| None |
+| `vni` | `vni` | int \| None |
+
+#### model `PrivateNetworkLease`
+
+A static DHCP lease: which instance holds which address.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `instance_id` | `instance-id` | str \| None |
+| `ip` | `ip` | str \| None |
+
+#### model `PrivateNetworkOptions`
+
+DHCP options handed to instances on a managed private network.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `dns_servers` | `dns-servers` | list[str] \| None |
+| `ntp_servers` | `ntp-servers` | list[str] \| None |
+| `routers` | `routers` | list[str] \| None |
+| `domain_search` | `domain-search` | list[str] \| None |
 
 #### client `PrivateNetworkClient`
 
@@ -1045,6 +1110,10 @@ An Exoscale SKS (managed Kubernetes) cluster.
 | `nodepools` | `nodepools` | list[SksNodepool] |
 | `labels` | `labels` | dict[str, str] \| None |
 | `auto_upgrade` | `auto-upgrade` | bool \| None |
+| `oidc` | `oidc` | SksOidc \| None |
+| `feature_gates` | `feature-gates` | list[str] \| None |
+| `enable_kube_proxy` | `enable-kube-proxy` | bool \| None |
+| `default_security_group_id` | `default-security-group-id` | str \| None |
 | `created_at` | `created-at` | str \| None |
 
 #### model `SksDeprecatedResource`
@@ -1091,6 +1160,20 @@ A Kubernetes taint applied to every node in a nodepool.
 |---|---|---|
 | `value` | `value` | str \| None |
 | `effect` | `effect` | str \| None |
+
+#### model `SksOidc`
+
+OpenID Connect settings for the cluster's API server.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `client_id` | `client-id` | str \| None |
+| `issuer_url` | `issuer-url` | str \| None |
+| `username_claim` | `username-claim` | str \| None |
+| `username_prefix` | `username-prefix` | str \| None |
+| `groups_claim` | `groups-claim` | str \| None |
+| `groups_prefix` | `groups-prefix` | str \| None |
+| `required_claim` | `required-claim` | dict[str, str] \| None |
 
 #### client `SksClusterClient`
 
@@ -1261,6 +1344,16 @@ An IP subnet within a VPC that instances can attach to.
 | `ipv4_block` | `ipv4-block` | str \| None |
 | `labels` | `labels` | dict[str, str] \| None |
 | `created_at` | `created-at` | str \| None |
+| `instances` | `instances` | list[VpcSubnetInstance] \| None |
+
+#### model `VpcSubnetInstance`
+
+An instance attached to a subnet and the address it was given.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | str \| None |
+| `ipv4` | `ipv4` | str \| None |
 
 #### client `VpcClient`
 
@@ -2659,6 +2752,10 @@ class InstancePool(ExoscaleModel):
     deploy_target: Optional[Reference]
     ssh_key: Optional[Reference]
     created_at: Optional[str]
+    elastic_ips: Optional[List[Reference]]
+    ssh_keys: Optional[List[SshKeyReference]]   # every key; ssh_key is the shorthand
+    user_data: Optional[str]                    # cloud-init for new members, base64
+    min_available: Optional[int]                # floor kept during rolling operations
 ```
 
 #### CLI
@@ -2804,6 +2901,11 @@ class SshKeyReference(ExoscaleModel):
     name: Optional[str]
 
 
+class InstancePrivateNetwork(ExoscaleModel):
+    id: Optional[str]
+    mac_address: Optional[str]
+
+
 class Instance(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -2817,6 +2919,17 @@ class Instance(ExoscaleModel):
     labels: Optional[dict]
     manager: Optional[Reference]      # set when the instance is a pool member
     created_at: Optional[str]
+    # Attachments (read them here; change them via attach/detach endpoints)
+    anti_affinity_groups: Optional[List[Reference]]
+    elastic_ips: Optional[List[Reference]]
+    private_networks: Optional[List[InstancePrivateNetwork]]
+    ssh_keys: Optional[List[SshKeyReference]]   # every key; ssh_key is the shorthand
+    user_data: Optional[str]                    # cloud-init, base64
+    public_ip_assignment: Optional[str]         # "inet4" | "dual" | "none"
+    mac_address: Optional[str]
+    disk_encrypted: Optional[bool]
+    secureboot_enabled: Optional[bool]
+    tpm_enabled: Optional[bool]
 ```
 
 #### CLI
@@ -3051,6 +3164,21 @@ how incoming traffic on a port maps to a backing instance pool.
 #### Model
 
 ```python
+class LoadBalancerServiceHealthcheck(ExoscaleModel):
+    mode: Optional[str]                      # "tcp" | "http" | "https"
+    port: Optional[int]
+    uri: Optional[str]                       # http/https only
+    interval: Optional[int]                  # seconds, >= timeout
+    timeout: Optional[int]
+    retries: Optional[int]
+    tls_sni: Optional[str]                   # https only
+
+
+class LoadBalancerServerStatus(ExoscaleModel):
+    public_ip: Optional[str]
+    status: Optional[str]                    # "success" | "failure"
+
+
 class LoadBalancerService(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -3059,13 +3187,9 @@ class LoadBalancerService(ExoscaleModel):
     port: Optional[int]                      # public-facing port
     target_port: Optional[int]               # port on the backing instances
     strategy: Optional[str]                  # "round-robin" | "source-hash"
-    healthcheck_mode: Optional[str]          # "tcp" | "http" | "https"
-    healthcheck_port: Optional[int]
-    healthcheck_uri: Optional[str]
-    healthcheck_interval: Optional[int]
-    healthcheck_timeout: Optional[int]
-    healthcheck_retries: Optional[int]
-    healthcheck_tls_sni: Optional[str]
+    instance_pool: Optional[Reference]       # the backend pool
+    healthcheck: Optional[LoadBalancerServiceHealthcheck]
+    healthcheck_status: Optional[List[LoadBalancerServerStatus]]   # read-only
     state: Optional[str]
 
 
@@ -3139,9 +3263,10 @@ lbs.delete(lb.id)
 - **Service path is `/service` (singular)**, e.g.
   `POST /load-balancer/<id>/service`. Confirmed against the live API; it's not
   always reflected in the OpenAPI index.
-- **The `LoadBalancerService` model currently flattens healthcheck fields
-  and lacks an `instance_pool` field.** Use dict payloads to send the full
-  spec the wire expects. (Tracked as a follow-up model refinement.)
+- **`healthcheck` is a nested object** (`svc.healthcheck.mode`), matching the
+  wire. Before 0.7.0 the model flattened it into `healthcheck_*` fields that
+  never received data; those are gone. Dict payloads and
+  `LoadBalancerService(...)` models now serialise to the same shape.
 - **Delete the LB before deleting the backing pool** — the API rejects
   deleting a pool that has an LB pointing at it.
 
@@ -3343,6 +3468,18 @@ IPs from `start-ip`/`end-ip`).
 #### Model
 
 ```python
+class PrivateNetworkLease(ExoscaleModel):
+    instance_id: Optional[str]
+    ip: Optional[str]
+
+
+class PrivateNetworkOptions(ExoscaleModel):   # DHCP options
+    dns_servers: Optional[List[str]]
+    ntp_servers: Optional[List[str]]
+    routers: Optional[List[str]]
+    domain_search: Optional[List[str]]
+
+
 class PrivateNetwork(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -3351,6 +3488,9 @@ class PrivateNetwork(ExoscaleModel):
     end_ip: Optional[str]     # managed networks only
     netmask: Optional[str]    # managed networks only
     labels: Optional[Dict[str, str]]
+    options: Optional[PrivateNetworkOptions]
+    leases: Optional[List[PrivateNetworkLease]]   # read-only
+    vni: Optional[int]                            # VXLAN ID, read-only
 ```
 
 #### CLI
@@ -3609,6 +3749,20 @@ class SksCluster(ExoscaleModel):
     auto_upgrade: Optional[bool]
     created_at: Optional[str]
     nodepools: Optional[List[SksNodepool]]       # embedded in detail responses
+    oidc: Optional[SksOidc]                      # API-server OpenID Connect
+    feature_gates: Optional[List[str]]           # Kubernetes alpha feature gates
+    enable_kube_proxy: Optional[bool]
+    default_security_group_id: Optional[str]     # read-only
+
+
+class SksOidc(ExoscaleModel):
+    client_id: Optional[str]                     # required with issuer_url
+    issuer_url: Optional[str]
+    username_claim: Optional[str]
+    username_prefix: Optional[str]
+    groups_claim: Optional[str]
+    groups_prefix: Optional[str]
+    required_claim: Optional[Dict[str, str]]
 ```
 
 #### Addons
@@ -4044,6 +4198,11 @@ class Vpc(ExoscaleModel):
     created_at: Optional[str]
 
 
+class VpcSubnetInstance(ExoscaleModel):
+    id: Optional[str]
+    ipv4: Optional[str]
+
+
 class VpcSubnet(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -4053,6 +4212,7 @@ class VpcSubnet(ExoscaleModel):
     ipv4_block: Optional[str]       # CIDR
     labels: Optional[Dict[str, str]]
     created_at: Optional[str]
+    instances: Optional[List[VpcSubnetInstance]]   # attached instances + address
 
 
 class VpcRoute(ExoscaleModel):

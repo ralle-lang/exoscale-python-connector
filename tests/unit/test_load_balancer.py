@@ -170,3 +170,36 @@ def test_delete_service_deletes_correct_path(client, base_url) -> None:
     op = LoadBalancerClient(client).delete_service("lb1", "svc1")
     assert op.state == "success"
     assert responses.calls[0].request.method == "DELETE"
+
+
+def test_service_parses_nested_healthcheck_status_and_pool() -> None:
+    svc = LoadBalancerService.model_validate(
+        {
+            "id": "s-1",
+            "instance-pool": {"id": "p-1"},
+            "healthcheck": {"mode": "https", "port": 443, "uri": "/health", "tls-sni": "app"},
+            "healthcheck-status": [{"public-ip": "192.0.2.10", "status": "success"}],
+        }
+    )
+    assert svc.instance_pool.id == "p-1"
+    assert (svc.healthcheck.mode, svc.healthcheck.port) == ("https", 443)
+    assert svc.healthcheck.tls_sni == "app"
+    assert svc.healthcheck_status[0].status == "success"
+
+
+def test_service_model_serialises_the_wire_shape() -> None:
+    from exoscale_connector.models import Reference
+    from exoscale_connector.resources.load_balancer import LoadBalancerServiceHealthcheck
+
+    payload = LoadBalancerService(
+        name="http",
+        protocol="tcp",
+        port=80,
+        target_port=8080,
+        strategy="round-robin",
+        instance_pool=Reference(id="p-1"),
+        healthcheck=LoadBalancerServiceHealthcheck(mode="tcp", port=8080, interval=10),
+    ).to_api_payload()
+    assert payload["instance-pool"] == {"id": "p-1"}
+    assert payload["healthcheck"] == {"mode": "tcp", "port": 8080, "interval": 10}
+    assert not any(k.startswith("healthcheck-") for k in payload)

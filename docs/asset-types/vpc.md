@@ -15,6 +15,11 @@ class Vpc(ExoscaleModel):
     created_at: Optional[str]
 
 
+class VpcSubnetInstance(ExoscaleModel):
+    id: Optional[str]
+    ipv4: Optional[str]
+
+
 class VpcSubnet(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -24,6 +29,7 @@ class VpcSubnet(ExoscaleModel):
     ipv4_block: Optional[str]       # CIDR
     labels: Optional[Dict[str, str]]
     created_at: Optional[str]
+    instances: Optional[List[VpcSubnetInstance]]   # attached instances + address
 
 
 class VpcRoute(ExoscaleModel):

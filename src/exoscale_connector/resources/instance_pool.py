@@ -9,6 +9,7 @@ from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
+from .instance import SshKeyReference
 
 
 class InstancePool(ExoscaleModel):
@@ -33,6 +34,13 @@ class InstancePool(ExoscaleModel):
     deploy_target: Reference | None = None
     ssh_key: Reference | None = None
     created_at: str | None = None
+    elastic_ips: list[Reference] | None = None
+    # Every key on the pool's instances; `ssh_key` is the single-key shorthand.
+    ssh_keys: list[SshKeyReference] | None = None
+    # Cloud-init user data for new members, base64-encoded.
+    user_data: str | None = None
+    # Floor of running members kept during rolling operations.
+    min_available: int | None = None
 
 
 class InstancePoolClient(ResourceClient[InstancePool]):

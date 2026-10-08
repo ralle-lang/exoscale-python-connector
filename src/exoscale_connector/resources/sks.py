@@ -33,6 +33,19 @@ class SksDeprecatedResource(ExoscaleModel):
     removed_release: str | None = None
 
 
+class SksOidc(ExoscaleModel):
+    """OpenID Connect settings for the cluster's API server."""
+
+    client_id: str | None = None
+    issuer_url: str | None = None
+    username_claim: str | None = None
+    username_prefix: str | None = None
+    groups_claim: str | None = None
+    groups_prefix: str | None = None
+    # Claim-name -> required value pairs a token must carry.
+    required_claim: dict[str, str] | None = None
+
+
 class SksNodepoolTaint(ExoscaleModel):
     """A Kubernetes taint applied to every node in a nodepool."""
 
@@ -92,6 +105,11 @@ class SksCluster(ExoscaleModel):
     nodepools: list[SksNodepool] = Field(default_factory=list)
     labels: dict[str, str] | None = None
     auto_upgrade: bool | None = None
+    oidc: SksOidc | None = None
+    # Kubernetes alpha feature gates enabled on the API server.
+    feature_gates: list[str] | None = None
+    enable_kube_proxy: bool | None = None
+    default_security_group_id: str | None = None
     created_at: str | None = None
 
     @model_serializer(mode="wrap")

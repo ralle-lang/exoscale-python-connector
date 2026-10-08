@@ -33,6 +33,13 @@ class VpcRoute(ExoscaleModel):
     kind: str | None = None
 
 
+class VpcSubnetInstance(ExoscaleModel):
+    """An instance attached to a subnet and the address it was given."""
+
+    id: str | None = None
+    ipv4: str | None = None
+
+
 class VpcSubnet(ExoscaleModel):
     """An IP subnet within a VPC that instances can attach to."""
 
@@ -46,6 +53,8 @@ class VpcSubnet(ExoscaleModel):
     ipv4_block: str | None = None
     labels: dict[str, str] | None = None
     created_at: str | None = None
+    # Instances attached via attach/detach, with their subnet address.
+    instances: list[VpcSubnetInstance] | None = None
 
 
 class Vpc(ExoscaleModel):
