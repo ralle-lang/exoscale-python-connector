@@ -191,6 +191,24 @@ secret = dbaas.reveal_user_password(name, "analyst", service_type="pg")
 dbaas.delete_user(name, "analyst", service_type="pg")
 ```
 
+### Databases (pg / mysql)
+
+A new service only holds its default database. Create and drop further ones
+inside it; the current list is the `databases` field of the type-specific
+detail. Implemented from the API reference — pending live verification.
+
+```python
+dbaas.create_database(name, "app", service_type="pg", lc_collate="C", lc_ctype="C")
+dbaas.get_connection_info(name, service_type="pg").databases  # ["defaultdb", "app"]
+dbaas.delete_database(name, "app", service_type="pg")
+```
+
+- Only pg and mysql have a database sub-resource; any other `service_type`
+  raises `ValueError` before a request is sent.
+- `lc_collate` / `lc_ctype` are PostgreSQL locale settings; passing them for
+  mysql raises `ValueError`.
+- Both methods await their operation unless `wait=False`.
+
 ### Generic engine sub-resources (settings / ACL / maintenance)
 
 Three read/trigger helpers that generalise across engine types:

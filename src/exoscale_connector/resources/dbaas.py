@@ -80,6 +80,8 @@ class DBaaSService(ExoscaleModel):
     uri: str | None = None
     # Connection details including CA cert (full item endpoint only).
     connection_info: DBaaSConnectionInfo | None = None
+    # Database names inside the service (pg and mysql, type-specific GET only).
+    databases: list[str] | None = None
 
 
 class DBaaSServiceClient(ResourceClient[DBaaSService]):
@@ -112,6 +114,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
     # Short-form → URL-form mapping for known mismatches.
     _URL_TYPE_ALIASES: dict[str, str] = {"pg": "postgres"}
+    # Engines whose API exposes a database sub-resource (URL form).
+    _DATABASE_ENGINES = ("postgres", "mysql")
 
     @classmethod
     def _url_type(cls, service_type: str) -> str:
@@ -418,6 +422,74 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}/password/reveal",
             zone=self._zone(zone),
         )
+
+    # ------------------------------------------------------------------ #
+    # Databases inside a service (pg / mysql)
+    # ------------------------------------------------------------------ #
+
+    def _database_engine(self, service_type: str) -> str:
+        url_type = self._url_type(service_type)
+        if url_type not in self._DATABASE_ENGINES:
+            raise ValueError(
+                f"service type {service_type!r} has no database sub-resource; only pg and mysql do"
+            )
+        return url_type
+
+    def create_database(
+        self,
+        name: str,
+        database_name: str,
+        *,
+        service_type: str,
+        lc_collate: str | None = None,
+        lc_ctype: str | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Create a database inside a pg or mysql service.
+
+        Wraps ``POST dbaas-{type}/{name}/database``. ``lc_collate`` /
+        ``lc_ctype`` set the PostgreSQL locale and are rejected for mysql. List
+        the existing databases via :attr:`DBaaSService.databases` on
+        :meth:`get_connection_info`. Returns the settled operation envelope.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        url_type = self._database_engine(service_type)
+        body: dict[str, Any] = {"database-name": database_name}
+        locale = {"lc-collate": lc_collate, "lc-ctype": lc_ctype}
+        if any(v is not None for v in locale.values()):
+            if url_type != "postgres":
+                raise ValueError("lc_collate / lc_ctype apply to pg services only")
+            body.update({k: v for k, v in locale.items() if v is not None})
+        zone = self._zone(zone)
+        response = self.client.post(f"dbaas-{url_type}/{name}/database", zone=zone, json=body)
+        return self._settle(response, zone=zone, wait=wait)
+
+    def delete_database(
+        self,
+        name: str,
+        database_name: str,
+        *,
+        service_type: str,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Delete a database from a pg or mysql service.
+
+        Wraps ``DELETE dbaas-{type}/{name}/database/{database_name}``. Returns
+        the settled operation envelope.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        url_type = self._database_engine(service_type)
+        zone = self._zone(zone)
+        response = self.client.delete(
+            f"dbaas-{url_type}/{name}/database/{database_name}", zone=zone
+        )
+        return self._settle(response, zone=zone, wait=wait)
 
     # ------------------------------------------------------------------ #
     # Generic engine sub-resources (settings / ACL / maintenance)
