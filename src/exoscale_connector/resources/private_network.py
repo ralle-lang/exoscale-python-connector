@@ -5,7 +5,7 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-private-network
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..models import ExoscaleModel, Operation
 from ._base import ResourceClient
@@ -14,14 +14,14 @@ from ._base import ResourceClient
 class PrivateNetwork(ExoscaleModel):
     """An Exoscale Private Network (layer-2 segment within a zone)."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # Optional DHCP range and netmask; only present when DHCP is configured.
-    start_ip: Optional[str] = None  # API key: "start-ip"
-    end_ip: Optional[str] = None  # API key: "end-ip"
-    netmask: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
+    start_ip: str | None = None  # API key: "start-ip"
+    end_ip: str | None = None  # API key: "end-ip"
+    netmask: str | None = None
+    labels: dict[str, str] | None = None
 
 
 class PrivateNetworkClient(ResourceClient[PrivateNetwork]):
@@ -40,9 +40,9 @@ class PrivateNetworkClient(ResourceClient[PrivateNetwork]):
         network_id: str,
         instance_id: str,
         *,
-        ip: Optional[str] = None,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        ip: str | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Attach a compute instance to this private network.
 
@@ -57,7 +57,7 @@ class PrivateNetworkClient(ResourceClient[PrivateNetwork]):
         DHCP assign one. ``ip`` is ignored by unmanaged networks.
         """
         zone = self._zone(zone)
-        body: Dict[str, Any] = {"instance": {"id": instance_id}}
+        body: dict[str, Any] = {"instance": {"id": instance_id}}
         if ip is not None:
             body["ip"] = ip
         response = self.client.put(
@@ -72,8 +72,8 @@ class PrivateNetworkClient(ResourceClient[PrivateNetwork]):
         network_id: str,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Detach a compute instance from this private network.
 
@@ -93,8 +93,8 @@ class PrivateNetworkClient(ResourceClient[PrivateNetwork]):
         self,
         response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """Parse an attach/detach response and await completion by default."""
         operation = Operation.model_validate(response)

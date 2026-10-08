@@ -11,8 +11,6 @@ nested under the resource itself.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..errors import NotFoundError
 from ..models import Operation
 
@@ -27,7 +25,7 @@ class ReverseDNSMixin:
 
     _rdns_kind: str
 
-    def get_reverse_dns(self, resource_id: str, *, zone: Optional[str] = None) -> Optional[str]:
+    def get_reverse_dns(self, resource_id: str, *, zone: str | None = None) -> str | None:
         """Return the PTR domain name for the resource, or ``None`` if unset."""
         try:
             payload = self.client.get(  # type: ignore[attr-defined]
@@ -47,8 +45,8 @@ class ReverseDNSMixin:
         resource_id: str,
         domain_name: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
 
@@ -67,8 +65,8 @@ class ReverseDNSMixin:
         self,
         resource_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Remove the PTR record (``DELETE /reverse-dns/{kind}/{id}``)."""
         zone = self._zone(zone)  # type: ignore[attr-defined]
@@ -78,7 +76,7 @@ class ReverseDNSMixin:
         return self._settle_operation(response, zone=zone, wait=wait)
 
     def _settle_operation(
-        self, response: dict, *, zone: Optional[str], wait: Optional[bool]
+        self, response: dict, *, zone: str | None, wait: bool | None
     ) -> Operation:
         operation = Operation.model_validate(response)
         if self._should_wait(wait) and operation.id:  # type: ignore[attr-defined]

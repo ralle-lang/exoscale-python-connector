@@ -14,13 +14,13 @@ those (``attach_subnet``, ``create_route``, ...).
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ..resources.vpc import VpcClient
 from ._base import PrimaryResource, SubResource, run_resource_cli
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     return run_resource_cli(
         VpcClient,
         prog="exoscale-vpc",

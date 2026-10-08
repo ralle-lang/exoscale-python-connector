@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import importlib
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from .. import __version__
 
@@ -73,7 +73,7 @@ def _usage() -> str:
     )
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ("-h", "--help"):
         stream = sys.stdout if args else sys.stderr

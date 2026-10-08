@@ -20,8 +20,9 @@ import os
 import secrets
 import string
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any
 
 # Discriminator every test resource must carry. Configurable so users can run
 # parallel test sets without collision, but immutable per run.
@@ -59,7 +60,7 @@ class ResourceTracker:
     robust than (client, id) pairs).
     """
 
-    items: List[Tuple[str, Callable[[], None], str]] = field(default_factory=list)
+    items: list[tuple[str, Callable[[], None], str]] = field(default_factory=list)
 
     def register(self, label: str, deleter: Callable[[], None], resource_id: str) -> None:
         self.items.append((label, deleter, resource_id))
@@ -68,13 +69,13 @@ class ResourceTracker:
         """Drop an id after a clean explicit delete; what remains is post-failure leakage."""
         self.items = [item for item in self.items if item[2] != resource_id]
 
-    def sweep(self) -> List[Tuple[str, str, str]]:
+    def sweep(self) -> list[tuple[str, str, str]]:
         """Delete any still-registered resources in reverse-creation order.
 
         Returns a list of ``(label, id, status)`` tuples so the teardown phase can
         report what was cleaned up and what failed.
         """
-        results: List[Tuple[str, str, str]] = []
+        results: list[tuple[str, str, str]] = []
         for label, deleter, resource_id in reversed(self.items):
             try:
                 deleter()
@@ -90,9 +91,7 @@ class ResourceTracker:
 # ---------------------------------------------------------------------------- #
 
 
-def resolve_instance_type(
-    client: Any, name: str = "standard.tiny", zone: Optional[str] = None
-) -> str:
+def resolve_instance_type(client: Any, name: str = "standard.tiny", zone: str | None = None) -> str:
     """Look up an instance-type id by its ``family.size`` name (e.g. ``standard.tiny``)."""
     payload = client.get("instance-type", zone=zone)
     for item in payload.get("instance-types", []):
@@ -105,7 +104,7 @@ def resolve_instance_type(
     raise RuntimeError(f"instance-type {name!r} not available in this zone")
 
 
-def resolve_linux_template(client: Any, zone: Optional[str] = None) -> str:
+def resolve_linux_template(client: Any, zone: str | None = None) -> str:
     """Pick the smallest public Linux template available in the zone.
 
     Tests don't care about the specific OS, only that the template boots; we
@@ -125,7 +124,7 @@ def resolve_linux_template(client: Any, zone: Optional[str] = None) -> str:
 
 
 def resolve_cheapest_dbaas_plan(
-    client: Any, service_type: str = "pg", zone: Optional[str] = None
+    client: Any, service_type: str = "pg", zone: str | None = None
 ) -> str:
     """Look up the cheapest plan name for a DBaaS service type.
 
@@ -141,7 +140,7 @@ def resolve_cheapest_dbaas_plan(
     return str(plans[0]["name"])
 
 
-def resolve_sks_version(client: Any, zone: Optional[str] = None) -> str:
+def resolve_sks_version(client: Any, zone: str | None = None) -> str:
     """Pick a currently-supported SKS cluster version (the lowest exposed).
 
     Exoscale's SKS API returns supported versions in

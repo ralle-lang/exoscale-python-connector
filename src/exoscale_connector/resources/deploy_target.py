@@ -12,8 +12,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-deploy-target
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..models import ExoscaleModel
 from ._base import ResourceClient
 
@@ -21,11 +19,11 @@ from ._base import ResourceClient
 class DeployTarget(ExoscaleModel):
     """An Exoscale deploy target (instance placement target)."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # "edge" | "dedicated"
-    type: Optional[str] = None
+    type: str | None = None
 
 
 class DeployTargetClient(ResourceClient[DeployTarget]):

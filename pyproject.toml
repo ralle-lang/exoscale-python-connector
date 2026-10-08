@@ -115,10 +115,10 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-# Note: the pyupgrade ("UP") rules are intentionally NOT enabled. We target
-# Python 3.9 and pydantic evaluates annotations at runtime, so PEP 604 ("X | None")
-# and PEP 585 ("list[...]") rewrites would raise TypeError on 3.9.
-select = ["E", "F", "I", "B", "W"]
+select = ["E", "F", "I", "B", "W", "UP"]
+# UP042 would turn `class X(str, Enum)` into StrEnum, which changes what str()
+# and format() return for a member — a behaviour change, not a syntax upgrade.
+ignore = ["UP042"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

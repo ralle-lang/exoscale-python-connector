@@ -12,8 +12,6 @@ API reference: https://openapi-v2.exoscale.com/ (compute snapshot group)
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..models import ExoscaleModel, Operation, Reference
 from ._base import ResourceClient
 
@@ -21,22 +19,22 @@ from ._base import ResourceClient
 class SnapshotExport(ExoscaleModel):
     """Export metadata returned after a snapshot is exported to object storage."""
 
-    md5sum: Optional[str] = None
-    presigned_url: Optional[str] = None
+    md5sum: str | None = None
+    presigned_url: str | None = None
 
 
 class Snapshot(ExoscaleModel):
     """A compute snapshot (disk image captured from a running or stopped instance)."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
     # Size of the snapshot in GiB.
-    size: Optional[int] = None
-    state: Optional[str] = None
-    created_at: Optional[str] = None
+    size: int | None = None
+    state: str | None = None
+    created_at: str | None = None
     # Reference to the source instance (may be absent once the instance is deleted).
-    instance: Optional[Reference] = None
-    export: Optional[SnapshotExport] = None
+    instance: Reference | None = None
+    export: SnapshotExport | None = None
 
 
 class SnapshotClient(ResourceClient[Snapshot]):
@@ -56,8 +54,8 @@ class SnapshotClient(ResourceClient[Snapshot]):
         self,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Snapshot:
         """Trigger a snapshot of the named instance and return the new snapshot.
 
@@ -76,8 +74,8 @@ class SnapshotClient(ResourceClient[Snapshot]):
         self,
         snapshot_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Export a snapshot to object storage (async).
 

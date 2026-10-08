@@ -12,8 +12,8 @@ dependency all fail the build.
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
-from typing import Dict, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
@@ -22,18 +22,12 @@ CONSTRAINTS = REPO_ROOT / "ci" / "constraints-min.txt"
 _NAME = r"[A-Za-z0-9][A-Za-z0-9._-]*"
 
 
-def _declared_floors() -> Dict[str, str]:
-    """Runtime dependency -> declared lower bound, from [project.dependencies].
-
-    Parsed without tomllib so the test runs on the Python 3.9 floor too. The core
-    ``dependencies = [...]`` array is unique to [project]; optional-dependencies
-    live under their own keys (``dev =``, ``sos =``).
-    """
-    text = PYPROJECT.read_text(encoding="utf-8")
-    match = re.search(r"^dependencies\s*=\s*\[(.*?)\]", text, re.MULTILINE | re.DOTALL)
-    assert match, "could not find [project].dependencies in pyproject.toml"
-    floors: Dict[str, str] = {}
-    for raw in re.findall(r'"([^"]+)"', match.group(1)):
+def _declared_floors() -> dict[str, str]:
+    """Runtime dependency -> declared lower bound, from [project.dependencies]."""
+    with PYPROJECT.open("rb") as fh:
+        dependencies = tomllib.load(fh)["project"]["dependencies"]
+    floors: dict[str, str] = {}
+    for raw in dependencies:
         name = re.match(_NAME, raw)
         lower = re.search(r">=\s*([0-9][0-9.]*)", raw)
         assert name and lower, f"runtime dependency {raw!r} has no `>=` floor to pin against"
@@ -41,9 +35,9 @@ def _declared_floors() -> Dict[str, str]:
     return floors
 
 
-def _constraint_pins() -> Dict[str, str]:
+def _constraint_pins() -> dict[str, str]:
     """Constraint name -> pinned version, from the `==` lines of the constraints file."""
-    pins: Dict[str, str] = {}
+    pins: dict[str, str] = {}
     for line in CONSTRAINTS.read_text(encoding="utf-8").splitlines():
         line = line.split("#", 1)[0].strip()
         if not line:
@@ -58,7 +52,7 @@ def _canonical(name: str) -> str:
     return name.lower().replace("_", "-")
 
 
-def _minor(version: str) -> Tuple[int, int]:
+def _minor(version: str) -> tuple[int, int]:
     parts = [int(p) for p in version.split(".")[:2]]
     while len(parts) < 2:
         parts.append(0)

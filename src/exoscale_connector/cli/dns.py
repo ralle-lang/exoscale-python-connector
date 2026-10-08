@@ -12,13 +12,13 @@ errors exit 2.
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ..resources.dns import DnsDomainClient
 from ._base import PrimaryResource, SubResource, run_resource_cli
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the ``exoscale-dns`` binary."""
     return run_resource_cli(
         DnsDomainClient,

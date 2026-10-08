@@ -11,13 +11,13 @@ creation via the instance client / Ansible.
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ..resources.snapshot import SnapshotClient
 from ._base import run_resource_cli
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     return run_resource_cli(
         SnapshotClient,
         prog="exoscale-snapshot",

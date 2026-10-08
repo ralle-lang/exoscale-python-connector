@@ -14,7 +14,7 @@ Verified endpoints come from the Ansible playbooks and Python tools in this repo
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import Field, SerializerFunctionWrapHandler, model_serializer
 
@@ -25,9 +25,9 @@ from ._base import ResourceClient
 class SksNodepoolTaint(ExoscaleModel):
     """A Kubernetes taint applied to every node in a nodepool."""
 
-    value: Optional[str] = None
+    value: str | None = None
     # "NoExecute" | "NoSchedule" | "PreferNoSchedule"
-    effect: Optional[str] = None
+    effect: str | None = None
 
 
 class SksNodepool(ExoscaleModel):
@@ -37,57 +37,57 @@ class SksNodepool(ExoscaleModel):
     standalone responses when fetching a single nodepool by id.
     """
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    size: Optional[int] = None
-    state: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    size: int | None = None
+    state: str | None = None
     # Reference objects for typed sub-resources
-    instance_type: Optional[Reference] = None
-    template: Optional[Reference] = None
-    instance_pool: Optional[Reference] = None
-    disk_size: Optional[int] = None
+    instance_type: Reference | None = None
+    template: Reference | None = None
+    instance_pool: Reference | None = None
+    disk_size: int | None = None
     # Collections of reference objects
-    security_groups: Optional[List[Reference]] = None
-    anti_affinity_groups: Optional[List[Reference]] = None
-    private_networks: Optional[List[Reference]] = None
-    labels: Optional[Dict[str, str]] = None
+    security_groups: list[Reference] | None = None
+    anti_affinity_groups: list[Reference] | None = None
+    private_networks: list[Reference] | None = None
+    labels: dict[str, str] | None = None
     # Keyed by taint key, e.g. {"dedicated": {"value": "gpu", "effect": "NoSchedule"}}
-    taints: Optional[Dict[str, SksNodepoolTaint]] = None
-    instance_prefix: Optional[str] = None
-    public_ip_assignment: Optional[str] = None
+    taints: dict[str, SksNodepoolTaint] | None = None
+    instance_prefix: str | None = None
+    public_ip_assignment: str | None = None
     # Nvidia MIG (Multi-Instance GPU) profiles to enable on GPU nodes, keyed by
     # GPU model (e.g. {"a30.24gb": {...}}). Settable on nodepool create/update;
     # returned on the nodepool object. Payload passes through create_nodepool /
     # update_nodepool, which accept a dict or model.
-    nvidia_mig_profiles: Optional[Dict[str, Any]] = None
+    nvidia_mig_profiles: dict[str, Any] | None = None
 
 
 class SksCluster(ExoscaleModel):
     """An Exoscale SKS (managed Kubernetes) cluster."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    state: Optional[str] = None
-    version: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    state: str | None = None
+    version: str | None = None
     # The TLS endpoint used to reach the Kubernetes API server
-    endpoint: Optional[str] = None
-    cni: Optional[str] = None
+    endpoint: str | None = None
+    cni: str | None = None
     # "starter" | "pro". The wire field is ``level`` (verified live); the
     # attribute keeps its descriptive name and accepts either spelling.
-    service_level: Optional[str] = Field(default=None, alias="level")
-    addons: Optional[List[str]] = None
-    nodepools: List[SksNodepool] = Field(default_factory=list)
-    labels: Optional[Dict[str, str]] = None
-    auto_upgrade: Optional[bool] = None
-    created_at: Optional[str] = None
+    service_level: str | None = Field(default=None, alias="level")
+    addons: list[str] | None = None
+    nodepools: list[SksNodepool] = Field(default_factory=list)
+    labels: dict[str, str] | None = None
+    auto_upgrade: bool | None = None
+    created_at: str | None = None
 
     @model_serializer(mode="wrap")
-    def _omit_empty_nodepools(self, handler: SerializerFunctionWrapHandler) -> Dict[str, Any]:
+    def _omit_empty_nodepools(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         # nodepools is read-only (managed via the nodepool endpoints); never
         # send an empty default list in a create/update body.
-        data: Dict[str, Any] = handler(self)
+        data: dict[str, Any] = handler(self)
         if data.get("nodepools") == []:
             del data["nodepools"]
         return data
@@ -111,7 +111,7 @@ class SksClusterClient(ResourceClient[SksCluster]):
     # Cluster helpers
     # ------------------------------------------------------------------ #
 
-    def list_versions(self, *, zone: Optional[str] = None) -> List[str]:
+    def list_versions(self, *, zone: str | None = None) -> list[str]:
         """Return the Kubernetes versions a new SKS cluster may be created with.
 
         Wraps ``GET /sks-cluster-version`` (response key
@@ -134,7 +134,7 @@ class SksClusterClient(ResourceClient[SksCluster]):
         cluster_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> dict:
         """Request a new kubeconfig for a cluster.
 
@@ -162,8 +162,8 @@ class SksClusterClient(ResourceClient[SksCluster]):
         self,
         cluster_id: str,
         *,
-        zone: Optional[str] = None,
-    ) -> List[SksNodepool]:
+        zone: str | None = None,
+    ) -> list[SksNodepool]:
         """Return all nodepools belonging to a cluster.
 
         Nodepools are embedded in the cluster object returned by GET; this
@@ -180,7 +180,7 @@ class SksClusterClient(ResourceClient[SksCluster]):
         cluster_id: str,
         nodepool_id: str,
         *,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> SksNodepool:
         """Fetch a single nodepool by id.
 
@@ -199,8 +199,8 @@ class SksClusterClient(ResourceClient[SksCluster]):
         cluster_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Add a nodepool to an existing cluster.
 
@@ -225,8 +225,8 @@ class SksClusterClient(ResourceClient[SksCluster]):
         nodepool_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Update a nodepool (PUT).
 
@@ -247,8 +247,8 @@ class SksClusterClient(ResourceClient[SksCluster]):
         cluster_id: str,
         nodepool_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Delete a nodepool from a cluster.
 
@@ -270,8 +270,8 @@ class SksClusterClient(ResourceClient[SksCluster]):
         self,
         response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """Parse a nodepool mutation response and await completion by default."""
         operation = Operation.model_validate(response)

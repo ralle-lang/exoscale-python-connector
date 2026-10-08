@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Any, Optional, Union
+from typing import Any
 
 import requests
 
@@ -62,7 +62,7 @@ class ExoscaleClient:
     specific one, otherwise the config default is used.
     """
 
-    def __init__(self, config: ClientConfig, *, session: Optional[requests.Session] = None) -> None:
+    def __init__(self, config: ClientConfig, *, session: requests.Session | None = None) -> None:
         self.config = config
         self._session = session or requests.Session()
         self._session.auth = ExoscaleV2Auth(config.api_key, config.api_secret)
@@ -71,7 +71,7 @@ class ExoscaleClient:
         )
 
     @classmethod
-    def from_env(cls, *, zone: Optional[str] = None) -> "ExoscaleClient":
+    def from_env(cls, *, zone: str | None = None) -> ExoscaleClient:
         """Convenience constructor: build config from the environment, then a client."""
         return cls(ClientConfig.from_env(zone=zone))
 
@@ -83,10 +83,10 @@ class ExoscaleClient:
         method: str,
         path: str,
         *,
-        zone: Optional[str] = None,
-        params: Optional[dict] = None,
+        zone: str | None = None,
+        params: dict | None = None,
         json: Any = None,
-        max_retries: Optional[int] = None,
+        max_retries: int | None = None,
         signed: bool = True,
     ) -> dict:
         """Send a signed request to ``<base>/<path>`` and return the parsed body.
@@ -159,21 +159,19 @@ class ExoscaleClient:
         self,
         path: str,
         *,
-        zone: Optional[str] = None,
-        params: Optional[dict] = None,
+        zone: str | None = None,
+        params: dict | None = None,
         signed: bool = True,
     ) -> dict:
         return self.request("GET", path, zone=zone, params=params, signed=signed)
 
-    def post(self, path: str, *, zone: Optional[str] = None, json: Any = None) -> dict:
+    def post(self, path: str, *, zone: str | None = None, json: Any = None) -> dict:
         return self.request("POST", path, zone=zone, json=json)
 
-    def put(self, path: str, *, zone: Optional[str] = None, json: Any = None) -> dict:
+    def put(self, path: str, *, zone: str | None = None, json: Any = None) -> dict:
         return self.request("PUT", path, zone=zone, json=json)
 
-    def delete(
-        self, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None
-    ) -> dict:
+    def delete(self, path: str, *, zone: str | None = None, params: dict | None = None) -> dict:
         return self.request("DELETE", path, zone=zone, params=params)
 
     # ------------------------------------------------------------------ #
@@ -181,10 +179,10 @@ class ExoscaleClient:
     # ------------------------------------------------------------------ #
     def wait_operation(
         self,
-        operation: Union[Operation, dict, str],
+        operation: Operation | dict | str,
         *,
-        zone: Optional[str] = None,
-        timeout: Optional[float] = None,
+        zone: str | None = None,
+        timeout: float | None = None,
         poll_interval: float = 2.0,
     ) -> Operation:
         """Poll an async operation until it succeeds, then return the final state.
@@ -284,7 +282,7 @@ def _retry_delay(response: requests.Response, attempt: int, backoff: float) -> f
     return _backoff_delay(attempt, backoff)
 
 
-def _as_operation(operation: Union[Operation, dict, str]) -> Optional[Operation]:
+def _as_operation(operation: Operation | dict | str) -> Operation | None:
     """Return an :class:`Operation` view of the input, or ``None`` for a bare id."""
     if isinstance(operation, Operation):
         return operation
@@ -316,7 +314,7 @@ def _raise_for_response(method: str, url: str, response: requests.Response) -> N
     )
 
 
-def _coerce_operation_id(operation: Union[Operation, dict, str]) -> str:
+def _coerce_operation_id(operation: Operation | dict | str) -> str:
     """Extract an operation id from the several shapes mutating endpoints return."""
     if isinstance(operation, str):
         return operation

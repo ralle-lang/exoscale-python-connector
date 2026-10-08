@@ -130,7 +130,7 @@ def test_list_bucket_creation_date_converted_to_string() -> None:
     # boto3 normally returns a datetime object; simulate that here.
     import datetime
 
-    dt = datetime.datetime(2024, 6, 1, 9, 0, 0, tzinfo=datetime.timezone.utc)
+    dt = datetime.datetime(2024, 6, 1, 9, 0, 0, tzinfo=datetime.UTC)
     mock_s3.list_buckets.return_value = {"Buckets": [{"Name": "ts-bucket", "CreationDate": dt}]}
     client = _client(mock_s3)
     buckets = client.list()

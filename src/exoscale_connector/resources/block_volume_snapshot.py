@@ -16,8 +16,6 @@ API reference: https://openapi-v2.exoscale.com/ (block storage group)
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from ..models import ExoscaleModel, Operation
 from ._base import ResourceClient
 
@@ -25,13 +23,13 @@ from ._base import ResourceClient
 class BlockVolumeSnapshot(ExoscaleModel):
     """A snapshot derived from a block storage volume."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
     # Size of the snapshot in GiB.
-    size: Optional[int] = None
-    state: Optional[str] = None
-    created_at: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
+    size: int | None = None
+    state: str | None = None
+    created_at: str | None = None
+    labels: dict[str, str] | None = None
 
 
 class BlockVolumeSnapshotClient(ResourceClient[BlockVolumeSnapshot]):
@@ -51,8 +49,8 @@ class BlockVolumeSnapshotClient(ResourceClient[BlockVolumeSnapshot]):
         self,
         volume_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> BlockVolumeSnapshot:
         """Trigger a snapshot of the named block storage volume.
 
@@ -72,8 +70,8 @@ class BlockVolumeSnapshotClient(ResourceClient[BlockVolumeSnapshot]):
         resource_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> BlockVolumeSnapshot:
         """Update snapshot properties (e.g. name, labels) via ``PUT``.
 
@@ -86,8 +84,8 @@ class BlockVolumeSnapshotClient(ResourceClient[BlockVolumeSnapshot]):
         self,
         response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """Parse and optionally await an async operation envelope."""
         operation = Operation.model_validate(response)

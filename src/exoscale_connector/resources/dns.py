@@ -16,8 +16,6 @@ Playbook cross-reference:
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from ..models import ExoscaleModel, Operation, to_api_payload
 from ._base import ResourceClient
 
@@ -25,12 +23,12 @@ from ._base import ResourceClient
 class DnsDomain(ExoscaleModel):
     """An Exoscale DNS domain (zone)."""
 
-    id: Optional[str] = None
+    id: str | None = None
     # The unicode-name field is the human-readable zone name (e.g. "example.com").
-    unicode_name: Optional[str] = None
-    state: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    unicode_name: str | None = None
+    state: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class DnsRecord(ExoscaleModel):
@@ -41,12 +39,12 @@ class DnsRecord(ExoscaleModel):
     ``priority`` is used for MX / SRV records; omit for others.
     """
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    type: Optional[str] = None
-    content: Optional[str] = None
-    ttl: Optional[int] = None
-    priority: Optional[int] = None
+    id: str | None = None
+    name: str | None = None
+    type: str | None = None
+    content: str | None = None
+    ttl: int | None = None
+    priority: int | None = None
 
 
 class DnsDomainClient(ResourceClient[DnsDomain]):
@@ -69,7 +67,7 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
     # Record sub-resource
     # ------------------------------------------------------------------ #
 
-    def list_records(self, domain_id: str, *, zone: Optional[str] = None) -> List[DnsRecord]:
+    def list_records(self, domain_id: str, *, zone: str | None = None) -> list[DnsRecord]:
         """Return all records for a domain.
 
         The live API responds under the key ``dns-domain-records``. We do
@@ -89,7 +87,7 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
         domain_id: str,
         record_id: str,
         *,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> DnsRecord:
         """Fetch a single DNS record by its id."""
         payload = self.client.get(
@@ -103,8 +101,8 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
         domain_id: str,
         record: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> DnsRecord:
         """Create a DNS record and return it once settled.
 
@@ -126,8 +124,8 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
         record_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> DnsRecord:
         """Update a DNS record (HTTP ``PUT``) and return its settled state."""
         zone = self._zone(zone)
@@ -145,8 +143,8 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
         domain_id: str,
         record_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Delete a DNS record and return the settled operation."""
         zone = self._zone(zone)
@@ -162,10 +160,10 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
 
     def _wait_operation(
         self,
-        response: Dict,
+        response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """Await an async operation envelope, mirroring SecurityGroupClient."""
         operation = Operation.model_validate(response)
@@ -175,12 +173,12 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
 
     def _wait_record_operation(
         self,
-        response: Dict,
+        response: dict,
         *,
         domain_id: str,
-        zone: Optional[str],
-        wait: Optional[bool],
-        fallback_id: Optional[str] = None,
+        zone: str | None,
+        wait: bool | None,
+        fallback_id: str | None = None,
     ) -> DnsRecord:
         """Await an async operation for a record mutation and re-fetch the record.
 

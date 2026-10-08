@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import random
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from ..errors import NotFoundError
 from ..models import ExoscaleModel, Operation
@@ -33,16 +33,16 @@ class DBaaSConnectionInfo(ExoscaleModel):
     """
 
     # Host/port/user/dbname for direct connection (Aiven uri-params shape).
-    host: Optional[str] = None
-    port: Optional[int] = None
-    user: Optional[str] = None
-    dbname: Optional[str] = None
+    host: str | None = None
+    port: int | None = None
+    user: str | None = None
+    dbname: str | None = None
     # Aiven PEM CA cert for TLS verification (a single PEM-encoded string).
-    ca: Optional[str] = None
+    ca: str | None = None
     # Raw connection URI(s). The shape is per engine: a LIST for PostgreSQL
     # (primary + read replicas — verified against the live API) and the other
     # data engines, but a single string for Grafana.
-    uri: Optional[Union[str, List[str]]] = None
+    uri: str | list[str] | None = None
 
 
 class DBaaSService(ExoscaleModel):
@@ -54,32 +54,32 @@ class DBaaSService(ExoscaleModel):
     """
 
     # DBaaS uses the service name as its identifier — there is no separate UUID.
-    name: Optional[str] = None
+    name: str | None = None
     # Service type string returned by the API: "pg", "mysql", "redis", etc.
-    type: Optional[str] = None
-    plan: Optional[str] = None
-    state: Optional[str] = None
+    type: str | None = None
+    plan: str | None = None
+    state: str | None = None
     # Engine version. Settable on update for engines that support version
     # upgrades (mysql, valkey, clickhouse, pg, ...) via the type-specific PUT;
     # round-tripped on the type-specific GET.
-    version: Optional[str] = None
+    version: str | None = None
     # Number of nodes in the cluster.
-    node_count: Optional[int] = None
+    node_count: int | None = None
     # Allocated disk size in megabytes.
-    disk_size: Optional[int] = None
+    disk_size: int | None = None
     # IP allow-list (CIDR strings) for incoming connections. Settable via the
     # create/update payload and returned on the type-specific GET for every
     # service type. Absent or empty means allow-all. Since a managed DB can't
     # join a private network, this plus TLS is the primary way to secure it.
-    ip_filter: Optional[List[str]] = None
+    ip_filter: list[str] | None = None
     # ISO-8601 creation timestamp.
-    created_at: Optional[str] = None
+    created_at: str | None = None
     # Structured connection parameters (full item endpoint only).
-    uri_params: Optional[DBaaSConnectionInfo] = None
+    uri_params: DBaaSConnectionInfo | None = None
     # Short connection URI string, if returned.
-    uri: Optional[str] = None
+    uri: str | None = None
     # Connection details including CA cert (full item endpoint only).
-    connection_info: Optional[DBaaSConnectionInfo] = None
+    connection_info: DBaaSConnectionInfo | None = None
 
 
 class DBaaSServiceClient(ResourceClient[DBaaSService]):
@@ -111,7 +111,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     name_field = "name"
 
     # Short-form → URL-form mapping for known mismatches.
-    _URL_TYPE_ALIASES: Dict[str, str] = {"pg": "postgres"}
+    _URL_TYPE_ALIASES: dict[str, str] = {"pg": "postgres"}
 
     @classmethod
     def _url_type(cls, service_type: str) -> str:
@@ -122,7 +122,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         self,
         resource_id: str,
         *,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> DBaaSService:
         """Fetch a DBaaS service by name.
 
@@ -165,7 +165,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         )
         return self.model.model_validate(payload)
 
-    def _settle(self, response: Any, *, zone: Optional[str], wait: Optional[bool]) -> Any:
+    def _settle(self, response: Any, *, zone: str | None, wait: bool | None) -> Any:
         """Await an operation envelope (the spec's response for DBaaS mutations).
 
         Returns the settled envelope as a dict, or ``response`` unchanged when it
@@ -186,8 +186,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         *,
         service_type: str,
         name: str,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> DBaaSService:
         """Create a managed database service and return it.
 
@@ -210,7 +210,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
                   ``wait_for_operations``).
         """
         zone = self._zone(zone)
-        body: Dict[str, Any] = {}
+        body: dict[str, Any] = {}
         if isinstance(payload, dict):
             body = {k: v for k, v in payload.items() if v is not None}
         elif hasattr(payload, "model_dump"):
@@ -251,8 +251,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         payload: Any,
         *,
         service_type: str,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> DBaaSService:
         """Update a service (``PUT dbaas-{type}/{name}``) and return its new state.
 
@@ -266,7 +266,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         update).
         """
         zone = self._zone(zone)
-        body: Dict[str, Any] = {}
+        body: dict[str, Any] = {}
         if isinstance(payload, dict):
             body = {k: v for k, v in payload.items() if v is not None}
         elif hasattr(payload, "model_dump"):
@@ -286,8 +286,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         username: str,
         *,
         service_type: str,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> dict:
         """Create a database user (``POST dbaas-{type}/{name}/user``).
 
@@ -311,8 +311,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         username: str,
         *,
         service_type: str,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> dict:
         """Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 
@@ -348,8 +348,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         username: str,
         *,
         service_type: str,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> dict:
         """Reset a user's password (``PUT .../user/{username}/password/reset``).
 
@@ -371,7 +371,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         name: str,
         *,
         service_type: str,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> DBaaSService:
         """Fetch the full service detail including ``connection-info`` and ``uri-params``.
 
@@ -396,7 +396,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         username: str,
         *,
         service_type: str,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> dict:
         """Return the revealed credentials for a service user.
 
@@ -423,7 +423,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     # Generic engine sub-resources (settings / ACL / maintenance)
     # ------------------------------------------------------------------ #
 
-    def get_settings(self, service_type: str, *, zone: Optional[str] = None) -> dict:
+    def get_settings(self, service_type: str, *, zone: str | None = None) -> dict:
         """Return the configurable settings schema for an engine type.
 
         Wraps ``GET /dbaas-settings-{type}`` — the discovery endpoint that
@@ -437,7 +437,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """
         return self.client.get(f"dbaas-settings-{service_type}", zone=self._zone(zone))
 
-    def get_acl_config(self, name: str, *, service_type: str, zone: Optional[str] = None) -> dict:
+    def get_acl_config(self, name: str, *, service_type: str, zone: str | None = None) -> dict:
         """Return the ACL configuration for a service.
 
         Wraps ``GET /dbaas-{type}/{name}/acl-config``. Supported by the engines
@@ -454,8 +454,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         name: str,
         *,
         service_type: str,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> dict:
         """Trigger the service's pending maintenance update immediately.
 
@@ -470,7 +470,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         )
         return self._settle(response, zone=zone, wait=wait)
 
-    def list_service_types(self, *, zone: Optional[str] = None) -> List[dict]:
+    def list_service_types(self, *, zone: str | None = None) -> list[dict]:
         """Return available DBaaS service types from the ``dbaas-service-type`` endpoint.
 
         The response schema is type-specific so we return raw dicts rather than

@@ -53,7 +53,7 @@ class ExoscaleV2Auth(AuthBase):
         msg_parts: list[bytes] = []
 
         parsed = urlparse(request.url or "")
-        msg_parts.append(f"{request.method} {parsed.path}".encode("utf-8"))
+        msg_parts.append(f"{request.method} {parsed.path}".encode())
 
         body = request.body or b""
         if isinstance(body, str):

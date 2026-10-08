@@ -9,7 +9,8 @@ non-standard payloads), keeping the per-type modules small and uniform.
 
 from __future__ import annotations
 
-from typing import Any, Generic, List, Optional, Type, TypeVar
+import builtins
+from typing import Any, Generic, TypeVar
 
 from ..client import ExoscaleClient
 from ..errors import NotFoundError
@@ -28,8 +29,8 @@ class ResourceClient(Generic[ModelT]):
     """
 
     collection_path: str
-    model: Type[ModelT]
-    list_key: Optional[str] = None
+    model: type[ModelT]
+    list_key: str | None = None
     name_field: str = "name"
     id_field: str = "id"
     # Public collections are listed unsigned: a signed request makes the API
@@ -39,7 +40,7 @@ class ResourceClient(Generic[ModelT]):
     # get a settled resource back. Override per call with ``wait=``.
     wait_for_operations: bool = True
 
-    def __init__(self, client: ExoscaleClient, *, zone: Optional[str] = None) -> None:
+    def __init__(self, client: ExoscaleClient, *, zone: str | None = None) -> None:
         self.client = client
         # A per-client default zone; individual calls may still override it.
         self.zone = zone
@@ -50,9 +51,9 @@ class ResourceClient(Generic[ModelT]):
     def list(
         self,
         *,
-        zone: Optional[str] = None,
-        labels: Optional[dict] = None,
-    ) -> List[ModelT]:
+        zone: str | None = None,
+        labels: dict | None = None,
+    ) -> builtins.list[ModelT]:
         """Return all resources of this type in the target zone.
 
         ``labels`` filters client-side: only resources whose labels contain
@@ -74,12 +75,12 @@ class ResourceClient(Generic[ModelT]):
             resources = [r for r in resources if _labels_match(r, labels)]
         return resources
 
-    def get(self, resource_id: str, *, zone: Optional[str] = None) -> ModelT:
+    def get(self, resource_id: str, *, zone: str | None = None) -> ModelT:
         """Fetch a single resource by id. Raises :class:`NotFoundError` if absent."""
         payload = self.client.get(f"{self.collection_path}/{resource_id}", zone=self._zone(zone))
         return self.model.model_validate(payload)
 
-    def find_by_name(self, name: str, *, zone: Optional[str] = None) -> Optional[ModelT]:
+    def find_by_name(self, name: str, *, zone: str | None = None) -> ModelT | None:
         """Return the first resource whose name matches, or ``None``.
 
         Names are not guaranteed unique by the API; this returns the first match,
@@ -92,7 +93,7 @@ class ResourceClient(Generic[ModelT]):
                 return item
         return None
 
-    def get_or_none(self, resource_id: str, *, zone: Optional[str] = None) -> Optional[ModelT]:
+    def get_or_none(self, resource_id: str, *, zone: str | None = None) -> ModelT | None:
         """Like :meth:`get` but returns ``None`` instead of raising on 404."""
         try:
             return self.get(resource_id, zone=zone)
@@ -106,8 +107,8 @@ class ResourceClient(Generic[ModelT]):
         self,
         payload: Any,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> ModelT:
         """Create a resource and return it.
 
@@ -121,7 +122,7 @@ class ResourceClient(Generic[ModelT]):
         # an operation envelope without a ``reference`` — the resource id IS the
         # name we just submitted. Carry that as the fallback so the re-fetch in
         # _resolve_mutation can still hit the right endpoint.
-        fallback_id: Optional[str] = None
+        fallback_id: str | None = None
         if self.id_field == "name" and isinstance(api_payload, dict):
             candidate = api_payload.get("name") or _payload_get(api_payload, self.name_field)
             if isinstance(candidate, str):
@@ -133,8 +134,8 @@ class ResourceClient(Generic[ModelT]):
         self,
         payload: Any,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
         update: bool = False,
     ) -> ModelT:
         """Idempotent get-or-create: return the resource named in ``payload``.
@@ -173,8 +174,8 @@ class ResourceClient(Generic[ModelT]):
         resource_id: str,
         payload: Any,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> ModelT:
         """Update a resource (HTTP ``PUT``) and return its settled state."""
         zone = self._zone(zone)
@@ -188,8 +189,8 @@ class ResourceClient(Generic[ModelT]):
         self,
         resource_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Delete a resource by id, awaiting the async operation by default."""
         zone = self._zone(zone)
@@ -206,9 +207,9 @@ class ResourceClient(Generic[ModelT]):
         self,
         response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
-        fallback_id: Optional[str] = None,
+        zone: str | None,
+        wait: bool | None,
+        fallback_id: str | None = None,
     ) -> ModelT:
         """Turn a create/update response into a settled, typed resource.
 
@@ -225,10 +226,10 @@ class ResourceClient(Generic[ModelT]):
             return self.model.model_validate(response)
         return self.model.model_validate(response)
 
-    def _should_wait(self, wait: Optional[bool]) -> bool:
+    def _should_wait(self, wait: bool | None) -> bool:
         return self.wait_for_operations if wait is None else wait
 
-    def _zone(self, zone: Optional[str]) -> Optional[str]:
+    def _zone(self, zone: str | None) -> str | None:
         return zone or self.zone
 
 
@@ -250,7 +251,7 @@ def _looks_like_operation(payload: dict) -> bool:
     return isinstance(payload, dict) and ("state" in payload or "reference" in payload)
 
 
-def _extract_list(payload: dict, list_key: Optional[str]) -> List[dict]:
+def _extract_list(payload: dict, list_key: str | None) -> list[dict]:
     """Pull the resource array out of a list response.
 
     Uses the declared ``list_key`` when given; otherwise infers the single

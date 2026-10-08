@@ -9,8 +9,6 @@ API reference: https://openapi-v2.exoscale.com/ (block storage group)
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
@@ -24,29 +22,29 @@ _OPERATION_STATES = frozenset({"pending", "success", "failure", "timeout", "inte
 class BlockVolumeSnapshotRef(ExoscaleModel):
     """Lightweight reference to a block-storage snapshot attached to a volume."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
 
 
 class BlockVolume(ExoscaleModel):
     """A block storage volume."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
     # Capacity of the volume in GiB.
-    size: Optional[int] = None
-    state: Optional[str] = None
-    created_at: Optional[str] = None
+    size: int | None = None
+    state: str | None = None
+    created_at: str | None = None
     # Physical block size of the volume in bytes (typically 512 or 4096).
-    blocksize: Optional[int] = None
-    labels: Optional[Dict[str, str]] = None
+    blocksize: int | None = None
+    labels: dict[str, str] | None = None
     # Instance the volume is currently attached to, if any.
-    instance: Optional[Reference] = None
+    instance: Reference | None = None
     # Snapshots derived from this volume. The live API uses the wrapper key
     # ``block-storage-snapshots`` here (not the auto-generated kebab alias
     # ``snapshots``), so we override the alias explicitly. Without this the
     # field is always ``None`` even when the volume has snapshots.
-    snapshots: Optional[List[BlockVolumeSnapshotRef]] = Field(
+    snapshots: list[BlockVolumeSnapshotRef] | None = Field(
         default=None, alias="block-storage-snapshots"
     )
 
@@ -64,8 +62,8 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         volume_id: str,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Attach a volume to a compute instance (async).
 
@@ -85,8 +83,8 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         self,
         volume_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Detach a volume from its currently attached instance (async)."""
         zone = self._zone(zone)
@@ -101,8 +99,8 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         volume_id: str,
         size: int,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Resize a volume to ``size`` GiB (async, size can only increase).
 
@@ -134,8 +132,8 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         volume_id: str,
         payload: object = None,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Trigger a snapshot of this volume via the instance-action endpoint.
 
@@ -159,8 +157,8 @@ class BlockVolumeClient(ResourceClient[BlockVolume]):
         self,
         response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """Parse an operation envelope and await completion if configured to do so.
 

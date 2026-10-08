@@ -19,8 +19,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Sequence, Tuple, Type
+from typing import Any
 
 import requests
 
@@ -78,7 +79,7 @@ class SubResource:
 # ------------------------------------------------------------------ #
 
 
-def base_parser(prog: str, description: str) -> Tuple[argparse.ArgumentParser, Any]:
+def base_parser(prog: str, description: str) -> tuple[argparse.ArgumentParser, Any]:
     """Return a parser pre-wired with ``--zone``/``--output`` plus its subparsers handle."""
     parser = argparse.ArgumentParser(prog=prog, description=description)
     parser.add_argument(
@@ -196,7 +197,7 @@ def print_result(result: Any, output: str = "json") -> None:
         print_json(result)
 
 
-def run_guarded(call: Callable[[], Any]) -> Tuple[bool, Any]:
+def run_guarded(call: Callable[[], Any]) -> tuple[bool, Any]:
     """Run ``call``, turning expected failures into an ``error:`` line on stderr.
 
     Returns ``(True, result)`` on success, else ``(False, exit_code)``: 1 for a
@@ -218,10 +219,10 @@ def run_guarded(call: Callable[[], Any]) -> Tuple[bool, Any]:
 
 def execute_cli(
     parser: argparse.ArgumentParser,
-    resource_cls: Type[ResourceClient],
+    resource_cls: type[ResourceClient],
     dispatch: Dispatch,
     *,
-    argv: Optional[Sequence[str]] = None,
+    argv: Sequence[str] | None = None,
 ) -> int:
     """Parse ``argv``, build the client/resource, run ``dispatch``, print JSON.
 
@@ -252,14 +253,14 @@ def execute_cli(
 
 
 def run_resource_cli(
-    resource_cls: Type[ResourceClient],
+    resource_cls: type[ResourceClient],
     *,
     prog: str,
     description: str,
-    argv: Optional[Sequence[str]] = None,
-    primary: Optional[PrimaryResource] = None,
+    argv: Sequence[str] | None = None,
+    primary: PrimaryResource | None = None,
     sub_resources: Sequence[SubResource] = (),
-    verbs: Optional[Sequence[str]] = None,
+    verbs: Sequence[str] | None = None,
 ) -> int:
     """Run a standard resource CLI for ``resource_cls``.
 
@@ -285,9 +286,9 @@ def _verb_command(verb: str, singular: str, plural: str) -> str:
 def _build_parser(
     prog: str,
     description: str,
-    primary: Optional[PrimaryResource],
+    primary: PrimaryResource | None,
     sub_resources: Sequence[SubResource],
-    verbs: Optional[Sequence[str]] = None,
+    verbs: Sequence[str] | None = None,
 ) -> argparse.ArgumentParser:
     parser, sub = base_parser(prog, description)
     bare = primary is None and not sub_resources

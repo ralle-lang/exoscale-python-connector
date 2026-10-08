@@ -10,8 +10,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-security-group
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, to_api_payload
@@ -29,33 +27,33 @@ class SecurityGroupResource(ExoscaleModel):
     Both forms are typed on the request and round-tripped on the response.
     """
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    visibility: Optional[str] = None  # "private" | "public"
+    id: str | None = None
+    name: str | None = None
+    visibility: str | None = None  # "private" | "public"
 
 
 class SecurityGroupRule(ExoscaleModel):
     """A single ingress/egress rule belonging to a security group."""
 
-    id: Optional[str] = None
-    description: Optional[str] = None
-    flow_direction: Optional[str] = None  # "ingress" | "egress"
-    protocol: Optional[str] = None  # "tcp" | "udp" | "icmp" | ...
-    start_port: Optional[int] = None
-    end_port: Optional[int] = None
-    network: Optional[str] = None  # CIDR, mutually exclusive with security_group
+    id: str | None = None
+    description: str | None = None
+    flow_direction: str | None = None  # "ingress" | "egress"
+    protocol: str | None = None  # "tcp" | "udp" | "icmp" | ...
+    start_port: int | None = None
+    end_port: int | None = None
+    network: str | None = None  # CIDR, mutually exclusive with security_group
     # Peer/public SG source or destination (mutually exclusive with network).
-    security_group: Optional[SecurityGroupResource] = None
+    security_group: SecurityGroupResource | None = None
 
 
 class SecurityGroup(ExoscaleModel):
     """An Exoscale security group and its rules."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    rules: List[SecurityGroupRule] = Field(default_factory=list)
-    external_sources: Optional[List[str]] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    rules: list[SecurityGroupRule] = Field(default_factory=list)
+    external_sources: list[str] | None = None
 
 
 class SecurityGroupClient(ResourceClient[SecurityGroup]):
@@ -70,8 +68,8 @@ class SecurityGroupClient(ResourceClient[SecurityGroup]):
         security_group_id: str,
         rule: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Append a rule to a security group.
 
@@ -91,8 +89,8 @@ class SecurityGroupClient(ResourceClient[SecurityGroup]):
         security_group_id: str,
         rule_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Remove a single rule from a security group by rule id."""
         zone = self._zone(zone)
@@ -101,9 +99,7 @@ class SecurityGroupClient(ResourceClient[SecurityGroup]):
         )
         return self._wait_operation(response, zone=zone, wait=wait)
 
-    def _wait_operation(
-        self, response: dict, *, zone: Optional[str], wait: Optional[bool]
-    ) -> Operation:
+    def _wait_operation(self, response: dict, *, zone: str | None, wait: bool | None) -> Operation:
         """Parse an operation response and await completion unless told not to."""
         operation = Operation.model_validate(response)
         if self._should_wait(wait) and operation.id:

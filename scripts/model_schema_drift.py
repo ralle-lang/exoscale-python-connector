@@ -41,7 +41,6 @@ import pkgutil
 import sys
 import typing
 from pathlib import Path
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 UPSTREAM_SPEC = REPO_ROOT / ".github" / "upstream" / "openapi-v2.json"
@@ -60,7 +59,7 @@ from exoscale_connector.resources._base import ResourceClient  # noqa: E402
 # --------------------------------------------------------------------------- #
 
 # Models that have no APIv2 OpenAPI schema and are not diffed, with the reason.
-EXEMPT_MODELS: Dict[str, str] = {
+EXEMPT_MODELS: dict[str, str] = {
     "Bucket": "S3-compatible object storage, not part of the APIv2 OpenAPI spec",
     "S3Object": "S3-compatible object storage, not part of the APIv2 OpenAPI spec",
     "DBaaSService": (
@@ -76,7 +75,7 @@ EXEMPT_MODELS: Dict[str, str] = {
 
 # Model class name -> schema name, for the cases collection_path / kebab-casing
 # can't derive on their own.
-SCHEMA_ALIASES: Dict[str, str] = {
+SCHEMA_ALIASES: dict[str, str] = {
     # collection_path is "block-storage"; the resource schema is the -volume one.
     "BlockVolume": "block-storage-volume",
     # No "api-key" schema exists; the get/list shape is iam-api-key (the create
@@ -104,7 +103,7 @@ SCHEMA_ALIASES: Dict[str, str] = {
 # field listed here is excluded from the model-only / type-mismatch /
 # missing-required failures. Every entry must match a real mismatch (else the
 # stale-entry test fails), so this stays an honest record of known deltas.
-ALLOWED_DIVERGENCES: Dict[str, Dict[str, str]] = {
+ALLOWED_DIVERGENCES: dict[str, dict[str, str]] = {
     "ApiKey": {
         "role": "convenience Reference to the scoped role; spec exposes role-id only",
         "secret": "one-time create secret (spec schema iam-api-key-created); never on read",
@@ -137,7 +136,7 @@ ALLOWED_DIVERGENCES: Dict[str, Dict[str, str]] = {
 # --------------------------------------------------------------------------- #
 # Spec loading + schema resolution
 # --------------------------------------------------------------------------- #
-def load_schemas(spec_path: Path) -> Dict[str, dict]:
+def load_schemas(spec_path: Path) -> dict[str, dict]:
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     return spec.get("components", {}).get("schemas", {}) or {}
 
@@ -152,7 +151,7 @@ _FAMILY_BY_TYPE = {
 }
 
 
-def _schema_family(node: dict, schemas: Dict[str, dict], seen: FrozenSet[str]) -> str:
+def _schema_family(node: dict, schemas: dict[str, dict], seen: frozenset[str]) -> str:
     """Coarse JSON family of a property schema, dereferencing a single ``$ref``."""
     if not isinstance(node, dict):
         return "wildcard"
@@ -180,16 +179,16 @@ def _schema_family(node: dict, schemas: Dict[str, dict], seen: FrozenSet[str]) -
 
 
 def resolve_schema(
-    node: dict, schemas: Dict[str, dict], seen: FrozenSet[str] = frozenset()
-) -> Tuple[Dict[str, str], Set[str]]:
+    node: dict, schemas: dict[str, dict], seen: frozenset[str] = frozenset()
+) -> tuple[dict[str, str], set[str]]:
     """Flatten a schema to ``(properties{name: family}, required{name})``.
 
     Follows ``$ref`` and merges ``allOf``; for ``anyOf`` / ``oneOf`` it unions the
     member properties (a field present in any variant counts as known) but takes no
     ``required`` from the union, since a union member's requirement isn't unconditional.
     """
-    props: Dict[str, str] = {}
-    required: Set[str] = set()
+    props: dict[str, str] = {}
+    required: set[str] = set()
     if not isinstance(node, dict):
         return props, required
 
@@ -251,18 +250,18 @@ def _py_family(annotation: object) -> str:
     return "wildcard"
 
 
-def model_field_families(model: type) -> Dict[str, str]:
+def model_field_families(model: type) -> dict[str, str]:
     """JSON alias -> family for every declared field of a pydantic model."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for name, field in model.model_fields.items():
         alias = field.alias or to_kebab(name)
         out[alias] = _py_family(field.annotation)
     return out
 
 
-def _resource_models() -> List[type]:
+def _resource_models() -> list[type]:
     """Every concrete ``ExoscaleModel`` subclass declared in resources/*.py."""
-    models: List[type] = []
+    models: list[type] = []
     for info in sorted(pkgutil.iter_modules(resources_pkg.__path__), key=lambda m: m.name):
         if info.name.startswith("_"):
             continue
@@ -278,9 +277,9 @@ def _resource_models() -> List[type]:
     return models
 
 
-def _collection_path_by_model() -> Dict[str, str]:
+def _collection_path_by_model() -> dict[str, str]:
     """Model class name -> its client's collection_path (for primary resources)."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for info in pkgutil.iter_modules(resources_pkg.__path__):
         if info.name.startswith("_"):
             continue
@@ -300,8 +299,8 @@ def _collection_path_by_model() -> Dict[str, str]:
 
 
 def schema_name_for(
-    model_name: str, cp_by_model: Dict[str, str], schemas: Dict[str, dict]
-) -> Tuple[str, Optional[str]]:
+    model_name: str, cp_by_model: dict[str, str], schemas: dict[str, dict]
+) -> tuple[str, str | None]:
     """Resolve a model to ``("exempt"|"schema"|"unresolved", schema_name|None)``."""
     if model_name in EXEMPT_MODELS:
         return ("exempt", None)
@@ -317,7 +316,7 @@ def schema_name_for(
 
 
 def _camel_to_snake(name: str) -> str:
-    out: List[str] = []
+    out: list[str] = []
     for i, ch in enumerate(name):
         if ch.isupper() and i > 0 and not name[i - 1].isupper():
             out.append("_")
@@ -334,28 +333,28 @@ class ModelDrift:
     def __init__(self, model_name: str, schema: str) -> None:
         self.model_name = model_name
         self.schema = schema
-        self.model_only: List[str] = []  # fail: alias not in schema
-        self.type_mismatch: List[Tuple[str, str, str]] = []  # fail: (alias, model, spec)
-        self.missing_required: List[str] = []  # fail: required spec field absent from model
-        self.missing_optional: List[str] = []  # informational only
+        self.model_only: list[str] = []  # fail: alias not in schema
+        self.type_mismatch: list[tuple[str, str, str]] = []  # fail: (alias, model, spec)
+        self.missing_required: list[str] = []  # fail: required spec field absent from model
+        self.missing_optional: list[str] = []  # informational only
 
     @property
     def has_failures(self) -> bool:
         return bool(self.model_only or self.type_mismatch or self.missing_required)
 
-    def used_allow_aliases(self) -> Set[str]:
+    def used_allow_aliases(self) -> set[str]:
         """Aliases that the allowlist actually suppressed for this model."""
         return _ALLOW_USAGE.get(self.model_name, set())
 
 
 # Records which allowlist aliases suppressed a real mismatch this run, so the
 # stale-entry test can flag entries that suppressed nothing.
-_ALLOW_USAGE: Dict[str, Set[str]] = {}
+_ALLOW_USAGE: dict[str, set[str]] = {}
 
 
 def diff_model(
-    model: type, schemas: Dict[str, dict], cp_by_model: Dict[str, str]
-) -> Optional[ModelDrift]:
+    model: type, schemas: dict[str, dict], cp_by_model: dict[str, str]
+) -> ModelDrift | None:
     """Diff one model against its schema. Returns ``None`` for exempt models."""
     kind, schema = schema_name_for(model.__name__, cp_by_model, schemas)
     if kind != "schema" or schema is None:
@@ -363,7 +362,7 @@ def diff_model(
     props, required = resolve_schema(schemas.get(schema, {}), schemas)
     fields = model_field_families(model)
     allow = ALLOWED_DIVERGENCES.get(model.__name__, {})
-    used: Set[str] = set()
+    used: set[str] = set()
 
     drift = ModelDrift(model.__name__, schema)
     for alias, family in fields.items():
@@ -394,9 +393,9 @@ def diff_model(
     return drift
 
 
-def all_drift(schemas: Dict[str, dict]) -> List[ModelDrift]:
+def all_drift(schemas: dict[str, dict]) -> list[ModelDrift]:
     cp_by_model = _collection_path_by_model()
-    out: List[ModelDrift] = []
+    out: list[ModelDrift] = []
     for model in _resource_models():
         drift = diff_model(model, schemas, cp_by_model)
         if drift is not None:
@@ -404,9 +403,9 @@ def all_drift(schemas: Dict[str, dict]) -> List[ModelDrift]:
     return sorted(out, key=lambda d: d.model_name)
 
 
-def unresolved_models(schemas: Dict[str, dict]) -> List[str]:
+def unresolved_models(schemas: dict[str, dict]) -> list[str]:
     cp_by_model = _collection_path_by_model()
-    out: List[str] = []
+    out: list[str] = []
     for model in _resource_models():
         kind, _ = schema_name_for(model.__name__, cp_by_model, schemas)
         if kind == "unresolved":
@@ -414,12 +413,12 @@ def unresolved_models(schemas: Dict[str, dict]) -> List[str]:
     return sorted(out)
 
 
-def stale_allowlist_entries(schemas: Dict[str, dict]) -> Dict[str, List[str]]:
+def stale_allowlist_entries(schemas: dict[str, dict]) -> dict[str, list[str]]:
     """Allowlisted (model, alias) pairs that suppressed no real mismatch this run."""
     all_drift(schemas)  # populates _ALLOW_USAGE as a side effect
     cp_by_model = _collection_path_by_model()
     known = {m.__name__ for m in _resource_models()}
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for model_name, aliases in ALLOWED_DIVERGENCES.items():
         if model_name not in known:
             out.setdefault(model_name, []).append("<model no longer exists>")
@@ -435,10 +434,10 @@ def stale_allowlist_entries(schemas: Dict[str, dict]) -> Dict[str, List[str]]:
     return out
 
 
-def invalid_mapping_entries(schemas: Dict[str, dict]) -> Dict[str, List[str]]:
+def invalid_mapping_entries(schemas: dict[str, dict]) -> dict[str, list[str]]:
     """Alias/exempt entries that reference a missing schema or a missing model."""
     known = {m.__name__ for m in _resource_models()}
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for name, schema in SCHEMA_ALIASES.items():
         if name not in known:
             out.setdefault("SCHEMA_ALIASES", []).append(f"{name} (no such model)")
@@ -453,11 +452,11 @@ def invalid_mapping_entries(schemas: Dict[str, dict]) -> Dict[str, List[str]]:
 # --------------------------------------------------------------------------- #
 # Rendering
 # --------------------------------------------------------------------------- #
-def render_summary_markdown(schemas: Dict[str, dict]) -> str:
+def render_summary_markdown(schemas: dict[str, dict]) -> str:
     """Human summary for the weekly drift issue (never raises; informational)."""
     drifts = all_drift(schemas)
     failing = [d for d in drifts if d.has_failures]
-    lines: List[str] = []
+    lines: list[str] = []
     if not failing:
         lines.append(
             "_No model/spec field drift: every model matches its schema "
@@ -467,7 +466,7 @@ def render_summary_markdown(schemas: Dict[str, dict]) -> str:
         lines.append("| Model | Schema | Drift |")
         lines.append("|---|---|---|")
         for d in failing:
-            bits: List[str] = []
+            bits: list[str] = []
             if d.model_only:
                 bits.append("model-only: " + ", ".join(f"`{a}`" for a in d.model_only))
             if d.type_mismatch:
@@ -490,7 +489,7 @@ def render_summary_markdown(schemas: Dict[str, dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument(
         "--summary",
