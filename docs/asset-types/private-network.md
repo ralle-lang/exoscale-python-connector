@@ -7,6 +7,18 @@ IPs from `start-ip`/`end-ip`).
 ## Model
 
 ```python
+class PrivateNetworkLease(ExoscaleModel):
+    instance_id: Optional[str]
+    ip: Optional[str]
+
+
+class PrivateNetworkOptions(ExoscaleModel):   # DHCP options
+    dns_servers: Optional[List[str]]
+    ntp_servers: Optional[List[str]]
+    routers: Optional[List[str]]
+    domain_search: Optional[List[str]]
+
+
 class PrivateNetwork(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -15,6 +27,9 @@ class PrivateNetwork(ExoscaleModel):
     end_ip: Optional[str]     # managed networks only
     netmask: Optional[str]    # managed networks only
     labels: Optional[Dict[str, str]]
+    options: Optional[PrivateNetworkOptions]
+    leases: Optional[List[PrivateNetworkLease]]   # read-only
+    vni: Optional[int]                            # VXLAN ID, read-only
 ```
 
 ## CLI

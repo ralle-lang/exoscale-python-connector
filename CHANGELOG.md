@@ -18,9 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - IAM organization policy: `get_organization_policy`,
   `set_organization_policy` and `reset_organization_policy` (requires
   `confirm=True`; library-only, not on the CLI) on `IAMRoleClient` (#78).
+- Typed response fields on shipped models, curated rather than modelled
+  wholesale: `Instance` attachments (anti-affinity groups, elastic IPs,
+  private networks with MAC, all SSH keys), user data and security flags;
+  `InstancePool` elastic IPs, SSH keys, user data, `min_available`;
+  `SksCluster` OIDC, feature gates, kube-proxy toggle, default security group;
+  `PrivateNetwork` DHCP options, leases, VNI; `VpcSubnet` attached instances;
+  `LoadBalancerService` nested healthcheck, per-backend status and instance
+  pool (#78).
 
 ### Changed
 
+- **Breaking:** `LoadBalancerService` drops its flat `healthcheck_*` fields in
+  favour of the nested `healthcheck` model the API actually uses. The flat
+  fields never received data from the API and serialised to keys it does not
+  define; read `svc.healthcheck.mode` instead of `svc.healthcheck_mode` (#78).
 - **Breaking:** the minimum supported Python is now **3.11** (was 3.9).
   Python 3.9 is end-of-life and 3.10 reaches end-of-life in October 2026;
   users on either should stay on 0.6.x. CI now tests 3.11 and 3.13, and the

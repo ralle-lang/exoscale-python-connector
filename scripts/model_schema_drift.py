@@ -66,6 +66,8 @@ EXEMPT_MODELS: dict[str, str] = {
         "flattened superset of the dbaas-service-* discriminated union "
         "(dbaas-service-pg / -mysql / -kafka / ...); no single 1:1 schema to diff against"
     ),
+    "InstancePrivateNetwork": "inline item schema of instance.private-networks; no named component",
+    "VpcSubnetInstance": "inline item schema of subnet.instances; no named component",
     "DBaaSLogEntry": "inline item schema of dbaas-service-logs.logs; no named component",
     "DBaaSConnectionInfo": (
         "connection-info is defined per engine in the spec and its shape varies "
@@ -123,12 +125,6 @@ ALLOWED_DIVERGENCES: dict[str, dict[str, str]] = {
     },
     "InstancePool": {
         "created-at": "live response field absent from the spec instance-pool schema",
-    },
-    # Documented in docs/asset-types/load-balancer.md (Gotchas): the model
-    # flattens the nested spec `healthcheck` object into healthcheck-* fields.
-    "LoadBalancerService": {
-        f"healthcheck-{suffix}": "model flattens the nested spec `healthcheck` object (LB gotchas)"
-        for suffix in ("mode", "port", "uri", "interval", "timeout", "retries", "tls-sni")
     },
     "SSHKey": {
         "public-key": "create-request field; the spec ssh-key response schema omits it",

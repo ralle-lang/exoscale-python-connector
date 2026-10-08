@@ -10,6 +10,11 @@ class SshKeyReference(ExoscaleModel):
     name: Optional[str]
 
 
+class InstancePrivateNetwork(ExoscaleModel):
+    id: Optional[str]
+    mac_address: Optional[str]
+
+
 class Instance(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -23,6 +28,17 @@ class Instance(ExoscaleModel):
     labels: Optional[dict]
     manager: Optional[Reference]      # set when the instance is a pool member
     created_at: Optional[str]
+    # Attachments (read them here; change them via attach/detach endpoints)
+    anti_affinity_groups: Optional[List[Reference]]
+    elastic_ips: Optional[List[Reference]]
+    private_networks: Optional[List[InstancePrivateNetwork]]
+    ssh_keys: Optional[List[SshKeyReference]]   # every key; ssh_key is the shorthand
+    user_data: Optional[str]                    # cloud-init, base64
+    public_ip_assignment: Optional[str]         # "inet4" | "dual" | "none"
+    mac_address: Optional[str]
+    disk_encrypted: Optional[bool]
+    secureboot_enabled: Optional[bool]
+    tpm_enabled: Optional[bool]
 ```
 
 ## CLI

@@ -192,3 +192,22 @@ def test_detach_instance_puts_colon_action(client, base_url) -> None:
     assert op.state == "success"
     sent = responses.calls[0].request.body
     assert b'"instance"' in sent and b'"i-abc"' in sent
+
+
+def test_private_network_parses_leases_options_and_vni() -> None:
+    pn = PrivateNetwork.model_validate(
+        {
+            "id": "pn-1",
+            "leases": [{"instance-id": "i-1", "ip": "10.0.0.10"}],
+            "options": {
+                "dns-servers": ["10.0.0.2"],
+                "routers": ["10.0.0.1"],
+                "domain-search": ["internal"],
+            },
+            "vni": 42,
+        }
+    )
+    assert (pn.leases[0].instance_id, pn.leases[0].ip) == ("i-1", "10.0.0.10")
+    assert pn.options.dns_servers == ["10.0.0.2"]
+    assert pn.options.domain_search == ["internal"]
+    assert pn.vni == 42

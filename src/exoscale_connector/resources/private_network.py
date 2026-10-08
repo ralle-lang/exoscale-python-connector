@@ -11,6 +11,22 @@ from ..models import ExoscaleModel, Operation
 from ._base import ResourceClient
 
 
+class PrivateNetworkLease(ExoscaleModel):
+    """A static DHCP lease: which instance holds which address."""
+
+    instance_id: str | None = None
+    ip: str | None = None
+
+
+class PrivateNetworkOptions(ExoscaleModel):
+    """DHCP options handed to instances on a managed private network."""
+
+    dns_servers: list[str] | None = None
+    ntp_servers: list[str] | None = None
+    routers: list[str] | None = None
+    domain_search: list[str] | None = None
+
+
 class PrivateNetwork(ExoscaleModel):
     """An Exoscale Private Network (layer-2 segment within a zone)."""
 
@@ -22,6 +38,10 @@ class PrivateNetwork(ExoscaleModel):
     end_ip: str | None = None  # API key: "end-ip"
     netmask: str | None = None
     labels: dict[str, str] | None = None
+    options: PrivateNetworkOptions | None = None
+    # Read-only: current leases, and the VXLAN ID backing the network.
+    leases: list[PrivateNetworkLease] | None = None
+    vni: int | None = None
 
 
 class PrivateNetworkClient(ResourceClient[PrivateNetwork]):

@@ -6,6 +6,21 @@ how incoming traffic on a port maps to a backing instance pool.
 ## Model
 
 ```python
+class LoadBalancerServiceHealthcheck(ExoscaleModel):
+    mode: Optional[str]                      # "tcp" | "http" | "https"
+    port: Optional[int]
+    uri: Optional[str]                       # http/https only
+    interval: Optional[int]                  # seconds, >= timeout
+    timeout: Optional[int]
+    retries: Optional[int]
+    tls_sni: Optional[str]                   # https only
+
+
+class LoadBalancerServerStatus(ExoscaleModel):
+    public_ip: Optional[str]
+    status: Optional[str]                    # "success" | "failure"
+
+
 class LoadBalancerService(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -14,13 +29,9 @@ class LoadBalancerService(ExoscaleModel):
     port: Optional[int]                      # public-facing port
     target_port: Optional[int]               # port on the backing instances
     strategy: Optional[str]                  # "round-robin" | "source-hash"
-    healthcheck_mode: Optional[str]          # "tcp" | "http" | "https"
-    healthcheck_port: Optional[int]
-    healthcheck_uri: Optional[str]
-    healthcheck_interval: Optional[int]
-    healthcheck_timeout: Optional[int]
-    healthcheck_retries: Optional[int]
-    healthcheck_tls_sni: Optional[str]
+    instance_pool: Optional[Reference]       # the backend pool
+    healthcheck: Optional[LoadBalancerServiceHealthcheck]
+    healthcheck_status: Optional[List[LoadBalancerServerStatus]]   # read-only
     state: Optional[str]
 
 
@@ -94,9 +105,10 @@ lbs.delete(lb.id)
 - **Service path is `/service` (singular)**, e.g.
   `POST /load-balancer/<id>/service`. Confirmed against the live API; it's not
   always reflected in the OpenAPI index.
-- **The `LoadBalancerService` model currently flattens healthcheck fields
-  and lacks an `instance_pool` field.** Use dict payloads to send the full
-  spec the wire expects. (Tracked as a follow-up model refinement.)
+- **`healthcheck` is a nested object** (`svc.healthcheck.mode`), matching the
+  wire. Before 0.7.0 the model flattened it into `healthcheck_*` fields that
+  never received data; those are gone. Dict payloads and
+  `LoadBalancerService(...)` models now serialise to the same shape.
 - **Delete the LB before deleting the backing pool** — the API rejects
   deleting a pool that has an LB pointing at it.
 

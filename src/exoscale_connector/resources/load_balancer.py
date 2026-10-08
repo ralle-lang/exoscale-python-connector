@@ -13,8 +13,27 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ..models import ExoscaleModel, Operation, to_api_payload
+from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
+
+
+class LoadBalancerServiceHealthcheck(ExoscaleModel):
+    """How the load balancer probes a service's backends."""
+
+    mode: str | None = None  # "tcp" | "http" | "https"
+    port: int | None = None
+    uri: str | None = None  # http/https mode only
+    interval: int | None = None  # seconds; >= timeout
+    timeout: int | None = None
+    retries: int | None = None
+    tls_sni: str | None = None  # https mode only
+
+
+class LoadBalancerServerStatus(ExoscaleModel):
+    """Healthcheck result for one backend server."""
+
+    public_ip: str | None = None
+    status: str | None = None  # "success" | "failure"
 
 
 class LoadBalancerService(ExoscaleModel):
@@ -35,14 +54,11 @@ class LoadBalancerService(ExoscaleModel):
     target_port: int | None = None
     # "source-hash" | "round-robin"
     strategy: str | None = None
-    # Healthcheck sub-object; field names follow API kebab-case via alias generator
-    healthcheck_mode: str | None = None  # "tcp" | "http" | "https"
-    healthcheck_port: int | None = None
-    healthcheck_uri: str | None = None
-    healthcheck_interval: int | None = None
-    healthcheck_timeout: int | None = None
-    healthcheck_retries: int | None = None
-    healthcheck_tls_sni: str | None = None
+    # The backend pool the service forwards to.
+    instance_pool: Reference | None = None
+    healthcheck: LoadBalancerServiceHealthcheck | None = None
+    # Read-only: the latest probe result per backend.
+    healthcheck_status: list[LoadBalancerServerStatus] | None = None
     state: str | None = None
 
 

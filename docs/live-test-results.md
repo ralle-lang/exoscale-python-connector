@@ -382,3 +382,11 @@ ran in full, read-only: 27 passed, 4 skipped.
 - `vpc` and `kms` still 403. The VPC reason now reads "Forbidden by role policy
   for networking", not "not enabled": the test key's role, not the tenant, is
   what blocks it.
+
+**Tier B typed fields (same day, read-only):** the smoke suite passed again
+(27 passed, 4 skipped) with the new typed fields in place. Instance and
+private-network list and detail responses parse with them. The tenant has no
+instance pools or load balancers, so `InstancePool` and the nested
+`LoadBalancerService` healthcheck are covered by unit tests here; tier 4's
+load-balancer lifecycle exercises the healthcheck shape when it next runs.
+
