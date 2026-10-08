@@ -14,8 +14,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-ssh-key
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..models import ExoscaleModel
 from ._base import ResourceClient
 
@@ -23,11 +21,11 @@ from ._base import ResourceClient
 class SSHKey(ExoscaleModel):
     """An Exoscale SSH public key."""
 
-    name: Optional[str] = None
-    fingerprint: Optional[str] = None
+    name: str | None = None
+    fingerprint: str | None = None
     # The public key material. Present on import; may be absent on list/get
     # responses depending on the API version.
-    public_key: Optional[str] = None
+    public_key: str | None = None
 
 
 class SSHKeyClient(ResourceClient[SSHKey]):

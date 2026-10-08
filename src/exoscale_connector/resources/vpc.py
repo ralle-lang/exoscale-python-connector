@@ -17,8 +17,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-vpc
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient, _looks_like_operation
 
@@ -26,38 +24,38 @@ from ._base import ResourceClient, _looks_like_operation
 class VpcRoute(ExoscaleModel):
     """A route entry within a VPC subnet."""
 
-    id: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    description: str | None = None
     # CIDR the route matches, and the next-hop target.
-    destination: Optional[str] = None
-    target: Optional[str] = None
+    destination: str | None = None
+    target: str | None = None
     # "Subnet" | "Vpc"
-    kind: Optional[str] = None
+    kind: str | None = None
 
 
 class VpcSubnet(ExoscaleModel):
     """An IP subnet within a VPC that instances can attach to."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # "private"
-    address_space: Optional[str] = None
+    address_space: str | None = None
     # "inet4" | "dual"
-    addressfamily: Optional[str] = None
-    ipv4_block: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
-    created_at: Optional[str] = None
+    addressfamily: str | None = None
+    ipv4_block: str | None = None
+    labels: dict[str, str] | None = None
+    created_at: str | None = None
 
 
 class Vpc(ExoscaleModel):
     """An Exoscale VPC (private network fabric)."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
-    created_at: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    labels: dict[str, str] | None = None
+    created_at: str | None = None
 
 
 class VpcClient(ResourceClient[Vpc]):
@@ -76,13 +74,13 @@ class VpcClient(ResourceClient[Vpc]):
     # Subnet sub-resource
     # ------------------------------------------------------------------ #
 
-    def list_subnets(self, vpc_id: str, *, zone: Optional[str] = None) -> List[VpcSubnet]:
+    def list_subnets(self, vpc_id: str, *, zone: str | None = None) -> list[VpcSubnet]:
         """List a VPC's subnets (``GET vpc/{vpc_id}/subnet``)."""
         payload = self.client.get(f"{self.collection_path}/{vpc_id}/subnet", zone=self._zone(zone))
         items = payload.get("subnets") or []
         return [VpcSubnet.model_validate(i) for i in items if isinstance(i, dict)]
 
-    def get_subnet(self, vpc_id: str, subnet_id: str, *, zone: Optional[str] = None) -> VpcSubnet:
+    def get_subnet(self, vpc_id: str, subnet_id: str, *, zone: str | None = None) -> VpcSubnet:
         """Fetch one subnet by id (``GET vpc/{vpc_id}/subnet/{subnet_id}``)."""
         payload = self.client.get(
             f"{self.collection_path}/{vpc_id}/subnet/{subnet_id}",
@@ -95,8 +93,8 @@ class VpcClient(ResourceClient[Vpc]):
         vpc_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Add a subnet to a VPC (``POST vpc/{vpc_id}/subnet``).
 
@@ -118,8 +116,8 @@ class VpcClient(ResourceClient[Vpc]):
         subnet_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Update a subnet (``PUT vpc/{vpc_id}/subnet/{subnet_id}``)."""
         zone = self._zone(zone)
@@ -135,8 +133,8 @@ class VpcClient(ResourceClient[Vpc]):
         vpc_id: str,
         subnet_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Delete a subnet (``DELETE vpc/{vpc_id}/subnet/{subnet_id}``)."""
         zone = self._zone(zone)
@@ -151,8 +149,8 @@ class VpcClient(ResourceClient[Vpc]):
         subnet_id: str,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Attach an instance to a subnet.
 
@@ -173,8 +171,8 @@ class VpcClient(ResourceClient[Vpc]):
         subnet_id: str,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Detach an instance from a subnet.
 
@@ -193,15 +191,15 @@ class VpcClient(ResourceClient[Vpc]):
     # Route sub-resource
     # ------------------------------------------------------------------ #
 
-    def list_routes(self, vpc_id: str, *, zone: Optional[str] = None) -> List[VpcRoute]:
+    def list_routes(self, vpc_id: str, *, zone: str | None = None) -> list[VpcRoute]:
         """List every route in a VPC (``GET vpc/{vpc_id}/route``)."""
         payload = self.client.get(f"{self.collection_path}/{vpc_id}/route", zone=self._zone(zone))
         items = payload.get("routes") or []
         return [VpcRoute.model_validate(i) for i in items if isinstance(i, dict)]
 
     def list_subnet_routes(
-        self, vpc_id: str, subnet_id: str, *, zone: Optional[str] = None
-    ) -> List[VpcRoute]:
+        self, vpc_id: str, subnet_id: str, *, zone: str | None = None
+    ) -> list[VpcRoute]:
         """List a subnet's routes (``GET vpc/{vpc_id}/subnet/{subnet_id}/route``)."""
         payload = self.client.get(
             f"{self.collection_path}/{vpc_id}/subnet/{subnet_id}/route",
@@ -216,8 +214,8 @@ class VpcClient(ResourceClient[Vpc]):
         subnet_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Add a route to a subnet.
 
@@ -240,8 +238,8 @@ class VpcClient(ResourceClient[Vpc]):
         subnet_id: str,
         route_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Delete a route (``DELETE vpc/{vpc_id}/subnet/{subnet_id}/route/{route_id}``)."""
         zone = self._zone(zone)
@@ -256,7 +254,7 @@ class VpcClient(ResourceClient[Vpc]):
     # ------------------------------------------------------------------ #
 
     def _wait_sub_operation(
-        self, response: dict, *, zone: Optional[str], wait: Optional[bool]
+        self, response: dict, *, zone: str | None, wait: bool | None
     ) -> Operation:
         """Parse a sub-resource mutation response and await completion by default.
 

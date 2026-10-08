@@ -29,7 +29,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from ..config import ClientConfig
 from ..errors import ExoscaleError
@@ -37,7 +38,7 @@ from ..resources.object_storage import BucketClient
 from ._base import dump, print_result, run_guarded
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """Parse arguments, run the verb, print JSON. Returns an exit code."""
     parser = _build_parser()
     args = parser.parse_args(argv)

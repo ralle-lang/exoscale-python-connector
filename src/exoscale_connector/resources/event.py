@@ -14,7 +14,7 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-audit
 
 from __future__ import annotations
 
-from typing import List, Optional
+import builtins
 
 from ..models import ExoscaleModel, Reference
 from ._base import ResourceClient
@@ -23,20 +23,20 @@ from ._base import ResourceClient
 class Event(ExoscaleModel):
     """A single audit-log entry describing one APIv2 request."""
 
-    timestamp: Optional[str] = None
+    timestamp: str | None = None
     # HTTP request line details.
-    handler: Optional[str] = None
-    uri: Optional[str] = None
-    status: Optional[int] = None
-    elapsed_ms: Optional[int] = None
-    request_id: Optional[str] = None
-    source_ip: Optional[str] = None
-    message: Optional[str] = None
-    zone: Optional[str] = None
+    handler: str | None = None
+    uri: str | None = None
+    status: int | None = None
+    elapsed_ms: int | None = None
+    request_id: str | None = None
+    source_ip: str | None = None
+    message: str | None = None
+    zone: str | None = None
     # Caller identity (whichever applies to the request).
-    iam_user: Optional[Reference] = None
-    iam_role: Optional[Reference] = None
-    iam_api_key: Optional[Reference] = None
+    iam_user: Reference | None = None
+    iam_role: Reference | None = None
+    iam_api_key: Reference | None = None
 
 
 class EventClient(ResourceClient[Event]):
@@ -56,10 +56,10 @@ class EventClient(ResourceClient[Event]):
     def list(  # type: ignore[override]
         self,
         *,
-        from_: Optional[str] = None,
-        to: Optional[str] = None,
-        zone: Optional[str] = None,
-    ) -> List[Event]:
+        from_: str | None = None,
+        to: str | None = None,
+        zone: str | None = None,
+    ) -> builtins.list[Event]:
         """Return audit events, newest window first.
 
         ``from_`` and ``to`` are ISO-8601 timestamps mapped to the API's

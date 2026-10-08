@@ -13,8 +13,8 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-iam
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import Enum
-from typing import Dict, Iterable, List, Optional, Union
 
 from ..models import ExoscaleModel, Operation, to_api_payload
 from ._base import ResourceClient
@@ -62,20 +62,20 @@ class IAMPolicyRule(ExoscaleModel):
     """
 
     # "allow" or "deny".
-    action: Optional[str] = None
+    action: str | None = None
     # The condition expression in Exoscale's IAM DSL (kept verbatim).
-    expression: Optional[str] = None
+    expression: str | None = None
     # Optional resource scopes; modern policies usually express these inside the
     # expression instead, but the field remains part of the API contract.
-    resources: Optional[List[str]] = None
+    resources: list[str] | None = None
 
     @classmethod
-    def allow(cls, expression: str, *, resources: Optional[List[str]] = None) -> IAMPolicyRule:
+    def allow(cls, expression: str, *, resources: list[str] | None = None) -> IAMPolicyRule:
         """A rule that *allows* the call when ``expression`` evaluates true."""
         return cls(action=RuleAction.ALLOW.value, expression=expression, resources=resources)
 
     @classmethod
-    def deny(cls, expression: str, *, resources: Optional[List[str]] = None) -> IAMPolicyRule:
+    def deny(cls, expression: str, *, resources: list[str] | None = None) -> IAMPolicyRule:
         """A rule that *denies* the call when ``expression`` evaluates true."""
         return cls(action=RuleAction.DENY.value, expression=expression, resources=resources)
 
@@ -89,9 +89,9 @@ class IAMPolicyService(ExoscaleModel):
     """
 
     # "allow", "deny", or "rules".
-    type: Optional[str] = None
+    type: str | None = None
     # Present (and meaningful) when ``type == "rules"``.
-    rules: Optional[List[IAMPolicyRule]] = None
+    rules: list[IAMPolicyRule] | None = None
 
     @classmethod
     def allow(cls) -> IAMPolicyService:
@@ -124,9 +124,9 @@ class IAMPolicy(ExoscaleModel):
     """
 
     # Fallback decision for unconfigured services: "allow" or "deny".
-    default_service_strategy: Optional[str] = None
+    default_service_strategy: str | None = None
     # Per-service policy blocks, keyed by service name.
-    services: Optional[Dict[str, IAMPolicyService]] = None
+    services: dict[str, IAMPolicyService] | None = None
 
     @classmethod
     def deny_all(cls) -> IAMPolicy:
@@ -155,7 +155,7 @@ class IAMAssumeRolePolicy(ExoscaleModel):
     ``iam-assume-role-policy``).
     """
 
-    rules: Optional[List[IAMPolicyRule]] = None
+    rules: list[IAMPolicyRule] | None = None
 
     @classmethod
     def with_rules(cls, *rules: IAMPolicyRule) -> IAMAssumeRolePolicy:
@@ -166,19 +166,19 @@ class IAMAssumeRolePolicy(ExoscaleModel):
 class IAMRole(ExoscaleModel):
     """An Exoscale IAM role."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # Whether the role can be modified after creation (some built-in roles are
     # read-only and the API marks them with editable=false).
-    editable: Optional[bool] = None
-    permissions: Optional[List[str]] = None
-    labels: Optional[Dict[str, str]] = None
+    editable: bool | None = None
+    permissions: list[str] | None = None
+    labels: dict[str, str] | None = None
     # The role's permission policy (what a key bound to this role may do).
-    policy: Optional[IAMPolicy] = None
+    policy: IAMPolicy | None = None
     # Conditions under which this role may be assumed: a flat rule list, not
     # the per-service shape of ``policy``.
-    assume_role_policy: Optional[IAMAssumeRolePolicy] = None
+    assume_role_policy: IAMAssumeRolePolicy | None = None
 
 
 class IAMRoleClient(ResourceClient[IAMRole]):
@@ -200,10 +200,10 @@ class IAMRoleClient(ResourceClient[IAMRole]):
     def set_policy(
         self,
         role_id: str,
-        policy: Union[IAMPolicy, dict],
+        policy: IAMPolicy | dict,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Replace the role's permission policy (``PUT /iam-role/{id}:policy``)."""
         return self._put_policy(role_id, "policy", policy, zone=zone, wait=wait)
@@ -211,10 +211,10 @@ class IAMRoleClient(ResourceClient[IAMRole]):
     def set_assume_role_policy(
         self,
         role_id: str,
-        policy: Union[IAMAssumeRolePolicy, dict],
+        policy: IAMAssumeRolePolicy | dict,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Replace the assume-role policy.
 
@@ -237,10 +237,10 @@ class IAMRoleClient(ResourceClient[IAMRole]):
         self,
         role_id: str,
         action: str,
-        policy: Union[IAMPolicy, dict],
+        policy: IAMPolicy | dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """PUT a policy body to an ``:<action>`` sub-endpoint and await the op."""
         zone = self._zone(zone)

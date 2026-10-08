@@ -15,7 +15,6 @@ import inspect
 import pkgutil
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -26,7 +25,7 @@ import exoscale_connector.resources as resources_pkg  # noqa: E402
 from exoscale_connector.resources._base import ResourceClient  # noqa: E402
 
 
-def mapping_rows() -> List[Tuple[str, str, str, str]]:
+def mapping_rows() -> list[tuple[str, str, str, str]]:
     """(spec path prefix, client class, module path, doc page) per asset type."""
     rows = []
     for info in sorted(pkgutil.iter_modules(resources_pkg.__path__), key=lambda m: m.name):

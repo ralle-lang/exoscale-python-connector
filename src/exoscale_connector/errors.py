@@ -7,7 +7,7 @@ for control flow such as idempotent create/delete.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
 class ExoscaleError(Exception):
@@ -33,7 +33,7 @@ class APIError(ExoscaleError):
         message: str,
         *,
         status_code: int,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
         method: str = "",
         url: str = "",
     ) -> None:
@@ -71,7 +71,7 @@ class WaitTimeoutError(ExoscaleError):
     observed state for diagnostics.
     """
 
-    def __init__(self, message: str, *, expected: str = "", last_state: Optional[str] = None):
+    def __init__(self, message: str, *, expected: str = "", last_state: str | None = None):
         super().__init__(message)
         self.expected = expected
         self.last_state = last_state

@@ -13,8 +13,6 @@ API reference: https://openapi-v2.exoscale.com/operation/operation-list-zones
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..models import ExoscaleModel
 from ._base import ResourceClient
 
@@ -22,9 +20,9 @@ from ._base import ResourceClient
 class Zone(ExoscaleModel):
     """An Exoscale zone (e.g. ``de-fra-1``)."""
 
-    name: Optional[str] = None
+    name: str | None = None
     # The zone's API endpoint, when the API advertises it.
-    api_endpoint: Optional[str] = None
+    api_endpoint: str | None = None
 
 
 class ZoneClient(ResourceClient[Zone]):

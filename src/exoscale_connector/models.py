@@ -9,7 +9,7 @@ exclude_none=True)`` (or the :func:`to_api_payload` helper).
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -40,8 +40,8 @@ class ExoscaleModel(BaseModel):
 class Reference(ExoscaleModel):
     """A lightweight pointer to another resource (``{"id": ...}``)."""
 
-    id: Optional[str] = None
-    link: Optional[str] = None
+    id: str | None = None
+    link: str | None = None
 
 
 class Operation(ExoscaleModel):
@@ -51,14 +51,14 @@ class Operation(ExoscaleModel):
     ``timeout``; ``reference`` points at the resource the operation acted on.
     """
 
-    id: Optional[str] = None
-    state: Optional[str] = None
-    reference: Optional[Reference] = None
-    reason: Optional[str] = None
-    message: Optional[str] = None
+    id: str | None = None
+    state: str | None = None
+    reference: Reference | None = None
+    reason: str | None = None
+    message: str | None = None
 
     @property
-    def reference_id(self) -> Optional[str]:
+    def reference_id(self) -> str | None:
         """The id of the affected resource, if the operation carries a reference."""
         return self.reference.id if self.reference else None
 

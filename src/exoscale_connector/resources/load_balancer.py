@@ -11,8 +11,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-network-load-balan
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, to_api_payload
@@ -26,38 +24,38 @@ class LoadBalancerService(ExoscaleModel):
     targets, optionally with a healthcheck.
     """
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # "tcp" | "udp" — the transport protocol for both listener and targets
-    protocol: Optional[str] = None
+    protocol: str | None = None
     # Listener port on the load balancer's public address
-    port: Optional[int] = None
+    port: int | None = None
     # Port on the backend instances
-    target_port: Optional[int] = None
+    target_port: int | None = None
     # "source-hash" | "round-robin"
-    strategy: Optional[str] = None
+    strategy: str | None = None
     # Healthcheck sub-object; field names follow API kebab-case via alias generator
-    healthcheck_mode: Optional[str] = None  # "tcp" | "http" | "https"
-    healthcheck_port: Optional[int] = None
-    healthcheck_uri: Optional[str] = None
-    healthcheck_interval: Optional[int] = None
-    healthcheck_timeout: Optional[int] = None
-    healthcheck_retries: Optional[int] = None
-    healthcheck_tls_sni: Optional[str] = None
-    state: Optional[str] = None
+    healthcheck_mode: str | None = None  # "tcp" | "http" | "https"
+    healthcheck_port: int | None = None
+    healthcheck_uri: str | None = None
+    healthcheck_interval: int | None = None
+    healthcheck_timeout: int | None = None
+    healthcheck_retries: int | None = None
+    healthcheck_tls_sni: str | None = None
+    state: str | None = None
 
 
 class LoadBalancer(ExoscaleModel):
     """An Exoscale Network Load Balancer and its services."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    ip: Optional[str] = None  # public IPv4 address
-    state: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
-    services: List[LoadBalancerService] = Field(default_factory=list)
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    ip: str | None = None  # public IPv4 address
+    state: str | None = None
+    labels: dict[str, str] | None = None
+    services: list[LoadBalancerService] = Field(default_factory=list)
 
 
 class LoadBalancerClient(ResourceClient[LoadBalancer]):
@@ -80,8 +78,8 @@ class LoadBalancerClient(ResourceClient[LoadBalancer]):
         lb_id: str,
         service: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Add a service to a load balancer.
 
@@ -103,8 +101,8 @@ class LoadBalancerClient(ResourceClient[LoadBalancer]):
         service_id: str,
         payload: object,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Update an existing service on a load balancer (HTTP PUT).
 
@@ -124,8 +122,8 @@ class LoadBalancerClient(ResourceClient[LoadBalancer]):
         lb_id: str,
         service_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Remove a service from a load balancer by service id."""
         zone = self._zone(zone)
@@ -135,9 +133,7 @@ class LoadBalancerClient(ResourceClient[LoadBalancer]):
         )
         return self._wait_operation(response, zone=zone, wait=wait)
 
-    def _wait_operation(
-        self, response: dict, *, zone: Optional[str], wait: Optional[bool]
-    ) -> Operation:
+    def _wait_operation(self, response: dict, *, zone: str | None, wait: bool | None) -> Operation:
         """Parse an operation response and await completion unless told not to."""
         operation = Operation.model_validate(response)
         if self._should_wait(wait) and operation.id:

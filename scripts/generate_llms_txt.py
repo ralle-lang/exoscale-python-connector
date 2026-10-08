@@ -35,9 +35,10 @@ import json
 import pkgutil
 import re
 import sys
+from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Type
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = REPO_ROOT / "docs" / "llms.txt"
@@ -96,15 +97,15 @@ def _fmt_type(tp: Any) -> str:
 
 
 def _public_methods(
-    cls: type, *, owned_by: Optional[type] = None, exclude: Tuple[type, ...] = ()
-) -> List[Tuple[str, Callable[..., Any]]]:
+    cls: type, *, owned_by: type | None = None, exclude: tuple[type, ...] = ()
+) -> list[tuple[str, Callable[..., Any]]]:
     """Public methods of ``cls`` filtered by the class that defines them.
 
     ``owned_by`` keeps only methods defined on exactly that class; ``exclude``
     drops methods defined on any of the given bases (e.g. the shared
     ``ResourceClient`` CRUD, documented once in its own section).
     """
-    out: List[Tuple[str, Callable[..., Any]]] = []
+    out: list[tuple[str, Callable[..., Any]]] = []
     for name in sorted(dir(cls)):
         if name.startswith("_"):
             continue
@@ -121,8 +122,8 @@ def _public_methods(
     return out
 
 
-def _method_lines(cls: type, **kwargs: Any) -> List[str]:
-    lines: List[str] = []
+def _method_lines(cls: type, **kwargs: Any) -> list[str]:
+    lines: list[str] = []
     for name, func in _public_methods(cls, **kwargs):
         lines.append(f"- `{name}{_format_signature(func)}`")
         summary = _doc_summary(func)
@@ -131,7 +132,7 @@ def _method_lines(cls: type, **kwargs: Any) -> List[str]:
     return lines
 
 
-def _model_lines(cls: Type[ExoscaleModel]) -> List[str]:
+def _model_lines(cls: type[ExoscaleModel]) -> list[str]:
     """Field table for a pydantic model: attribute, JSON key, type."""
     lines = [f"#### model `{cls.__name__}`", ""]
     summary = _doc_summary(cls)
@@ -140,12 +141,14 @@ def _model_lines(cls: Type[ExoscaleModel]) -> List[str]:
     lines += ["| Python attribute | JSON key | Type |", "|---|---|---|"]
     for name, field in cls.model_fields.items():
         alias = field.alias or name
-        lines.append(f"| `{name}` | `{alias}` | {_fmt_type(field.annotation)} |")
+        # PEP 604 unions render as "str | None"; a bare pipe would split the cell.
+        type_cell = _fmt_type(field.annotation).replace("|", "\\|")
+        lines.append(f"| `{name}` | `{alias}` | {type_cell} |")
     lines.append("")
     return lines
 
 
-def _enum_lines(cls: Type[Enum]) -> List[str]:
+def _enum_lines(cls: type[Enum]) -> list[str]:
     values = ", ".join(f"`{member.value}`" for member in cls)
     lines = [f"#### enum `{cls.__name__}`: {values}"]
     summary = _doc_summary(cls)
@@ -155,7 +158,7 @@ def _enum_lines(cls: Type[Enum]) -> List[str]:
     return lines
 
 
-def _client_lines(cls: type) -> List[str]:
+def _client_lines(cls: type) -> list[str]:
     lines = [f"#### client `{cls.__name__}`", ""]
     summary = _doc_summary(cls)
     if summary:
@@ -176,9 +179,9 @@ def _client_lines(cls: type) -> List[str]:
     return lines
 
 
-def _resource_module_sections() -> List[str]:
+def _resource_module_sections() -> list[str]:
     """One section per asset-type module under ``exoscale_connector.resources``."""
-    lines: List[str] = []
+    lines: list[str] = []
     for info in sorted(pkgutil.iter_modules(resources_pkg.__path__), key=lambda m: m.name):
         if info.name.startswith("_"):
             continue
@@ -227,7 +230,7 @@ ADDON_BLOCK_BEGIN = "<!-- BEGIN GENERATED:sks-addons -->"
 ADDON_BLOCK_END = "<!-- END GENERATED:sks-addons -->"
 
 
-def _spec_addon_enum(spec: dict, schema: str) -> List[str]:
+def _spec_addon_enum(spec: dict, schema: str) -> list[str]:
     """Pull the ``addons`` enum for a schema out of the OpenAPI spec, or []."""
     items = (
         spec.get("components", {})
@@ -287,10 +290,10 @@ def _load_asset_page(path: Path) -> str:
     return text
 
 
-def _asset_page_sections() -> List[str]:
+def _asset_page_sections() -> list[str]:
     pages = sorted(p for p in ASSET_PAGES_DIR.glob("*.md") if p.name != "README.md")
     ordered = [ASSET_PAGES_DIR / "README.md"] + pages
-    lines: List[str] = []
+    lines: list[str] = []
     for page in ordered:
         lines += [_demote_headings(_load_asset_page(page).rstrip()), ""]
     return lines
@@ -386,7 +389,7 @@ Rules:
 
 
 def generate_bundle() -> str:
-    lines: List[str] = [HEADER.format(version=exoscale_connector.__version__), ""]
+    lines: list[str] = [HEADER.format(version=exoscale_connector.__version__), ""]
 
     lines += ["## Core client", "", _doc_summary(ExoscaleClient), ""]
     lines += _method_lines(ExoscaleClient, owned_by=ExoscaleClient)
@@ -424,7 +427,7 @@ def generate_bundle() -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def artifacts() -> "dict[Path, str]":
+def artifacts() -> dict[Path, str]:
     """Every generated file and its expected content, keyed by absolute path."""
     bundle = generate_bundle()
     return {
@@ -439,7 +442,7 @@ def artifacts() -> "dict[Path, str]":
     }
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument(
         "--check",

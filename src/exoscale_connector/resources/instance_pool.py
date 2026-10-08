@@ -5,8 +5,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-compute
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
@@ -16,25 +14,25 @@ from ._base import ResourceClient
 class InstancePool(ExoscaleModel):
     """An Exoscale instance pool (autoscaling group of identical instances)."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    state: Optional[str] = None  # "running" | "scaling-up" | "scaling-down" | ...
-    size: Optional[int] = None
-    instance_type: Optional[Reference] = None
-    template: Optional[Reference] = None
-    disk_size: Optional[int] = None
-    instance_prefix: Optional[str] = None
-    ipv6_enabled: Optional[bool] = None
-    public_ip_assignment: Optional[str] = None
-    security_groups: List[Reference] = Field(default_factory=list)
-    private_networks: List[Reference] = Field(default_factory=list)
-    labels: Optional[dict] = None
-    instances: List[Reference] = Field(default_factory=list)
-    anti_affinity_groups: List[Reference] = Field(default_factory=list)
-    deploy_target: Optional[Reference] = None
-    ssh_key: Optional[Reference] = None
-    created_at: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    state: str | None = None  # "running" | "scaling-up" | "scaling-down" | ...
+    size: int | None = None
+    instance_type: Reference | None = None
+    template: Reference | None = None
+    disk_size: int | None = None
+    instance_prefix: str | None = None
+    ipv6_enabled: bool | None = None
+    public_ip_assignment: str | None = None
+    security_groups: list[Reference] = Field(default_factory=list)
+    private_networks: list[Reference] = Field(default_factory=list)
+    labels: dict | None = None
+    instances: list[Reference] = Field(default_factory=list)
+    anti_affinity_groups: list[Reference] = Field(default_factory=list)
+    deploy_target: Reference | None = None
+    ssh_key: Reference | None = None
+    created_at: str | None = None
 
 
 class InstancePoolClient(ResourceClient[InstancePool]):
@@ -49,8 +47,8 @@ class InstancePoolClient(ResourceClient[InstancePool]):
         pool_id: str,
         size: int,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Resize an instance pool to the given number of instances.
 

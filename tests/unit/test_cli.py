@@ -14,7 +14,7 @@ import importlib
 import io
 import json
 import sys
-from typing import Any, List
+from typing import Any
 
 import pytest
 import requests
@@ -186,7 +186,7 @@ def test_dbaas_delete_by_name(monkeypatch, capsys) -> None:
 # ------------------------------------------------------------------ #
 
 
-def _sg_cli(argv: List[str]) -> int:
+def _sg_cli(argv: list[str]) -> int:
     return run_resource_cli(
         SecurityGroupClient,
         prog="exoscale-security-group",

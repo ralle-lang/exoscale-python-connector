@@ -5,8 +5,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-elastic-ip
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from ..models import ExoscaleModel
 from ._base import ResourceClient
 from ._reverse_dns import ReverseDNSMixin
@@ -19,27 +17,27 @@ class ElasticIPHealthcheck(ExoscaleModel):
     instance and withdraw the address on failure.
     """
 
-    mode: Optional[str] = None  # "tcp" | "http" | "https"
-    port: Optional[int] = None
-    uri: Optional[str] = None  # for http/https mode
-    interval: Optional[int] = None  # seconds between probes
-    timeout: Optional[int] = None  # per-probe timeout in seconds
-    strikes_ok: Optional[int] = None  # consecutive successes before UP
-    strikes_fail: Optional[int] = None  # consecutive failures before DOWN
-    tls_sni: Optional[str] = None  # SNI hostname for https mode
-    tls_skip_verify: Optional[bool] = None
+    mode: str | None = None  # "tcp" | "http" | "https"
+    port: int | None = None
+    uri: str | None = None  # for http/https mode
+    interval: int | None = None  # seconds between probes
+    timeout: int | None = None  # per-probe timeout in seconds
+    strikes_ok: int | None = None  # consecutive successes before UP
+    strikes_fail: int | None = None  # consecutive failures before DOWN
+    tls_sni: str | None = None  # SNI hostname for https mode
+    tls_skip_verify: bool | None = None
 
 
 class ElasticIP(ExoscaleModel):
     """An Exoscale Elastic IP (public address that can be re-assigned)."""
 
-    id: Optional[str] = None
-    ip: Optional[str] = None  # the IPv4 or IPv6 address string
-    description: Optional[str] = None
+    id: str | None = None
+    ip: str | None = None  # the IPv4 or IPv6 address string
+    description: str | None = None
     # "inet4" | "inet6" — only present on zones that support dual-stack
-    addressfamily: Optional[str] = None
-    healthcheck: Optional[ElasticIPHealthcheck] = None
-    labels: Optional[Dict[str, str]] = None
+    addressfamily: str | None = None
+    healthcheck: ElasticIPHealthcheck | None = None
+    labels: dict[str, str] | None = None
 
 
 class ElasticIPClient(ReverseDNSMixin, ResourceClient[ElasticIP]):

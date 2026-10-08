@@ -53,29 +53,29 @@ Conventions that apply everywhere:
 
 A thin, signed HTTP client for one set of Exoscale credentials.
 
-- `delete(path: str, *, zone: Optional[str] = None, params: Optional[dict] = None) -> dict`
-- `from_env(*, zone: Optional[str] = None) -> "'ExoscaleClient'"`
+- `delete(path: str, *, zone: str | None = None, params: dict | None = None) -> dict`
+- `from_env(*, zone: str | None = None) -> ExoscaleClient`
   Convenience constructor: build config from the environment, then a client.
-- `get(path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, signed: bool = True) -> dict`
-- `post(path: str, *, zone: Optional[str] = None, json: Any = None) -> dict`
-- `put(path: str, *, zone: Optional[str] = None, json: Any = None) -> dict`
-- `request(method: str, path: str, *, zone: Optional[str] = None, params: Optional[dict] = None, json: Any = None, max_retries: Optional[int] = None, signed: bool = True) -> dict`
+- `get(path: str, *, zone: str | None = None, params: dict | None = None, signed: bool = True) -> dict`
+- `post(path: str, *, zone: str | None = None, json: Any = None) -> dict`
+- `put(path: str, *, zone: str | None = None, json: Any = None) -> dict`
+- `request(method: str, path: str, *, zone: str | None = None, params: dict | None = None, json: Any = None, max_retries: int | None = None, signed: bool = True) -> dict`
   Send a signed request to ``<base>/<path>`` and return the parsed body.
-- `wait_operation(operation: Union[Operation, dict, str], *, zone: Optional[str] = None, timeout: Optional[float] = None, poll_interval: float = 2.0) -> Operation`
+- `wait_operation(operation: Operation | dict | str, *, zone: str | None = None, timeout: float | None = None, poll_interval: float = 2.0) -> Operation`
   Poll an async operation until it succeeds, then return the final state.
 
 `ClientConfig` fields (all overridable via environment):
 
 - `api_key`: str
 - `api_secret`: str
-- `zone`: Optional[str]
-- `endpoint`: Optional[str]
+- `zone`: str | None
+- `endpoint`: str | None
 - `timeout`: float
 - `verify_tls`: bool
 - `max_retries`: int
 - `retry_backoff`: float
-- `retryable_statuses_idempotent`: FrozenSet[int]
-- `retryable_statuses_mutating`: FrozenSet[int]
+- `retryable_statuses_idempotent`: frozenset[int]
+- `retryable_statuses_mutating`: frozenset[int]
 - `max_poll_failures`: int
 - `operation_timeout`: float
 
@@ -98,21 +98,21 @@ A thin, signed HTTP client for one set of Exoscale credentials.
 
 Base class for asset-type clients.
 
-- `create(payload: Any, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> ModelT`
+- `create(payload: Any, *, zone: str | None = None, wait: bool | None = None) -> ModelT`
   Create a resource and return it.
-- `delete(resource_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete(resource_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Delete a resource by id, awaiting the async operation by default.
-- `ensure(payload: Any, *, zone: Optional[str] = None, wait: Optional[bool] = None, update: bool = False) -> ModelT`
+- `ensure(payload: Any, *, zone: str | None = None, wait: bool | None = None, update: bool = False) -> ModelT`
   Idempotent get-or-create: return the resource named in ``payload``.
-- `find_by_name(name: str, *, zone: Optional[str] = None) -> Optional[ModelT]`
+- `find_by_name(name: str, *, zone: str | None = None) -> ModelT | None`
   Return the first resource whose name matches, or ``None``.
-- `get(resource_id: str, *, zone: Optional[str] = None) -> ModelT`
+- `get(resource_id: str, *, zone: str | None = None) -> ModelT`
   Fetch a single resource by id. Raises :class:`NotFoundError` if absent.
-- `get_or_none(resource_id: str, *, zone: Optional[str] = None) -> Optional[ModelT]`
+- `get_or_none(resource_id: str, *, zone: str | None = None) -> ModelT | None`
   Like :meth:`get` but returns ``None`` instead of raising on 404.
-- `list(*, zone: Optional[str] = None, labels: Optional[dict] = None) -> List[ModelT]`
+- `list(*, zone: str | None = None, labels: dict | None = None) -> builtins.list[ModelT]`
   Return all resources of this type in the target zone.
-- `update(resource_id: str, payload: Any, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> ModelT`
+- `update(resource_id: str, payload: Any, *, zone: str | None = None, wait: bool | None = None) -> ModelT`
   Update a resource (HTTP ``PUT``) and return its settled state.
 
 ## IAM policy expression helpers (`exoscale_connector.iam_expr`)
@@ -137,10 +137,10 @@ An Exoscale anti-affinity group.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `instances` | `instances` | List[Reference] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `instances` | `instances` | list[Reference] |
 
 #### client `AntiAffinityGroupClient`
 
@@ -161,11 +161,11 @@ An Exoscale IAM API key.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `key` | `key` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `role_id` | `role-id` | Optional[str] |
-| `role` | `role` | Optional[Reference] |
-| `secret` | `secret` | Optional[str] |
+| `key` | `key` | str \| None |
+| `name` | `name` | str \| None |
+| `role_id` | `role-id` | str \| None |
+| `role` | `role` | Reference \| None |
+| `secret` | `secret` | str \| None |
 
 #### client `ApiKeyClient`
 
@@ -186,15 +186,15 @@ A block storage volume.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `state` | `state` | Optional[str] |
-| `created_at` | `created-at` | Optional[str] |
-| `blocksize` | `blocksize` | Optional[int] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `instance` | `instance` | Optional[Reference] |
-| `snapshots` | `block-storage-snapshots` | Optional[List[BlockVolumeSnapshotRef]] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `size` | `size` | int \| None |
+| `state` | `state` | str \| None |
+| `created_at` | `created-at` | str \| None |
+| `blocksize` | `blocksize` | int \| None |
+| `labels` | `labels` | dict[str, str] \| None |
+| `instance` | `instance` | Reference \| None |
+| `snapshots` | `block-storage-snapshots` | list[BlockVolumeSnapshotRef] \| None |
 
 #### model `BlockVolumeSnapshotRef`
 
@@ -202,8 +202,8 @@ Lightweight reference to a block-storage snapshot attached to a volume.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
 
 #### client `BlockVolumeClient`
 
@@ -213,13 +213,13 @@ API collection: `block-storage`; resource model: `BlockVolume`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `attach(volume_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `attach(volume_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Attach a volume to a compute instance (async).
-- `create_snapshot(volume_id: str, payload: object = None, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `create_snapshot(volume_id: str, payload: object = None, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Trigger a snapshot of this volume via the instance-action endpoint.
-- `detach(volume_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `detach(volume_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Detach a volume from its currently attached instance (async).
-- `resize(volume_id: str, size: int, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `resize(volume_id: str, size: int, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Resize a volume to ``size`` GiB (async, size can only increase).
 
 ### `exoscale_connector.resources.block_volume_snapshot`
@@ -232,12 +232,12 @@ A snapshot derived from a block storage volume.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `state` | `state` | Optional[str] |
-| `created_at` | `created-at` | Optional[str] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `size` | `size` | int \| None |
+| `state` | `state` | str \| None |
+| `created_at` | `created-at` | str \| None |
+| `labels` | `labels` | dict[str, str] \| None |
 
 #### client `BlockVolumeSnapshotClient`
 
@@ -247,9 +247,9 @@ API collection: `block-storage-snapshot`; resource model: `BlockVolumeSnapshot`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `create_from_volume(volume_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> BlockVolumeSnapshot`
+- `create_from_volume(volume_id: str, *, zone: str | None = None, wait: bool | None = None) -> BlockVolumeSnapshot`
   Trigger a snapshot of the named block storage volume.
-- `update(resource_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> BlockVolumeSnapshot`
+- `update(resource_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> BlockVolumeSnapshot`
   Update snapshot properties (e.g. name, labels) via ``PUT``.
 
 ### `exoscale_connector.resources.dbaas`
@@ -262,12 +262,12 @@ Connection parameters embedded in a service detail response.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `host` | `host` | Optional[str] |
-| `port` | `port` | Optional[int] |
-| `user` | `user` | Optional[str] |
-| `dbname` | `dbname` | Optional[str] |
-| `ca` | `ca` | Optional[str] |
-| `uri` | `uri` | Union[str, List[str], NoneType] |
+| `host` | `host` | str \| None |
+| `port` | `port` | int \| None |
+| `user` | `user` | str \| None |
+| `dbname` | `dbname` | str \| None |
+| `ca` | `ca` | str \| None |
+| `uri` | `uri` | str \| list[str] \| None |
 
 #### model `DBaaSService`
 
@@ -275,18 +275,18 @@ An Exoscale managed database service.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `name` | `name` | Optional[str] |
-| `type` | `type` | Optional[str] |
-| `plan` | `plan` | Optional[str] |
-| `state` | `state` | Optional[str] |
-| `version` | `version` | Optional[str] |
-| `node_count` | `node-count` | Optional[int] |
-| `disk_size` | `disk-size` | Optional[int] |
-| `ip_filter` | `ip-filter` | Optional[List[str]] |
-| `created_at` | `created-at` | Optional[str] |
-| `uri_params` | `uri-params` | Optional[DBaaSConnectionInfo] |
-| `uri` | `uri` | Optional[str] |
-| `connection_info` | `connection-info` | Optional[DBaaSConnectionInfo] |
+| `name` | `name` | str \| None |
+| `type` | `type` | str \| None |
+| `plan` | `plan` | str \| None |
+| `state` | `state` | str \| None |
+| `version` | `version` | str \| None |
+| `node_count` | `node-count` | int \| None |
+| `disk_size` | `disk-size` | int \| None |
+| `ip_filter` | `ip-filter` | list[str] \| None |
+| `created_at` | `created-at` | str \| None |
+| `uri_params` | `uri-params` | DBaaSConnectionInfo \| None |
+| `uri` | `uri` | str \| None |
+| `connection_info` | `connection-info` | DBaaSConnectionInfo \| None |
 
 #### client `DBaaSServiceClient`
 
@@ -296,31 +296,31 @@ API collection: `dbaas-service`; resource model: `DBaaSService`; keyed by `name`
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `create(payload: Any, *, service_type: str, name: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> DBaaSService`
+- `create(payload: Any, *, service_type: str, name: str, zone: str | None = None, wait: bool | None = None) -> DBaaSService`
   Create a managed database service and return it.
-- `create_user(name: str, username: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
+- `create_user(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Create a database user (``POST dbaas-{type}/{name}/user``).
-- `delete_user(name: str, username: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
+- `delete_user(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 - `ensure(payload: Any, **kwargs: Any) -> DBaaSService`
   Not supported: DBaaS ``create`` needs ``service_type``/``name`` kwargs.
-- `get(resource_id: str, *, zone: Optional[str] = None) -> DBaaSService`
+- `get(resource_id: str, *, zone: str | None = None) -> DBaaSService`
   Fetch a DBaaS service by name.
-- `get_acl_config(name: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+- `get_acl_config(name: str, *, service_type: str, zone: str | None = None) -> dict`
   Return the ACL configuration for a service.
-- `get_connection_info(name: str, *, service_type: str, zone: Optional[str] = None) -> DBaaSService`
+- `get_connection_info(name: str, *, service_type: str, zone: str | None = None) -> DBaaSService`
   Fetch the full service detail including ``connection-info`` and ``uri-params``.
-- `get_settings(service_type: str, *, zone: Optional[str] = None) -> dict`
+- `get_settings(service_type: str, *, zone: str | None = None) -> dict`
   Return the configurable settings schema for an engine type.
-- `list_service_types(*, zone: Optional[str] = None) -> List[dict]`
+- `list_service_types(*, zone: str | None = None) -> list[dict]`
   Return available DBaaS service types from the ``dbaas-service-type`` endpoint.
-- `reset_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
+- `reset_user_password(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Reset a user's password (``PUT .../user/{username}/password/reset``).
-- `reveal_user_password(name: str, username: str, *, service_type: str, zone: Optional[str] = None) -> dict`
+- `reveal_user_password(name: str, username: str, *, service_type: str, zone: str | None = None) -> dict`
   Return the revealed credentials for a service user.
-- `start_maintenance(name: str, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> dict`
+- `start_maintenance(name: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Trigger the service's pending maintenance update immediately.
-- `update(name: str, payload: Any, *, service_type: str, zone: Optional[str] = None, wait: Optional[bool] = None) -> DBaaSService`
+- `update(name: str, payload: Any, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> DBaaSService`
   Update a service (``PUT dbaas-{type}/{name}``) and return its new state.
 
 ### `exoscale_connector.resources.deploy_target`
@@ -333,10 +333,10 @@ An Exoscale deploy target (instance placement target).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `type` | `type` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `type` | `type` | str \| None |
 
 #### client `DeployTargetClient`
 
@@ -357,11 +357,11 @@ An Exoscale DNS domain (zone).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `unicode_name` | `unicode-name` | Optional[str] |
-| `state` | `state` | Optional[str] |
-| `created_at` | `created-at` | Optional[str] |
-| `updated_at` | `updated-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `unicode_name` | `unicode-name` | str \| None |
+| `state` | `state` | str \| None |
+| `created_at` | `created-at` | str \| None |
+| `updated_at` | `updated-at` | str \| None |
 
 #### model `DnsRecord`
 
@@ -369,12 +369,12 @@ A single DNS record within a domain.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `type` | `type` | Optional[str] |
-| `content` | `content` | Optional[str] |
-| `ttl` | `ttl` | Optional[int] |
-| `priority` | `priority` | Optional[int] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `type` | `type` | str \| None |
+| `content` | `content` | str \| None |
+| `ttl` | `ttl` | int \| None |
+| `priority` | `priority` | int \| None |
 
 #### client `DnsDomainClient`
 
@@ -384,15 +384,15 @@ API collection: `dns-domain`; resource model: `DnsDomain`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `create_record(domain_id: str, record: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> DnsRecord`
+- `create_record(domain_id: str, record: object, *, zone: str | None = None, wait: bool | None = None) -> DnsRecord`
   Create a DNS record and return it once settled.
-- `delete_record(domain_id: str, record_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_record(domain_id: str, record_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Delete a DNS record and return the settled operation.
-- `get_record(domain_id: str, record_id: str, *, zone: Optional[str] = None) -> DnsRecord`
+- `get_record(domain_id: str, record_id: str, *, zone: str | None = None) -> DnsRecord`
   Fetch a single DNS record by its id.
-- `list_records(domain_id: str, *, zone: Optional[str] = None) -> List[DnsRecord]`
+- `list_records(domain_id: str, *, zone: str | None = None) -> list[DnsRecord]`
   Return all records for a domain.
-- `update_record(domain_id: str, record_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> DnsRecord`
+- `update_record(domain_id: str, record_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> DnsRecord`
   Update a DNS record (HTTP ``PUT``) and return its settled state.
 
 ### `exoscale_connector.resources.elastic_ip`
@@ -405,12 +405,12 @@ An Exoscale Elastic IP (public address that can be re-assigned).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `ip` | `ip` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `addressfamily` | `addressfamily` | Optional[str] |
-| `healthcheck` | `healthcheck` | Optional[ElasticIPHealthcheck] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
+| `id` | `id` | str \| None |
+| `ip` | `ip` | str \| None |
+| `description` | `description` | str \| None |
+| `addressfamily` | `addressfamily` | str \| None |
+| `healthcheck` | `healthcheck` | ElasticIPHealthcheck \| None |
+| `labels` | `labels` | dict[str, str] \| None |
 
 #### model `ElasticIPHealthcheck`
 
@@ -418,15 +418,15 @@ Optional healthcheck configuration attached to an Elastic IP.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `mode` | `mode` | Optional[str] |
-| `port` | `port` | Optional[int] |
-| `uri` | `uri` | Optional[str] |
-| `interval` | `interval` | Optional[int] |
-| `timeout` | `timeout` | Optional[int] |
-| `strikes_ok` | `strikes-ok` | Optional[int] |
-| `strikes_fail` | `strikes-fail` | Optional[int] |
-| `tls_sni` | `tls-sni` | Optional[str] |
-| `tls_skip_verify` | `tls-skip-verify` | Optional[bool] |
+| `mode` | `mode` | str \| None |
+| `port` | `port` | int \| None |
+| `uri` | `uri` | str \| None |
+| `interval` | `interval` | int \| None |
+| `timeout` | `timeout` | int \| None |
+| `strikes_ok` | `strikes-ok` | int \| None |
+| `strikes_fail` | `strikes-fail` | int \| None |
+| `tls_sni` | `tls-sni` | str \| None |
+| `tls_skip_verify` | `tls-skip-verify` | bool \| None |
 
 #### client `ElasticIPClient`
 
@@ -436,11 +436,11 @@ API collection: `elastic-ip`; resource model: `ElasticIP`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `delete_reverse_dns(resource_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_reverse_dns(resource_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove the PTR record (``DELETE /reverse-dns/{kind}/{id}``).
-- `get_reverse_dns(resource_id: str, *, zone: Optional[str] = None) -> Optional[str]`
+- `get_reverse_dns(resource_id: str, *, zone: str | None = None) -> str | None`
   Return the PTR domain name for the resource, or ``None`` if unset.
-- `set_reverse_dns(resource_id: str, domain_name: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `set_reverse_dns(resource_id: str, domain_name: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
 
 ### `exoscale_connector.resources.event`
@@ -453,18 +453,18 @@ A single audit-log entry describing one APIv2 request.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `timestamp` | `timestamp` | Optional[str] |
-| `handler` | `handler` | Optional[str] |
-| `uri` | `uri` | Optional[str] |
-| `status` | `status` | Optional[int] |
-| `elapsed_ms` | `elapsed-ms` | Optional[int] |
-| `request_id` | `request-id` | Optional[str] |
-| `source_ip` | `source-ip` | Optional[str] |
-| `message` | `message` | Optional[str] |
-| `zone` | `zone` | Optional[str] |
-| `iam_user` | `iam-user` | Optional[Reference] |
-| `iam_role` | `iam-role` | Optional[Reference] |
-| `iam_api_key` | `iam-api-key` | Optional[Reference] |
+| `timestamp` | `timestamp` | str \| None |
+| `handler` | `handler` | str \| None |
+| `uri` | `uri` | str \| None |
+| `status` | `status` | int \| None |
+| `elapsed_ms` | `elapsed-ms` | int \| None |
+| `request_id` | `request-id` | str \| None |
+| `source_ip` | `source-ip` | str \| None |
+| `message` | `message` | str \| None |
+| `zone` | `zone` | str \| None |
+| `iam_user` | `iam-user` | Reference \| None |
+| `iam_role` | `iam-role` | Reference \| None |
+| `iam_api_key` | `iam-api-key` | Reference \| None |
 
 #### client `EventClient`
 
@@ -474,7 +474,7 @@ API collection: `event`; resource model: `Event`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `list(*, from_: Optional[str] = None, to: Optional[str] = None, zone: Optional[str] = None) -> List[Event]`
+- `list(*, from_: str | None = None, to: str | None = None, zone: str | None = None) -> builtins.list[Event]`
   Return audit events, newest window first.
 
 ### `exoscale_connector.resources.iam_role`
@@ -496,7 +496,7 @@ Conditions under which a role may be assumed.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `rules` | `rules` | Optional[List[IAMPolicyRule]] |
+| `rules` | `rules` | list[IAMPolicyRule] \| None |
 
 #### model `IAMPolicy`
 
@@ -504,8 +504,8 @@ The inline policy attached to an IAM role.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `default_service_strategy` | `default-service-strategy` | Optional[str] |
-| `services` | `services` | Optional[Dict[str, IAMPolicyService]] |
+| `default_service_strategy` | `default-service-strategy` | str \| None |
+| `services` | `services` | dict[str, IAMPolicyService] \| None |
 
 #### model `IAMPolicyRule`
 
@@ -513,9 +513,9 @@ A single rule inside a service's rule list.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `action` | `action` | Optional[str] |
-| `expression` | `expression` | Optional[str] |
-| `resources` | `resources` | Optional[List[str]] |
+| `action` | `action` | str \| None |
+| `expression` | `expression` | str \| None |
+| `resources` | `resources` | list[str] \| None |
 
 #### model `IAMPolicyService`
 
@@ -523,8 +523,8 @@ The policy block for one service class (e.g. ``compute``, ``sos``).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `type` | `type` | Optional[str] |
-| `rules` | `rules` | Optional[List[IAMPolicyRule]] |
+| `type` | `type` | str \| None |
+| `rules` | `rules` | list[IAMPolicyRule] \| None |
 
 #### model `IAMRole`
 
@@ -532,14 +532,14 @@ An Exoscale IAM role.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `editable` | `editable` | Optional[bool] |
-| `permissions` | `permissions` | Optional[List[str]] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `policy` | `policy` | Optional[IAMPolicy] |
-| `assume_role_policy` | `assume-role-policy` | Optional[IAMAssumeRolePolicy] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `editable` | `editable` | bool \| None |
+| `permissions` | `permissions` | list[str] \| None |
+| `labels` | `labels` | dict[str, str] \| None |
+| `policy` | `policy` | IAMPolicy \| None |
+| `assume_role_policy` | `assume-role-policy` | IAMAssumeRolePolicy \| None |
 
 #### client `IAMRoleClient`
 
@@ -549,9 +549,9 @@ API collection: `iam-role`; resource model: `IAMRole`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `set_assume_role_policy(role_id: str, policy: Union[IAMAssumeRolePolicy, dict], *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `set_assume_role_policy(role_id: str, policy: IAMAssumeRolePolicy | dict, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Replace the assume-role policy.
-- `set_policy(role_id: str, policy: Union[IAMPolicy, dict], *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `set_policy(role_id: str, policy: IAMPolicy | dict, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Replace the role's permission policy (``PUT /iam-role/{id}:policy``).
 
 ### `exoscale_connector.resources.iam_user`
@@ -564,11 +564,11 @@ An Exoscale IAM user (organization member).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `email` | `email` | Optional[str] |
-| `role_id` | `role-id` | Optional[str] |
-| `role` | `role` | Optional[Reference] |
-| `pending` | `pending` | Optional[bool] |
+| `id` | `id` | str \| None |
+| `email` | `email` | str \| None |
+| `role_id` | `role-id` | str \| None |
+| `role` | `role` | Reference \| None |
+| `pending` | `pending` | bool \| None |
 
 #### client `IAMUserClient`
 
@@ -578,7 +578,7 @@ API collection: `user`; resource model: `IAMUser`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `get(resource_id: str, *, zone: Optional[str] = None) -> IAMUser`
+- `get(resource_id: str, *, zone: str | None = None) -> IAMUser`
   Fetch a user by id, resolved from ``GET /user`` (there is no per-id GET).
 
 ### `exoscale_connector.resources.instance`
@@ -591,20 +591,20 @@ An Exoscale compute instance.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `state` | `state` | Optional[str] |
-| `instance_type` | `instance-type` | Optional[Reference] |
-| `template` | `template` | Optional[Reference] |
-| `disk_size` | `disk-size` | Optional[int] |
-| `public_ip` | `public-ip` | Optional[str] |
-| `ipv6_address` | `ipv6-address` | Optional[str] |
-| `ssh_key` | `ssh-key` | Optional[SshKeyReference] |
-| `security_groups` | `security-groups` | List[Reference] |
-| `labels` | `labels` | Optional[dict] |
-| `manager` | `manager` | Optional[Reference] |
-| `deploy_target` | `deploy-target` | Optional[Reference] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `state` | `state` | str \| None |
+| `instance_type` | `instance-type` | Reference \| None |
+| `template` | `template` | Reference \| None |
+| `disk_size` | `disk-size` | int \| None |
+| `public_ip` | `public-ip` | str \| None |
+| `ipv6_address` | `ipv6-address` | str \| None |
+| `ssh_key` | `ssh-key` | SshKeyReference \| None |
+| `security_groups` | `security-groups` | list[Reference] |
+| `labels` | `labels` | dict \| None |
+| `manager` | `manager` | Reference \| None |
+| `deploy_target` | `deploy-target` | Reference \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### model `SshKeyReference`
 
@@ -612,7 +612,7 @@ Lightweight SSH key reference (name-keyed, not id-keyed).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `name` | `name` | Optional[str] |
+| `name` | `name` | str \| None |
 
 #### client `InstanceClient`
 
@@ -622,19 +622,19 @@ API collection: `instance`; resource model: `Instance`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `delete_reverse_dns(resource_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_reverse_dns(resource_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove the PTR record (``DELETE /reverse-dns/{kind}/{id}``).
-- `get_reverse_dns(resource_id: str, *, zone: Optional[str] = None) -> Optional[str]`
+- `get_reverse_dns(resource_id: str, *, zone: str | None = None) -> str | None`
   Return the PTR domain name for the resource, or ``None`` if unset.
-- `reboot(instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `reboot(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Reboot a running instance (``PUT instance/{id}:reboot``).
-- `scale(instance_id: str, instance_type_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `scale(instance_id: str, instance_type_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Change the instance's compute offering (``PUT instance/{id}:scale``).
-- `set_reverse_dns(resource_id: str, domain_name: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `set_reverse_dns(resource_id: str, domain_name: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
-- `start(instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `start(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Start a stopped instance.
-- `stop(instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `stop(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Stop a running instance gracefully (``PUT instance/{id}:stop``).
 
 ### `exoscale_connector.resources.instance_pool`
@@ -647,25 +647,25 @@ An Exoscale instance pool (autoscaling group of identical instances).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `state` | `state` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `instance_type` | `instance-type` | Optional[Reference] |
-| `template` | `template` | Optional[Reference] |
-| `disk_size` | `disk-size` | Optional[int] |
-| `instance_prefix` | `instance-prefix` | Optional[str] |
-| `ipv6_enabled` | `ipv6-enabled` | Optional[bool] |
-| `public_ip_assignment` | `public-ip-assignment` | Optional[str] |
-| `security_groups` | `security-groups` | List[Reference] |
-| `private_networks` | `private-networks` | List[Reference] |
-| `labels` | `labels` | Optional[dict] |
-| `instances` | `instances` | List[Reference] |
-| `anti_affinity_groups` | `anti-affinity-groups` | List[Reference] |
-| `deploy_target` | `deploy-target` | Optional[Reference] |
-| `ssh_key` | `ssh-key` | Optional[Reference] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `state` | `state` | str \| None |
+| `size` | `size` | int \| None |
+| `instance_type` | `instance-type` | Reference \| None |
+| `template` | `template` | Reference \| None |
+| `disk_size` | `disk-size` | int \| None |
+| `instance_prefix` | `instance-prefix` | str \| None |
+| `ipv6_enabled` | `ipv6-enabled` | bool \| None |
+| `public_ip_assignment` | `public-ip-assignment` | str \| None |
+| `security_groups` | `security-groups` | list[Reference] |
+| `private_networks` | `private-networks` | list[Reference] |
+| `labels` | `labels` | dict \| None |
+| `instances` | `instances` | list[Reference] |
+| `anti_affinity_groups` | `anti-affinity-groups` | list[Reference] |
+| `deploy_target` | `deploy-target` | Reference \| None |
+| `ssh_key` | `ssh-key` | Reference \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### client `InstancePoolClient`
 
@@ -675,7 +675,7 @@ API collection: `instance-pool`; resource model: `InstancePool`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `scale(pool_id: str, size: int, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `scale(pool_id: str, size: int, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Resize an instance pool to the given number of instances.
 
 ### `exoscale_connector.resources.instance_type`
@@ -688,13 +688,13 @@ A compute offering (CPU/memory size).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `family` | `family` | Optional[str] |
-| `size` | `size` | Optional[str] |
-| `cpus` | `cpus` | Optional[int] |
-| `memory` | `memory` | Optional[int] |
-| `gpus` | `gpus` | Optional[int] |
-| `authorized` | `authorized` | Optional[bool] |
+| `id` | `id` | str \| None |
+| `family` | `family` | str \| None |
+| `size` | `size` | str \| None |
+| `cpus` | `cpus` | int \| None |
+| `memory` | `memory` | int \| None |
+| `gpus` | `gpus` | int \| None |
+| `authorized` | `authorized` | bool \| None |
 
 #### client `InstanceTypeClient`
 
@@ -704,7 +704,7 @@ API collection: `instance-type`; resource model: `InstanceType`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `find(slug: str, *, zone: Optional[str] = None) -> Optional[InstanceType]`
+- `find(slug: str, *, zone: str | None = None) -> InstanceType | None`
   Resolve a ``family.size`` slug (e.g. ``"standard.tiny"``) to a type.
 
 ### `exoscale_connector.resources.kms`
@@ -717,10 +717,10 @@ A key's rotation configuration.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `automatic` | `automatic` | Optional[bool] |
-| `manual_count` | `manual-count` | Optional[int] |
-| `next_at` | `next-at` | Optional[str] |
-| `rotation_period` | `rotation-period` | Optional[int] |
+| `automatic` | `automatic` | bool \| None |
+| `manual_count` | `manual-count` | int \| None |
+| `next_at` | `next-at` | str \| None |
+| `rotation_period` | `rotation-period` | int \| None |
 
 #### model `KmsKey`
 
@@ -728,22 +728,22 @@ An Exoscale-managed KMS key.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `status` | `status` | Optional[str] |
-| `status_since` | `status-since` | Optional[str] |
-| `delete_at` | `delete-at` | Optional[str] |
-| `usage` | `usage` | Optional[str] |
-| `source` | `source` | Optional[str] |
-| `multi_zone` | `multi-zone` | Optional[bool] |
-| `origin_zone` | `origin-zone` | Optional[str] |
-| `material` | `material` | Optional[Dict[str, Any]] |
-| `revision` | `revision` | Optional[Dict[str, Any]] |
-| `rotation` | `rotation` | Optional[KeyRotationConfig] |
-| `replicas` | `replicas` | Optional[List[str]] |
-| `replicas_status` | `replicas-status` | Optional[List[Dict[str, Any]]] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `status` | `status` | str \| None |
+| `status_since` | `status-since` | str \| None |
+| `delete_at` | `delete-at` | str \| None |
+| `usage` | `usage` | str \| None |
+| `source` | `source` | str \| None |
+| `multi_zone` | `multi-zone` | bool \| None |
+| `origin_zone` | `origin-zone` | str \| None |
+| `material` | `material` | dict[str, Any] \| None |
+| `revision` | `revision` | dict[str, Any] \| None |
+| `rotation` | `rotation` | KeyRotationConfig \| None |
+| `replicas` | `replicas` | list[str] \| None |
+| `replicas_status` | `replicas-status` | list[dict[str, Any]] \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### client `KmsKeyClient`
 
@@ -753,33 +753,33 @@ API collection: `kms-key`; resource model: `KmsKey`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `cancel_deletion(key_id: str, *, zone: Optional[str] = None) -> dict`
+- `cancel_deletion(key_id: str, *, zone: str | None = None) -> dict`
   Cancel a scheduled deletion (``POST .../cancel-deletion``), restoring the key.
-- `decrypt(key_id: str, ciphertext: str, *, encryption_context: Optional[str] = None, zone: Optional[str] = None) -> dict`
+- `decrypt(key_id: str, ciphertext: str, *, encryption_context: str | None = None, zone: str | None = None) -> dict`
   Decrypt ``ciphertext`` (``POST .../decrypt``). Returns Base64 ``{"plaintext": ...}``.
 - `delete(*args: Any, **kwargs: Any) -> Any`
   Not supported — KMS keys have no immediate delete.
-- `disable(key_id: str, *, zone: Optional[str] = None) -> dict`
+- `disable(key_id: str, *, zone: str | None = None) -> dict`
   Disable a key (``POST /kms-key/{id}/disable``). A disabled key can't decrypt.
-- `disable_rotation(key_id: str, *, zone: Optional[str] = None) -> dict`
+- `disable_rotation(key_id: str, *, zone: str | None = None) -> dict`
   Disable automatic rotation (``POST .../disable-key-rotation``).
-- `enable(key_id: str, *, zone: Optional[str] = None) -> dict`
+- `enable(key_id: str, *, zone: str | None = None) -> dict`
   Enable a key (``POST /kms-key/{id}/enable``). Returns ``{"status": ...}``.
-- `enable_rotation(key_id: str, *, rotation_period: Optional[int] = None, zone: Optional[str] = None) -> dict`
+- `enable_rotation(key_id: str, *, rotation_period: int | None = None, zone: str | None = None) -> dict`
   Enable automatic rotation (``POST .../enable-key-rotation``).
-- `encrypt(key_id: str, plaintext: str, *, encryption_context: Optional[str] = None, zone: Optional[str] = None) -> dict`
+- `encrypt(key_id: str, plaintext: str, *, encryption_context: str | None = None, zone: str | None = None) -> dict`
   Encrypt ``plaintext`` under the key (``POST .../encrypt``).
-- `generate_data_key(key_id: str, *, key_spec: str = 'AES-256', bytes_count: Optional[int] = None, encryption_context: Optional[str] = None, zone: Optional[str] = None) -> dict`
+- `generate_data_key(key_id: str, *, key_spec: str = 'AES-256', bytes_count: int | None = None, encryption_context: str | None = None, zone: str | None = None) -> dict`
   Generate a data key (``POST .../generate-data-key``).
-- `list_rotations(key_id: str, *, zone: Optional[str] = None) -> List[dict]`
+- `list_rotations(key_id: str, *, zone: str | None = None) -> list[dict]`
   List a key's past rotations (``GET .../list-key-rotations``).
-- `re_encrypt(key_id: str, *, source: dict, destination: dict, zone: Optional[str] = None) -> dict`
+- `re_encrypt(key_id: str, *, source: dict, destination: dict, zone: str | None = None) -> dict`
   Re-encrypt a payload from a source envelope to a destination one.
-- `replicate(key_id: str, zone_target: str, *, zone: Optional[str] = None) -> dict`
+- `replicate(key_id: str, zone_target: str, *, zone: str | None = None) -> dict`
   Replicate a multi-zone key into another zone (``POST .../replicate``).
-- `rotate(key_id: str, *, zone: Optional[str] = None) -> dict`
+- `rotate(key_id: str, *, zone: str | None = None) -> dict`
   Rotate the key material now (``POST .../rotate``). Returns the new rotation state.
-- `schedule_deletion(key_id: str, *, delay_days: Optional[int] = None, zone: Optional[str] = None) -> dict`
+- `schedule_deletion(key_id: str, *, delay_days: int | None = None, zone: str | None = None) -> dict`
   Schedule a key for deletion after a waiting period (``POST .../schedule-deletion``).
 
 ### `exoscale_connector.resources.load_balancer`
@@ -792,13 +792,13 @@ An Exoscale Network Load Balancer and its services.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `ip` | `ip` | Optional[str] |
-| `state` | `state` | Optional[str] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `services` | `services` | List[LoadBalancerService] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `ip` | `ip` | str \| None |
+| `state` | `state` | str \| None |
+| `labels` | `labels` | dict[str, str] \| None |
+| `services` | `services` | list[LoadBalancerService] |
 
 #### model `LoadBalancerService`
 
@@ -806,21 +806,21 @@ A listener/backend service belonging to a Load Balancer.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `protocol` | `protocol` | Optional[str] |
-| `port` | `port` | Optional[int] |
-| `target_port` | `target-port` | Optional[int] |
-| `strategy` | `strategy` | Optional[str] |
-| `healthcheck_mode` | `healthcheck-mode` | Optional[str] |
-| `healthcheck_port` | `healthcheck-port` | Optional[int] |
-| `healthcheck_uri` | `healthcheck-uri` | Optional[str] |
-| `healthcheck_interval` | `healthcheck-interval` | Optional[int] |
-| `healthcheck_timeout` | `healthcheck-timeout` | Optional[int] |
-| `healthcheck_retries` | `healthcheck-retries` | Optional[int] |
-| `healthcheck_tls_sni` | `healthcheck-tls-sni` | Optional[str] |
-| `state` | `state` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `protocol` | `protocol` | str \| None |
+| `port` | `port` | int \| None |
+| `target_port` | `target-port` | int \| None |
+| `strategy` | `strategy` | str \| None |
+| `healthcheck_mode` | `healthcheck-mode` | str \| None |
+| `healthcheck_port` | `healthcheck-port` | int \| None |
+| `healthcheck_uri` | `healthcheck-uri` | str \| None |
+| `healthcheck_interval` | `healthcheck-interval` | int \| None |
+| `healthcheck_timeout` | `healthcheck-timeout` | int \| None |
+| `healthcheck_retries` | `healthcheck-retries` | int \| None |
+| `healthcheck_tls_sni` | `healthcheck-tls-sni` | str \| None |
+| `state` | `state` | str \| None |
 
 #### client `LoadBalancerClient`
 
@@ -830,11 +830,11 @@ API collection: `load-balancer`; resource model: `LoadBalancer`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `add_service(lb_id: str, service: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `add_service(lb_id: str, service: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Add a service to a load balancer.
-- `delete_service(lb_id: str, service_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_service(lb_id: str, service_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove a service from a load balancer by service id.
-- `update_service(lb_id: str, service_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `update_service(lb_id: str, service_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Update an existing service on a load balancer (HTTP PUT).
 
 ### `exoscale_connector.resources.object_storage`
@@ -847,8 +847,8 @@ A single SOS bucket as returned by the S3 ListBuckets response.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `name` | `name` | Optional[str] |
-| `creation_date` | `creation-date` | Optional[str] |
+| `name` | `name` | str \| None |
+| `creation_date` | `creation-date` | str \| None |
 
 #### model `S3Object`
 
@@ -856,11 +856,11 @@ A single object as returned by the S3 ListObjectsV2 response.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `key` | `key` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `etag` | `etag` | Optional[str] |
-| `storage_class` | `storage-class` | Optional[str] |
-| `last_modified` | `last-modified` | Optional[str] |
+| `key` | `key` | str \| None |
+| `size` | `size` | int \| None |
+| `etag` | `etag` | str \| None |
+| `storage_class` | `storage-class` | str \| None |
+| `last_modified` | `last-modified` | str \| None |
 
 #### client `BucketClient`
 
@@ -877,25 +877,25 @@ Manage Exoscale SOS buckets via the S3-compatible API.
   Download an object to a local file with boto3's managed transfer.
 - `exists(name: str) -> bool`
   Return ``True`` if the bucket exists and is accessible.
-- `get_cors(bucket: str) -> Optional[List[dict]]`
+- `get_cors(bucket: str) -> builtins.list[dict] | None`
   Return the bucket's CORS rules, or ``None`` if none are set.
-- `get_lifecycle(bucket: str) -> Optional[List[dict]]`
+- `get_lifecycle(bucket: str) -> builtins.list[dict] | None`
   Return the bucket's lifecycle rules, or ``None`` if none are set.
 - `get_object(bucket: str, key: str) -> bytes`
   Download ``s3://bucket/key`` and return its content as bytes.
-- `list() -> List[Bucket]`
+- `list() -> builtins.list[Bucket]`
   Return all buckets visible to the configured credentials.
-- `list_objects(bucket: str, *, prefix: Optional[str] = None, limit: Optional[int] = None) -> List[S3Object]`
+- `list_objects(bucket: str, *, prefix: str | None = None, limit: int | None = None) -> builtins.list[S3Object]`
   List objects in *bucket*, following continuation tokens.
 - `presign_get(bucket: str, key: str, *, expires_in: int = 3600) -> str`
   Return a presigned download URL for ``s3://bucket/key``.
 - `presign_put(bucket: str, key: str, *, expires_in: int = 3600) -> str`
   Return a presigned upload URL for ``s3://bucket/key``.
-- `put_object(bucket: str, key: str, data: bytes, *, content_type: Optional[str] = None) -> None`
+- `put_object(bucket: str, key: str, data: bytes, *, content_type: str | None = None) -> None`
   Upload *data* (bytes) as ``s3://bucket/key``.
-- `set_cors(bucket: str, rules: List[dict]) -> None`
+- `set_cors(bucket: str, rules: builtins.list[dict]) -> None`
   Replace the bucket's CORS rules (S3 ``CORSRules`` schema, verbatim).
-- `set_lifecycle(bucket: str, rules: List[dict]) -> None`
+- `set_lifecycle(bucket: str, rules: builtins.list[dict]) -> None`
   Replace the bucket's lifecycle rules (S3 ``Rules`` schema, verbatim).
 - `upload_file(bucket: str, key: str, path: str) -> None`
   Upload a local file with boto3's managed (multipart-capable) transfer.
@@ -910,13 +910,13 @@ An Exoscale Private Network (layer-2 segment within a zone).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `start_ip` | `start-ip` | Optional[str] |
-| `end_ip` | `end-ip` | Optional[str] |
-| `netmask` | `netmask` | Optional[str] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `start_ip` | `start-ip` | str \| None |
+| `end_ip` | `end-ip` | str \| None |
+| `netmask` | `netmask` | str \| None |
+| `labels` | `labels` | dict[str, str] \| None |
 
 #### client `PrivateNetworkClient`
 
@@ -926,9 +926,9 @@ API collection: `private-network`; resource model: `PrivateNetwork`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `attach_instance(network_id: str, instance_id: str, *, ip: Optional[str] = None, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `attach_instance(network_id: str, instance_id: str, *, ip: str | None = None, zone: str | None = None, wait: bool | None = None) -> Operation`
   Attach a compute instance to this private network.
-- `detach_instance(network_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `detach_instance(network_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Detach a compute instance from this private network.
 
 ### `exoscale_connector.resources.security_group`
@@ -941,11 +941,11 @@ An Exoscale security group and its rules.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `rules` | `rules` | List[SecurityGroupRule] |
-| `external_sources` | `external-sources` | Optional[List[str]] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `rules` | `rules` | list[SecurityGroupRule] |
+| `external_sources` | `external-sources` | list[str] \| None |
 
 #### model `SecurityGroupResource`
 
@@ -953,9 +953,9 @@ A typed reference to a security group used as a rule source/destination.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `visibility` | `visibility` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `visibility` | `visibility` | str \| None |
 
 #### model `SecurityGroupRule`
 
@@ -963,14 +963,14 @@ A single ingress/egress rule belonging to a security group.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `flow_direction` | `flow-direction` | Optional[str] |
-| `protocol` | `protocol` | Optional[str] |
-| `start_port` | `start-port` | Optional[int] |
-| `end_port` | `end-port` | Optional[int] |
-| `network` | `network` | Optional[str] |
-| `security_group` | `security-group` | Optional[SecurityGroupResource] |
+| `id` | `id` | str \| None |
+| `description` | `description` | str \| None |
+| `flow_direction` | `flow-direction` | str \| None |
+| `protocol` | `protocol` | str \| None |
+| `start_port` | `start-port` | int \| None |
+| `end_port` | `end-port` | int \| None |
+| `network` | `network` | str \| None |
+| `security_group` | `security-group` | SecurityGroupResource \| None |
 
 #### client `SecurityGroupClient`
 
@@ -980,9 +980,9 @@ API collection: `security-group`; resource model: `SecurityGroup`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `add_rule(security_group_id: str, rule: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `add_rule(security_group_id: str, rule: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Append a rule to a security group.
-- `delete_rule(security_group_id: str, rule_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_rule(security_group_id: str, rule_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove a single rule from a security group by rule id.
 
 ### `exoscale_connector.resources.sks`
@@ -995,19 +995,19 @@ An Exoscale SKS (managed Kubernetes) cluster.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `state` | `state` | Optional[str] |
-| `version` | `version` | Optional[str] |
-| `endpoint` | `endpoint` | Optional[str] |
-| `cni` | `cni` | Optional[str] |
-| `service_level` | `level` | Optional[str] |
-| `addons` | `addons` | Optional[List[str]] |
-| `nodepools` | `nodepools` | List[SksNodepool] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `auto_upgrade` | `auto-upgrade` | Optional[bool] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `state` | `state` | str \| None |
+| `version` | `version` | str \| None |
+| `endpoint` | `endpoint` | str \| None |
+| `cni` | `cni` | str \| None |
+| `service_level` | `level` | str \| None |
+| `addons` | `addons` | list[str] \| None |
+| `nodepools` | `nodepools` | list[SksNodepool] |
+| `labels` | `labels` | dict[str, str] \| None |
+| `auto_upgrade` | `auto-upgrade` | bool \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### model `SksNodepool`
 
@@ -1015,23 +1015,23 @@ A pool of worker nodes within an SKS cluster.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `state` | `state` | Optional[str] |
-| `instance_type` | `instance-type` | Optional[Reference] |
-| `template` | `template` | Optional[Reference] |
-| `instance_pool` | `instance-pool` | Optional[Reference] |
-| `disk_size` | `disk-size` | Optional[int] |
-| `security_groups` | `security-groups` | Optional[List[Reference]] |
-| `anti_affinity_groups` | `anti-affinity-groups` | Optional[List[Reference]] |
-| `private_networks` | `private-networks` | Optional[List[Reference]] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `taints` | `taints` | Optional[Dict[str, SksNodepoolTaint]] |
-| `instance_prefix` | `instance-prefix` | Optional[str] |
-| `public_ip_assignment` | `public-ip-assignment` | Optional[str] |
-| `nvidia_mig_profiles` | `nvidia-mig-profiles` | Optional[Dict[str, Any]] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `size` | `size` | int \| None |
+| `state` | `state` | str \| None |
+| `instance_type` | `instance-type` | Reference \| None |
+| `template` | `template` | Reference \| None |
+| `instance_pool` | `instance-pool` | Reference \| None |
+| `disk_size` | `disk-size` | int \| None |
+| `security_groups` | `security-groups` | list[Reference] \| None |
+| `anti_affinity_groups` | `anti-affinity-groups` | list[Reference] \| None |
+| `private_networks` | `private-networks` | list[Reference] \| None |
+| `labels` | `labels` | dict[str, str] \| None |
+| `taints` | `taints` | dict[str, SksNodepoolTaint] \| None |
+| `instance_prefix` | `instance-prefix` | str \| None |
+| `public_ip_assignment` | `public-ip-assignment` | str \| None |
+| `nvidia_mig_profiles` | `nvidia-mig-profiles` | dict[str, Any] \| None |
 
 #### model `SksNodepoolTaint`
 
@@ -1039,8 +1039,8 @@ A Kubernetes taint applied to every node in a nodepool.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `value` | `value` | Optional[str] |
-| `effect` | `effect` | Optional[str] |
+| `value` | `value` | str \| None |
+| `effect` | `effect` | str \| None |
 
 #### client `SksClusterClient`
 
@@ -1050,19 +1050,19 @@ API collection: `sks-cluster`; resource model: `SksCluster`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `create_nodepool(cluster_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `create_nodepool(cluster_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Add a nodepool to an existing cluster.
-- `delete_nodepool(cluster_id: str, nodepool_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_nodepool(cluster_id: str, nodepool_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Delete a nodepool from a cluster.
-- `generate_kubeconfig(cluster_id: str, payload: object, *, zone: Optional[str] = None) -> dict`
+- `generate_kubeconfig(cluster_id: str, payload: object, *, zone: str | None = None) -> dict`
   Request a new kubeconfig for a cluster.
-- `get_nodepool(cluster_id: str, nodepool_id: str, *, zone: Optional[str] = None) -> SksNodepool`
+- `get_nodepool(cluster_id: str, nodepool_id: str, *, zone: str | None = None) -> SksNodepool`
   Fetch a single nodepool by id.
-- `list_nodepools(cluster_id: str, *, zone: Optional[str] = None) -> List[SksNodepool]`
+- `list_nodepools(cluster_id: str, *, zone: str | None = None) -> list[SksNodepool]`
   Return all nodepools belonging to a cluster.
-- `list_versions(*, zone: Optional[str] = None) -> List[str]`
+- `list_versions(*, zone: str | None = None) -> list[str]`
   Return the Kubernetes versions a new SKS cluster may be created with.
-- `update_nodepool(cluster_id: str, nodepool_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `update_nodepool(cluster_id: str, nodepool_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Update a nodepool (PUT).
 
 ### `exoscale_connector.resources.snapshot`
@@ -1075,13 +1075,13 @@ A compute snapshot (disk image captured from a running or stopped instance).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `state` | `state` | Optional[str] |
-| `created_at` | `created-at` | Optional[str] |
-| `instance` | `instance` | Optional[Reference] |
-| `export` | `export` | Optional[SnapshotExport] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `size` | `size` | int \| None |
+| `state` | `state` | str \| None |
+| `created_at` | `created-at` | str \| None |
+| `instance` | `instance` | Reference \| None |
+| `export` | `export` | SnapshotExport \| None |
 
 #### model `SnapshotExport`
 
@@ -1089,8 +1089,8 @@ Export metadata returned after a snapshot is exported to object storage.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `md5sum` | `md5sum` | Optional[str] |
-| `presigned_url` | `presigned-url` | Optional[str] |
+| `md5sum` | `md5sum` | str \| None |
+| `presigned_url` | `presigned-url` | str \| None |
 
 #### client `SnapshotClient`
 
@@ -1100,9 +1100,9 @@ API collection: `snapshot`; resource model: `Snapshot`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `create_from_instance(instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Snapshot`
+- `create_from_instance(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Snapshot`
   Trigger a snapshot of the named instance and return the new snapshot.
-- `export(snapshot_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `export(snapshot_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Export a snapshot to object storage (async).
 
 ### `exoscale_connector.resources.ssh_key`
@@ -1115,9 +1115,9 @@ An Exoscale SSH public key.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `name` | `name` | Optional[str] |
-| `fingerprint` | `fingerprint` | Optional[str] |
-| `public_key` | `public-key` | Optional[str] |
+| `name` | `name` | str \| None |
+| `fingerprint` | `fingerprint` | str \| None |
+| `public_key` | `public-key` | str \| None |
 
 #### client `SSHKeyClient`
 
@@ -1138,21 +1138,21 @@ A compute template (boot image).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `family` | `family` | Optional[str] |
-| `version` | `version` | Optional[str] |
-| `size` | `size` | Optional[int] |
-| `visibility` | `visibility` | Optional[str] |
-| `url` | `url` | Optional[str] |
-| `checksum` | `checksum` | Optional[str] |
-| `boot_mode` | `boot-mode` | Optional[str] |
-| `default_user` | `default-user` | Optional[str] |
-| `ssh_key_enabled` | `ssh-key-enabled` | Optional[bool] |
-| `password_enabled` | `password-enabled` | Optional[bool] |
-| `build` | `build` | Optional[str] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `family` | `family` | str \| None |
+| `version` | `version` | str \| None |
+| `size` | `size` | int \| None |
+| `visibility` | `visibility` | str \| None |
+| `url` | `url` | str \| None |
+| `checksum` | `checksum` | str \| None |
+| `boot_mode` | `boot-mode` | str \| None |
+| `default_user` | `default-user` | str \| None |
+| `ssh_key_enabled` | `ssh-key-enabled` | bool \| None |
+| `password_enabled` | `password-enabled` | bool \| None |
+| `build` | `build` | str \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### client `TemplateClient`
 
@@ -1162,9 +1162,9 @@ API collection: `template`; resource model: `Template`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `find_linux(*, zone: Optional[str] = None) -> Optional[Template]`
+- `find_linux(*, zone: str | None = None) -> Template | None`
   Return the smallest public Linux template in the zone, or ``None``.
-- `list(*, zone: Optional[str] = None, labels: Optional[dict] = None, visibility: Optional[str] = None) -> List[Template]`
+- `list(*, zone: str | None = None, labels: dict | None = None, visibility: str | None = None) -> builtins.list[Template]`
   List templates, optionally filtered by ``visibility``.
 
 ### `exoscale_connector.resources.vpc`
@@ -1177,11 +1177,11 @@ An Exoscale VPC (private network fabric).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `labels` | `labels` | dict[str, str] \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### model `VpcRoute`
 
@@ -1189,11 +1189,11 @@ A route entry within a VPC subnet.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `destination` | `destination` | Optional[str] |
-| `target` | `target` | Optional[str] |
-| `kind` | `kind` | Optional[str] |
+| `id` | `id` | str \| None |
+| `description` | `description` | str \| None |
+| `destination` | `destination` | str \| None |
+| `target` | `target` | str \| None |
+| `kind` | `kind` | str \| None |
 
 #### model `VpcSubnet`
 
@@ -1201,14 +1201,14 @@ An IP subnet within a VPC that instances can attach to.
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `id` | `id` | Optional[str] |
-| `name` | `name` | Optional[str] |
-| `description` | `description` | Optional[str] |
-| `address_space` | `address-space` | Optional[str] |
-| `addressfamily` | `addressfamily` | Optional[str] |
-| `ipv4_block` | `ipv4-block` | Optional[str] |
-| `labels` | `labels` | Optional[Dict[str, str]] |
-| `created_at` | `created-at` | Optional[str] |
+| `id` | `id` | str \| None |
+| `name` | `name` | str \| None |
+| `description` | `description` | str \| None |
+| `address_space` | `address-space` | str \| None |
+| `addressfamily` | `addressfamily` | str \| None |
+| `ipv4_block` | `ipv4-block` | str \| None |
+| `labels` | `labels` | dict[str, str] \| None |
+| `created_at` | `created-at` | str \| None |
 
 #### client `VpcClient`
 
@@ -1218,27 +1218,27 @@ API collection: `vpc`; resource model: `Vpc`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
-- `attach_subnet(vpc_id: str, subnet_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `attach_subnet(vpc_id: str, subnet_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Attach an instance to a subnet.
-- `create_route(vpc_id: str, subnet_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `create_route(vpc_id: str, subnet_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Add a route to a subnet.
-- `create_subnet(vpc_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `create_subnet(vpc_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Add a subnet to a VPC (``POST vpc/{vpc_id}/subnet``).
-- `delete_route(vpc_id: str, subnet_id: str, route_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_route(vpc_id: str, subnet_id: str, route_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Delete a route (``DELETE vpc/{vpc_id}/subnet/{subnet_id}/route/{route_id}``).
-- `delete_subnet(vpc_id: str, subnet_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `delete_subnet(vpc_id: str, subnet_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Delete a subnet (``DELETE vpc/{vpc_id}/subnet/{subnet_id}``).
-- `detach_subnet(vpc_id: str, subnet_id: str, instance_id: str, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `detach_subnet(vpc_id: str, subnet_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Detach an instance from a subnet.
-- `get_subnet(vpc_id: str, subnet_id: str, *, zone: Optional[str] = None) -> VpcSubnet`
+- `get_subnet(vpc_id: str, subnet_id: str, *, zone: str | None = None) -> VpcSubnet`
   Fetch one subnet by id (``GET vpc/{vpc_id}/subnet/{subnet_id}``).
-- `list_routes(vpc_id: str, *, zone: Optional[str] = None) -> List[VpcRoute]`
+- `list_routes(vpc_id: str, *, zone: str | None = None) -> list[VpcRoute]`
   List every route in a VPC (``GET vpc/{vpc_id}/route``).
-- `list_subnet_routes(vpc_id: str, subnet_id: str, *, zone: Optional[str] = None) -> List[VpcRoute]`
+- `list_subnet_routes(vpc_id: str, subnet_id: str, *, zone: str | None = None) -> list[VpcRoute]`
   List a subnet's routes (``GET vpc/{vpc_id}/subnet/{subnet_id}/route``).
-- `list_subnets(vpc_id: str, *, zone: Optional[str] = None) -> List[VpcSubnet]`
+- `list_subnets(vpc_id: str, *, zone: str | None = None) -> list[VpcSubnet]`
   List a VPC's subnets (``GET vpc/{vpc_id}/subnet``).
-- `update_subnet(vpc_id: str, subnet_id: str, payload: object, *, zone: Optional[str] = None, wait: Optional[bool] = None) -> Operation`
+- `update_subnet(vpc_id: str, subnet_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Update a subnet (``PUT vpc/{vpc_id}/subnet/{subnet_id}``).
 
 ### `exoscale_connector.resources.zone`
@@ -1251,8 +1251,8 @@ An Exoscale zone (e.g. ``de-fra-1``).
 
 | Python attribute | JSON key | Type |
 |---|---|---|
-| `name` | `name` | Optional[str] |
-| `api_endpoint` | `api-endpoint` | Optional[str] |
+| `name` | `name` | str \| None |
+| `api_endpoint` | `api-endpoint` | str \| None |
 
 #### client `ZoneClient`
 

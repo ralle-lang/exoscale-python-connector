@@ -33,7 +33,6 @@ import json
 import pkgutil
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESOURCES_DIR = REPO_ROOT / "src" / "exoscale_connector" / "resources"
@@ -49,7 +48,7 @@ from exoscale_connector.resources._base import ResourceClient  # noqa: E402
 # the per-service-type ``dbaas-postgres`` / ``dbaas-mysql`` / ... paths). Keep
 # this minimal: only declare what the collection-path prefix can't already
 # attribute. The unit test fails if the code grows a sibling not listed here.
-MODULE_SIBLING_OPERATIONS: Dict[str, List[str]] = {
+MODULE_SIBLING_OPERATIONS: dict[str, list[str]] = {
     # Snapshot is created through the instance collection, not snapshot/.
     "snapshot": ["instance/{}:create-snapshot"],
     # A block-volume snapshot is created through the block-storage collection.
@@ -71,7 +70,7 @@ def _normalize(path: str) -> str:
     if path.startswith("/"):
         path = path[1:]
     # Collapse any ``{anything}`` placeholder to a bare ``{}``.
-    out: List[str] = []
+    out: list[str] = []
     depth = 0
     for ch in path:
         if ch == "{":
@@ -85,7 +84,7 @@ def _normalize(path: str) -> str:
     return "".join(out)
 
 
-def _segments(template: str) -> List[str]:
+def _segments(template: str) -> list[str]:
     return [s for s in _normalize(template).split("/") if s != ""]
 
 
@@ -109,20 +108,20 @@ def template_covers(template: str, path: str) -> bool:
     p_segs = _segments(path)
     if len(t_segs) > len(p_segs):
         return False
-    return all(_seg_matches(t, p) for t, p in zip(t_segs, p_segs))
+    return all(_seg_matches(t, p) for t, p in zip(t_segs, p_segs, strict=False))
 
 
 # --------------------------------------------------------------------------- #
 # Code introspection: collection paths + discovered client-call endpoints
 # --------------------------------------------------------------------------- #
-def _module_collection_paths() -> Dict[str, List[str]]:
+def _module_collection_paths() -> dict[str, list[str]]:
     """Module stem -> the ``collection_path`` of every ResourceClient it defines."""
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for info in sorted(pkgutil.iter_modules(resources_pkg.__path__), key=lambda m: m.name):
         if info.name.startswith("_"):
             continue
         mod = importlib.import_module(f"exoscale_connector.resources.{info.name}")
-        paths: List[str] = []
+        paths: list[str] = []
         for _, obj in sorted(vars(mod).items()):
             if (
                 inspect.isclass(obj)
@@ -143,12 +142,12 @@ class _EndpointVisitor(ast.NodeVisitor):
 
     _VERBS = {"get", "post", "put", "delete"}
 
-    def __init__(self, collection_paths: List[str]) -> None:
+    def __init__(self, collection_paths: list[str]) -> None:
         # Resolve ``self.collection_path`` to the module's path. Multiple clients
         # in one module are rare; the first declared path is the resolution hint.
         self.collection_path = collection_paths[0] if collection_paths else ""
-        self.endpoints: Set[str] = set()
-        self._locals: Dict[str, str] = {}
+        self.endpoints: set[str] = set()
+        self._locals: dict[str, str] = {}
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         saved = self._locals
@@ -189,7 +188,7 @@ class _EndpointVisitor(ast.NodeVisitor):
             and node.value.id == "self"
         )
 
-    def _render(self, node: ast.AST) -> Optional[str]:
+    def _render(self, node: ast.AST) -> str | None:
         if self._is_self_collection_path(node):
             return self.collection_path
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -197,7 +196,7 @@ class _EndpointVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Name):
             return self._locals.get(node.id)
         if isinstance(node, ast.JoinedStr):
-            parts: List[str] = []
+            parts: list[str] = []
             for value in node.values:
                 if isinstance(value, ast.Constant) and isinstance(value.value, str):
                     parts.append(value.value)
@@ -211,10 +210,10 @@ class _EndpointVisitor(ast.NodeVisitor):
         return None
 
 
-def discovered_operations() -> Dict[str, List[str]]:
+def discovered_operations() -> dict[str, list[str]]:
     """Module stem -> sorted endpoints the module's code calls on ``self.client``."""
     collection_paths = _module_collection_paths()
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for path in sorted(RESOURCES_DIR.glob("*.py")):
         if path.name.startswith("_"):
             continue
@@ -226,11 +225,11 @@ def discovered_operations() -> Dict[str, List[str]]:
     return out
 
 
-def undeclared_siblings() -> Dict[str, List[str]]:
+def undeclared_siblings() -> dict[str, list[str]]:
     """Module -> endpoints it calls that neither its collection path nor the
     declared siblings attribute. Must be empty; the unit test enforces it."""
     collection_paths = _module_collection_paths()
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for stem, endpoints in discovered_operations().items():
         own = collection_paths.get(stem, [])
         siblings = MODULE_SIBLING_OPERATIONS.get(stem, [])
@@ -248,11 +247,11 @@ def undeclared_siblings() -> Dict[str, List[str]]:
 # --------------------------------------------------------------------------- #
 # Spec diff -> affected modules
 # --------------------------------------------------------------------------- #
-def changed_spec_paths(base: dict, revision: dict) -> Dict[str, str]:
+def changed_spec_paths(base: dict, revision: dict) -> dict[str, str]:
     """Normalised spec path -> ``added`` | ``removed`` | ``changed``."""
     base_paths = base.get("paths", {}) or {}
     rev_paths = revision.get("paths", {}) or {}
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for raw in sorted(set(base_paths) | set(rev_paths)):
         key = _normalize(raw)
         if raw not in base_paths:
@@ -267,8 +266,8 @@ def changed_spec_paths(base: dict, revision: dict) -> Dict[str, str]:
 
 
 def affected_modules(
-    changed: Dict[str, str],
-) -> Tuple[Dict[str, List[Tuple[str, str]]], List[Tuple[str, str]]]:
+    changed: dict[str, str],
+) -> tuple[dict[str, list[tuple[str, str]]], list[tuple[str, str]]]:
     """Group changed paths by the connector module that owns them.
 
     Returns ``(by_module, unmatched)`` where ``by_module`` maps a module path to
@@ -277,10 +276,10 @@ def affected_modules(
     """
     collection_paths = _module_collection_paths()
     siblings = MODULE_SIBLING_OPERATIONS
-    by_module: Dict[str, List[Tuple[str, str]]] = {}
-    unmatched: List[Tuple[str, str]] = []
+    by_module: dict[str, list[tuple[str, str]]] = {}
+    unmatched: list[tuple[str, str]] = []
     for path, status in sorted(changed.items()):
-        owners: Set[str] = set()
+        owners: set[str] = set()
         for stem, own in collection_paths.items():
             templates = list(own) + list(siblings.get(stem, []))
             if any(template_covers(t, path) for t in templates):
@@ -296,7 +295,7 @@ def affected_modules(
 def render_affected_markdown(base: dict, revision: dict) -> str:
     changed = changed_spec_paths(base, revision)
     by_module, unmatched = affected_modules(changed)
-    lines: List[str] = []
+    lines: list[str] = []
     if not changed:
         return "_No path-level spec changes detected._\n"
     if by_module:
@@ -318,7 +317,7 @@ def render_affected_markdown(base: dict, revision: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument(
         "--affected",

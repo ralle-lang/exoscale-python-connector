@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence
 
 SKILL_FILES = ("SKILL.md", "reference.md")
 SKILL_NAME = "exoscale-connector"
@@ -30,7 +30,7 @@ def packaged_skill_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "_skill"
 
 
-def install(dest: Path) -> List[Path]:
+def install(dest: Path) -> list[Path]:
     """Copy the packaged skill files into ``dest``; return the written paths."""
     source = packaged_skill_dir()
     missing = [name for name in SKILL_FILES if not (source / name).exists()]
@@ -47,7 +47,7 @@ def install(dest: Path) -> List[Path]:
     return written
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="exoscale-connector skill",
         description="Install the bundled advisor skill for AI-assisted editors.",

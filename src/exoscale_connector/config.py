@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 import warnings
 from dataclasses import dataclass, field
-from typing import FrozenSet, Optional
 
 from .errors import ConfigError
 
@@ -49,10 +48,10 @@ class ClientConfig:
     # debugger output never echo them.
     api_key: str = field(repr=False)
     api_secret: str = field(repr=False)
-    zone: Optional[str] = None
+    zone: str | None = None
     # Optional full endpoint override (e.g. for a private gateway or test double).
     # When set, it takes precedence over the per-zone template.
-    endpoint: Optional[str] = None
+    endpoint: str | None = None
     timeout: float = 60.0
     verify_tls: bool = True
     max_retries: int = 3
@@ -61,8 +60,8 @@ class ClientConfig:
     # set; non-idempotent POST uses the second (429-only by default) to keep the
     # no-duplicate-mutation guarantee. Connection-level failures (drops, read
     # timeouts) follow the same split: retried for idempotent verbs, never for POST.
-    retryable_statuses_idempotent: FrozenSet[int] = DEFAULT_RETRYABLE_STATUSES_IDEMPOTENT
-    retryable_statuses_mutating: FrozenSet[int] = DEFAULT_RETRYABLE_STATUSES_MUTATING
+    retryable_statuses_idempotent: frozenset[int] = DEFAULT_RETRYABLE_STATUSES_IDEMPOTENT
+    retryable_statuses_mutating: frozenset[int] = DEFAULT_RETRYABLE_STATUSES_MUTATING
     # How many *consecutive* transient failures (connection drops, timeouts, a
     # sporadic 404 while an operation is still propagating) the async-operation
     # poll loop tolerates before giving up. Reset on every successful poll.
@@ -81,7 +80,7 @@ class ClientConfig:
             )
 
     @classmethod
-    def from_env(cls, *, zone: Optional[str] = None) -> "ClientConfig":
+    def from_env(cls, *, zone: str | None = None) -> ClientConfig:
         """Build a config from ``EXOSCALE_*`` environment variables.
 
         Raises :class:`ConfigError` if the key or secret is absent. ``zone`` passed
@@ -102,7 +101,7 @@ class ClientConfig:
             verify_tls=_env_bool("EXOSCALE_VERIFY_TLS", default=True),
         )
 
-    def base_url(self, zone: Optional[str] = None) -> str:
+    def base_url(self, zone: str | None = None) -> str:
         """Return the APIv2 base URL for ``zone`` (or the configured default).
 
         A configured ``endpoint`` override wins over the zone template.

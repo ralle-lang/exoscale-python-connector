@@ -18,8 +18,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-iam
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..errors import NotFoundError
 from ..models import ExoscaleModel, Reference
 from ._base import ResourceClient
@@ -28,14 +26,14 @@ from ._base import ResourceClient
 class IAMUser(ExoscaleModel):
     """An Exoscale IAM user (organization member)."""
 
-    id: Optional[str] = None
+    id: str | None = None
     # Email is the human-readable unique identifier within the org.
-    email: Optional[str] = None
+    email: str | None = None
     # The IAM role assigned to this user.
-    role_id: Optional[str] = None
-    role: Optional[Reference] = None
+    role_id: str | None = None
+    role: Reference | None = None
     # True until an invited user accepts the invitation.
-    pending: Optional[bool] = None
+    pending: bool | None = None
 
 
 class IAMUserClient(ResourceClient[IAMUser]):
@@ -50,7 +48,7 @@ class IAMUserClient(ResourceClient[IAMUser]):
     list_key = "users"
     name_field = "email"
 
-    def get(self, resource_id: str, *, zone: Optional[str] = None) -> IAMUser:
+    def get(self, resource_id: str, *, zone: str | None = None) -> IAMUser:
         """Fetch a user by id, resolved from ``GET /user`` (there is no per-id GET).
 
         Also serves the re-fetch inside :meth:`create` / :meth:`update`; a

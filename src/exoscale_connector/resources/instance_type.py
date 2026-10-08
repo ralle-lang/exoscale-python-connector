@@ -10,8 +10,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-instance-type
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ..models import ExoscaleModel
 from ._base import ResourceClient
 
@@ -19,14 +17,14 @@ from ._base import ResourceClient
 class InstanceType(ExoscaleModel):
     """A compute offering (CPU/memory size)."""
 
-    id: Optional[str] = None
-    family: Optional[str] = None  # e.g. "standard", "cpu", "memory", "gpu"
-    size: Optional[str] = None  # e.g. "tiny", "medium", "extra-large"
-    cpus: Optional[int] = None
+    id: str | None = None
+    family: str | None = None  # e.g. "standard", "cpu", "memory", "gpu"
+    size: str | None = None  # e.g. "tiny", "medium", "extra-large"
+    cpus: int | None = None
     # Memory in bytes.
-    memory: Optional[int] = None
-    gpus: Optional[int] = None
-    authorized: Optional[bool] = None
+    memory: int | None = None
+    gpus: int | None = None
+    authorized: bool | None = None
 
     @property
     def slug(self) -> str:
@@ -41,7 +39,7 @@ class InstanceTypeClient(ResourceClient[InstanceType]):
     model = InstanceType
     list_key = "instance-types"
 
-    def find(self, slug: str, *, zone: Optional[str] = None) -> Optional[InstanceType]:
+    def find(self, slug: str, *, zone: str | None = None) -> InstanceType | None:
         """Resolve a ``family.size`` slug (e.g. ``"standard.tiny"``) to a type."""
         wanted = slug.strip().lower()
         for item in self.list(zone=zone):

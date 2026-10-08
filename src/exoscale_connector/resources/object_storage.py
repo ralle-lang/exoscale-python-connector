@@ -22,7 +22,8 @@ constructor parameter and never trigger the real import.
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+import builtins
+from typing import Any
 
 from ..config import ClientConfig
 from ..errors import APIError, ConfigError
@@ -37,21 +38,21 @@ def _sos_endpoint(zone: str) -> str:
 class Bucket(ExoscaleModel):
     """A single SOS bucket as returned by the S3 ListBuckets response."""
 
-    name: Optional[str] = None
+    name: str | None = None
     # S3 returns an ISO-8601 string; kept as a plain string to avoid the
     # datetime-parsing complexity and stay consistent with the rest of the library.
-    creation_date: Optional[str] = None
+    creation_date: str | None = None
 
 
 class S3Object(ExoscaleModel):
     """A single object as returned by the S3 ListObjectsV2 response."""
 
-    key: Optional[str] = None
-    size: Optional[int] = None
-    etag: Optional[str] = None
-    storage_class: Optional[str] = None
+    key: str | None = None
+    size: int | None = None
+    etag: str | None = None
+    storage_class: str | None = None
     # ISO-8601 string (see Bucket.creation_date for the rationale).
-    last_modified: Optional[str] = None
+    last_modified: str | None = None
 
 
 def _build_s3_client(config: ClientConfig, zone: str) -> Any:
@@ -101,11 +102,11 @@ class BucketClient:
         self,
         config: ClientConfig,
         *,
-        zone: Optional[str] = None,
-        s3_client: Optional[Any] = None,
+        zone: str | None = None,
+        s3_client: Any | None = None,
     ) -> None:
         self._config = config
-        self._zone: Optional[str] = zone or config.zone
+        self._zone: str | None = zone or config.zone
 
         if s3_client is not None:
             self._s3: Any = s3_client
@@ -122,11 +123,11 @@ class BucketClient:
     # Read
     # ------------------------------------------------------------------ #
 
-    def list(self) -> List[Bucket]:
+    def list(self) -> builtins.list[Bucket]:
         """Return all buckets visible to the configured credentials."""
         response = self._s3.list_buckets()
         raw_buckets = response.get("Buckets") or []
-        result: List[Bucket] = []
+        result: list[Bucket] = []
         for item in raw_buckets:
             creation = item.get("CreationDate")
             result.append(
@@ -202,15 +203,15 @@ class BucketClient:
         self,
         bucket: str,
         *,
-        prefix: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[S3Object]:
+        prefix: str | None = None,
+        limit: int | None = None,
+    ) -> builtins.list[S3Object]:
         """List objects in *bucket*, following continuation tokens.
 
         ``prefix`` narrows the listing server-side; ``limit`` caps the number
         of returned objects (the listing stops paginating once reached).
         """
-        results: List[S3Object] = []
+        results: list[S3Object] = []
         kwargs: dict = {"Bucket": bucket}
         if prefix:
             kwargs["Prefix"] = prefix
@@ -245,7 +246,7 @@ class BucketClient:
         key: str,
         data: bytes,
         *,
-        content_type: Optional[str] = None,
+        content_type: str | None = None,
     ) -> None:
         """Upload *data* (bytes) as ``s3://bucket/key``."""
         kwargs: dict = {"Bucket": bucket, "Key": key, "Body": data}
@@ -323,7 +324,7 @@ class BucketClient:
     # Bucket configuration (lifecycle / CORS)
     # ------------------------------------------------------------------ #
 
-    def get_lifecycle(self, bucket: str) -> Optional[List[dict]]:
+    def get_lifecycle(self, bucket: str) -> builtins.list[dict] | None:
         """Return the bucket's lifecycle rules, or ``None`` if none are set.
 
         Exoscale SOS answers an unconfigured bucket with 200 and no rules
@@ -339,7 +340,7 @@ class BucketClient:
                 return None
             raise self._wrap_error("get_bucket_lifecycle_configuration", bucket, exc) from exc
 
-    def set_lifecycle(self, bucket: str, rules: List[dict]) -> None:
+    def set_lifecycle(self, bucket: str, rules: builtins.list[dict]) -> None:
         """Replace the bucket's lifecycle rules (S3 ``Rules`` schema, verbatim)."""
         try:
             self._s3.put_bucket_lifecycle_configuration(
@@ -348,7 +349,7 @@ class BucketClient:
         except Exception as exc:  # noqa: BLE001
             raise self._wrap_error("put_bucket_lifecycle_configuration", bucket, exc) from exc
 
-    def get_cors(self, bucket: str) -> Optional[List[dict]]:
+    def get_cors(self, bucket: str) -> builtins.list[dict] | None:
         """Return the bucket's CORS rules, or ``None`` if none are set."""
         try:
             response = self._s3.get_bucket_cors(Bucket=bucket)
@@ -358,7 +359,7 @@ class BucketClient:
                 return None
             raise self._wrap_error("get_bucket_cors", bucket, exc) from exc
 
-    def set_cors(self, bucket: str, rules: List[dict]) -> None:
+    def set_cors(self, bucket: str, rules: builtins.list[dict]) -> None:
         """Replace the bucket's CORS rules (S3 ``CORSRules`` schema, verbatim)."""
         try:
             self._s3.put_bucket_cors(Bucket=bucket, CORSConfiguration={"CORSRules": rules})

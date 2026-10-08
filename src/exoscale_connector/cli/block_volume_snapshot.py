@@ -9,13 +9,13 @@ excluded via ``verbs=``. Snapshots are created on the volume
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ..resources.block_volume_snapshot import BlockVolumeSnapshotClient
 from ._base import run_resource_cli
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     return run_resource_cli(
         BlockVolumeSnapshotClient,
         prog="exoscale-block-volume-snapshot",

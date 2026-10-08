@@ -5,8 +5,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-compute
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference
@@ -17,32 +15,32 @@ from ._reverse_dns import ReverseDNSMixin
 class SshKeyReference(ExoscaleModel):
     """Lightweight SSH key reference (name-keyed, not id-keyed)."""
 
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class Instance(ExoscaleModel):
     """An Exoscale compute instance."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    state: Optional[str] = None  # "running" | "stopped" | "starting" | "stopping" | ...
-    instance_type: Optional[Reference] = None
-    template: Optional[Reference] = None
+    id: str | None = None
+    name: str | None = None
+    state: str | None = None  # "running" | "stopped" | "starting" | "stopping" | ...
+    instance_type: Reference | None = None
+    template: Reference | None = None
     # disk-size is reported in GiB by the API
-    disk_size: Optional[int] = None
+    disk_size: int | None = None
     # Public IPv4 address (present when the instance has inet4 assignment)
-    public_ip: Optional[str] = None
-    ipv6_address: Optional[str] = None
-    ssh_key: Optional[SshKeyReference] = None
-    security_groups: List[Reference] = Field(default_factory=list)
-    labels: Optional[dict] = None
+    public_ip: str | None = None
+    ipv6_address: str | None = None
+    ssh_key: SshKeyReference | None = None
+    security_groups: list[Reference] = Field(default_factory=list)
+    labels: dict | None = None
     # manager carries pool/cluster membership ({"type": "...", "id": "..."})
-    manager: Optional[Reference] = None
+    manager: Reference | None = None
     # Placement target the instance is pinned to. Set at create time by passing
     # {"deploy-target": {"id": ...}} in the create payload; discover valid ids
     # with DeployTargetClient. Round-tripped on the response.
-    deploy_target: Optional[Reference] = None
-    created_at: Optional[str] = None
+    deploy_target: Reference | None = None
+    created_at: str | None = None
 
 
 class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
@@ -66,8 +64,8 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         self,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Start a stopped instance.
 
@@ -82,8 +80,8 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         self,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Stop a running instance gracefully (``PUT instance/{id}:stop``)."""
         zone = self._zone(zone)
@@ -94,8 +92,8 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         self,
         instance_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Reboot a running instance (``PUT instance/{id}:reboot``)."""
         zone = self._zone(zone)
@@ -107,8 +105,8 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         instance_id: str,
         instance_type_id: str,
         *,
-        zone: Optional[str] = None,
-        wait: Optional[bool] = None,
+        zone: str | None = None,
+        wait: bool | None = None,
     ) -> Operation:
         """Change the instance's compute offering (``PUT instance/{id}:scale``).
 
@@ -135,8 +133,8 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         self,
         response: dict,
         *,
-        zone: Optional[str],
-        wait: Optional[bool],
+        zone: str | None,
+        wait: bool | None,
     ) -> Operation:
         """Parse a lifecycle-action response and await completion unless suppressed."""
         operation = Operation.model_validate(response)

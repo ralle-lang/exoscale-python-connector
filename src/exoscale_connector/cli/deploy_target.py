@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from ..resources.deploy_target import DeployTargetClient
 from ._base import PrimaryResource, run_resource_cli
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     return run_resource_cli(
         DeployTargetClient,
         prog="exoscale-deploy-target",

@@ -13,14 +13,15 @@ duplicated credential/JSON/error handling.
 from __future__ import annotations
 
 import sys
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from ..errors import ExoscaleError
 from ..resources.dbaas import DBaaSServiceClient
 from ._base import add_payload_args, base_parser, dump, execute_cli, load_payload
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the ``exoscale-dbaas`` binary."""
     return execute_cli(_build_parser(), DBaaSServiceClient, _dispatch, argv=argv)
 

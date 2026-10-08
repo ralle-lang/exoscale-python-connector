@@ -25,7 +25,7 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-kms
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..models import ExoscaleModel
 from ._base import ResourceClient
@@ -34,10 +34,10 @@ from ._base import ResourceClient
 class KeyRotationConfig(ExoscaleModel):
     """A key's rotation configuration."""
 
-    automatic: Optional[bool] = None
-    manual_count: Optional[int] = None
-    next_at: Optional[str] = None
-    rotation_period: Optional[int] = None
+    automatic: bool | None = None
+    manual_count: int | None = None
+    next_at: str | None = None
+    rotation_period: int | None = None
 
 
 class KmsKey(ExoscaleModel):
@@ -48,24 +48,24 @@ class KmsKey(ExoscaleModel):
     since callers rarely need them typed.
     """
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # "enabled" | "disabled" | "pending-deletion"
-    status: Optional[str] = None
-    status_since: Optional[str] = None
+    status: str | None = None
+    status_since: str | None = None
     # Set once a deletion is scheduled; cleared by cancel-deletion.
-    delete_at: Optional[str] = None
-    usage: Optional[str] = None  # "encrypt-decrypt"
-    source: Optional[str] = None  # "exoscale-kms"
-    multi_zone: Optional[bool] = None
-    origin_zone: Optional[str] = None
-    material: Optional[Dict[str, Any]] = None
-    revision: Optional[Dict[str, Any]] = None
-    rotation: Optional[KeyRotationConfig] = None
-    replicas: Optional[List[str]] = None
-    replicas_status: Optional[List[Dict[str, Any]]] = None
-    created_at: Optional[str] = None
+    delete_at: str | None = None
+    usage: str | None = None  # "encrypt-decrypt"
+    source: str | None = None  # "exoscale-kms"
+    multi_zone: bool | None = None
+    origin_zone: str | None = None
+    material: dict[str, Any] | None = None
+    revision: dict[str, Any] | None = None
+    rotation: KeyRotationConfig | None = None
+    replicas: list[str] | None = None
+    replicas_status: list[dict[str, Any]] | None = None
+    created_at: str | None = None
 
 
 class KmsKeyClient(ResourceClient[KmsKey]):
@@ -98,11 +98,11 @@ class KmsKeyClient(ResourceClient[KmsKey]):
     # State
     # ------------------------------------------------------------------ #
 
-    def enable(self, key_id: str, *, zone: Optional[str] = None) -> dict:
+    def enable(self, key_id: str, *, zone: str | None = None) -> dict:
         """Enable a key (``POST /kms-key/{id}/enable``). Returns ``{"status": ...}``."""
         return self.client.post(f"{self.collection_path}/{key_id}/enable", zone=self._zone(zone))
 
-    def disable(self, key_id: str, *, zone: Optional[str] = None) -> dict:
+    def disable(self, key_id: str, *, zone: str | None = None) -> dict:
         """Disable a key (``POST /kms-key/{id}/disable``). A disabled key can't decrypt."""
         return self.client.post(f"{self.collection_path}/{key_id}/disable", zone=self._zone(zone))
 
@@ -114,8 +114,8 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         self,
         key_id: str,
         *,
-        rotation_period: Optional[int] = None,
-        zone: Optional[str] = None,
+        rotation_period: int | None = None,
+        zone: str | None = None,
     ) -> dict:
         """Enable automatic rotation (``POST .../enable-key-rotation``).
 
@@ -129,17 +129,17 @@ class KmsKeyClient(ResourceClient[KmsKey]):
             json=body,
         )
 
-    def disable_rotation(self, key_id: str, *, zone: Optional[str] = None) -> dict:
+    def disable_rotation(self, key_id: str, *, zone: str | None = None) -> dict:
         """Disable automatic rotation (``POST .../disable-key-rotation``)."""
         return self.client.post(
             f"{self.collection_path}/{key_id}/disable-key-rotation", zone=self._zone(zone)
         )
 
-    def rotate(self, key_id: str, *, zone: Optional[str] = None) -> dict:
+    def rotate(self, key_id: str, *, zone: str | None = None) -> dict:
         """Rotate the key material now (``POST .../rotate``). Returns the new rotation state."""
         return self.client.post(f"{self.collection_path}/{key_id}/rotate", zone=self._zone(zone))
 
-    def list_rotations(self, key_id: str, *, zone: Optional[str] = None) -> List[dict]:
+    def list_rotations(self, key_id: str, *, zone: str | None = None) -> list[dict]:
         """List a key's past rotations (``GET .../list-key-rotations``)."""
         payload = self.client.get(
             f"{self.collection_path}/{key_id}/list-key-rotations", zone=self._zone(zone)
@@ -156,8 +156,8 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         key_id: str,
         plaintext: str,
         *,
-        encryption_context: Optional[str] = None,
-        zone: Optional[str] = None,
+        encryption_context: str | None = None,
+        zone: str | None = None,
     ) -> dict:
         """Encrypt ``plaintext`` under the key (``POST .../encrypt``).
 
@@ -167,7 +167,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
 
         .. warning:: ``plaintext`` is secret — never pass it via the shell/CLI.
         """
-        body: Dict[str, Any] = {"plaintext": plaintext}
+        body: dict[str, Any] = {"plaintext": plaintext}
         if encryption_context is not None:
             body["encryption-context"] = encryption_context
         return self.client.post(
@@ -179,8 +179,8 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         key_id: str,
         ciphertext: str,
         *,
-        encryption_context: Optional[str] = None,
-        zone: Optional[str] = None,
+        encryption_context: str | None = None,
+        zone: str | None = None,
     ) -> dict:
         """Decrypt ``ciphertext`` (``POST .../decrypt``). Returns Base64 ``{"plaintext": ...}``.
 
@@ -188,7 +188,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
 
         .. warning:: The returned plaintext is secret — never log or print it.
         """
-        body: Dict[str, Any] = {"ciphertext": ciphertext}
+        body: dict[str, Any] = {"ciphertext": ciphertext}
         if encryption_context is not None:
             body["encryption-context"] = encryption_context
         return self.client.post(
@@ -201,7 +201,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         *,
         source: dict,
         destination: dict,
-        zone: Optional[str] = None,
+        zone: str | None = None,
     ) -> dict:
         """Re-encrypt a payload from a source envelope to a destination one.
 
@@ -220,9 +220,9 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         key_id: str,
         *,
         key_spec: str = "AES-256",
-        bytes_count: Optional[int] = None,
-        encryption_context: Optional[str] = None,
-        zone: Optional[str] = None,
+        bytes_count: int | None = None,
+        encryption_context: str | None = None,
+        zone: str | None = None,
     ) -> dict:
         """Generate a data key (``POST .../generate-data-key``).
 
@@ -232,7 +232,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         .. warning:: The returned ``plaintext`` data key is secret — never log,
            print, or store it; keep only the ``ciphertext``.
         """
-        body: Dict[str, Any] = {"key-spec": key_spec}
+        body: dict[str, Any] = {"key-spec": key_spec}
         if bytes_count is not None:
             body["bytes-count"] = bytes_count
         if encryption_context is not None:
@@ -251,8 +251,8 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         self,
         key_id: str,
         *,
-        delay_days: Optional[int] = None,
-        zone: Optional[str] = None,
+        delay_days: int | None = None,
+        zone: str | None = None,
     ) -> dict:
         """Schedule a key for deletion after a waiting period (``POST .../schedule-deletion``).
 
@@ -267,7 +267,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
             json=body,
         )
 
-    def cancel_deletion(self, key_id: str, *, zone: Optional[str] = None) -> dict:
+    def cancel_deletion(self, key_id: str, *, zone: str | None = None) -> dict:
         """Cancel a scheduled deletion (``POST .../cancel-deletion``), restoring the key."""
         return self.client.post(
             f"{self.collection_path}/{key_id}/cancel-deletion", zone=self._zone(zone)
@@ -277,7 +277,7 @@ class KmsKeyClient(ResourceClient[KmsKey]):
     # Replication
     # ------------------------------------------------------------------ #
 
-    def replicate(self, key_id: str, zone_target: str, *, zone: Optional[str] = None) -> dict:
+    def replicate(self, key_id: str, zone_target: str, *, zone: str | None = None) -> dict:
         """Replicate a multi-zone key into another zone (``POST .../replicate``).
 
         ``zone_target`` is the destination zone; ``zone`` (as everywhere) is the

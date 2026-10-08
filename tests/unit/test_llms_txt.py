@@ -9,6 +9,7 @@ import importlib
 import inspect
 import json
 import pkgutil
+import re
 
 from scripts.generate_llms_txt import (
     ASSET_PAGES_DIR,
@@ -94,6 +95,23 @@ def test_bundle_covers_common_operations_and_models():
     # Model field tables carry the kebab-case JSON keys an LLM must use in payloads.
     for alias in ("`ssh-key-enabled`", "`flow-direction`", "`start-port`"):
         assert alias in bundle
+
+
+def test_model_field_tables_keep_three_columns():
+    """A union type like ``str | None`` must not split its table cell."""
+    in_table = False
+    rows = 0
+    for line in generate_bundle().splitlines():
+        if line == "| Python attribute | JSON key | Type |":
+            in_table = True
+            continue
+        if not line.startswith("|"):
+            in_table = False
+        if in_table and line != "|---|---|---|":
+            cells = re.split(r"(?<!\\)\|", line)[1:-1]
+            assert len(cells) == 3, f"field row split into {len(cells)} cells: {line}"
+            rows += 1
+    assert rows > 100  # sanity: the tables were actually found
 
 
 def test_bundle_embeds_every_asset_type_page():

@@ -21,7 +21,7 @@ Example::
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 # Field/container names are developer-written constants like "resources.bucket".
 # They are interpolated into the expression verbatim, so they must never carry

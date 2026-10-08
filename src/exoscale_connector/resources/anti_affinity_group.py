@@ -5,8 +5,6 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-compute
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import Field
 
 from ..models import ExoscaleModel, Reference
@@ -20,11 +18,11 @@ class AntiAffinityGroup(ExoscaleModel):
     hypervisor hosts to reduce correlated failure risk.
     """
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
     # Back-references to instances that are members of this group
-    instances: List[Reference] = Field(default_factory=list)
+    instances: list[Reference] = Field(default_factory=list)
 
 
 class AntiAffinityGroupClient(ResourceClient[AntiAffinityGroup]):
