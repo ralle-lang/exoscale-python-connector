@@ -63,6 +63,8 @@ MODULE_SIBLING_OPERATIONS: dict[str, list[str]] = {
     # DBaaS mutations use per-service-type paths (dbaas-postgres, dbaas-mysql, …)
     # plus the dbaas-service-type catalogue — all outside dbaas-service/.
     "dbaas": ["dbaas-*"],
+    # The organization policy shares IAMPolicy with roles but has its own path.
+    "iam_role": ["iam-organization-policy", "iam-organization-policy:reset"],
 }
 
 

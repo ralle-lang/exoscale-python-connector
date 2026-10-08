@@ -97,6 +97,28 @@ role = roles.create(IAMRole(
 ))
 ```
 
+## Organization policy
+
+One `IAMPolicy` that applies to every API key in the organization, evaluated
+in addition to each key's role policy. It uses the same models and builders as
+role policies. Implemented from the API reference — pending live verification.
+
+```python
+current = roles.get_organization_policy()          # IAMPolicy
+
+# Replace it (awaits the operation unless wait=False). A too-strict policy can
+# lock out the very key making the call, so start from `current`.
+roles.set_organization_policy(current)
+
+# Back to the default, discarding every customisation org-wide. Refuses to
+# run without confirm=True.
+roles.reset_organization_policy(confirm=True)
+```
+
+- None of the three is on the CLI: an org-wide write is too easy to fire by
+  accident from a shell, so it stays a deliberate library call.
+- The live tests only ever read the organization policy.
+
 ## Gotchas
 
 - **The policy envelope is typed; rule expressions are not.** `services`,

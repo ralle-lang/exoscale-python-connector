@@ -581,8 +581,14 @@ API collection: `iam-role`; resource model: `IAMRole`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `get_organization_policy(*, zone: str | None = None) -> IAMPolicy`
+  Return the organization-wide IAM policy (``GET /iam-organization-policy``).
+- `reset_organization_policy(*, confirm: bool = False, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset the organization policy to the default (``POST /iam-organization-policy:reset``).
 - `set_assume_role_policy(role_id: str, policy: IAMAssumeRolePolicy | dict, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Replace the assume-role policy.
+- `set_organization_policy(policy: IAMPolicy | dict, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Replace the organization-wide IAM policy (``PUT /iam-organization-policy``).
 - `set_policy(role_id: str, policy: IAMPolicy | dict, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Replace the role's permission policy (``PUT /iam-role/{id}:policy``).
 
@@ -2472,6 +2478,28 @@ role = roles.create(IAMRole(
     ),
 ))
 ```
+
+#### Organization policy
+
+One `IAMPolicy` that applies to every API key in the organization, evaluated
+in addition to each key's role policy. It uses the same models and builders as
+role policies. Implemented from the API reference — pending live verification.
+
+```python
+current = roles.get_organization_policy()          # IAMPolicy
+
+# Replace it (awaits the operation unless wait=False). A too-strict policy can
+# lock out the very key making the call, so start from `current`.
+roles.set_organization_policy(current)
+
+# Back to the default, discarding every customisation org-wide. Refuses to
+# run without confirm=True.
+roles.reset_organization_policy(confirm=True)
+```
+
+- None of the three is on the CLI: an org-wide write is too easy to fire by
+  accident from a shell, so it stays a deliberate library call.
+- The live tests only ever read the organization policy.
 
 #### Gotchas
 

@@ -154,6 +154,13 @@ if role.policy:
             print(service, block.type)
 ```
 
+## Organization-wide policy
+
+Every recipe above also works as the organization policy, which applies to all
+keys on top of their roles: `roles.set_organization_policy(policy)`. Read the
+current one with `roles.get_organization_policy()` first — see
+[iam-role](asset-types/iam-role.md#organization-policy).
+
 ## Writing expressions
 
 The connector does not validate or generate expression strings — they are
