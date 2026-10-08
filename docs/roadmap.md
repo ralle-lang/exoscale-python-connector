@@ -208,6 +208,16 @@ _Tier C is the descope valve: external endpoints/integrations alone is ~8–12h
 and the least core to provisioning. Two rows (IAM organization policy, external
 endpoints) need a **scope call before implementation**, not after._
 
+_**Scope calls made 2026-10-08 (D4):** the IAM organization policy is **in
+scope in full** — get, set and reset — with reset gated behind `confirm=True`
+and none of the three on the CLI. DBaaS external endpoints + integrations are
+**deferred past 0.7.0**, not ruled out: like Kafka, they need a
+tenant-enablement probe before any implementation. **Tier A implemented** on
+`feat/0.7.0-tier-a` (databases, CA certificate, logs/metrics, SKS
+deprecated-resources, organization policy). Note the spec has no `GET` for the
+DBaaS database sub-resource; the names are read from the service's
+`databases` field._
+
 _**Where the tier A/B/C rows came from — and the process gap they expose (D5).**
 Not from drift. The backlog above them is drift-fed, and the weekly watch only
 ever reports what *changed* since the accepted snapshot; APIv2 surface that has
