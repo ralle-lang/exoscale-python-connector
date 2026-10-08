@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_metrics` (#78).
 - SKS `list_deprecated_resources`, the pre-upgrade check for Kubernetes APIs
   a later release removes (#78).
+- IAM organization policy: `get_organization_policy`,
+  `set_organization_policy` and `reset_organization_policy` (requires
+  `confirm=True`; library-only, not on the CLI) on `IAMRoleClient` (#78).
 
 ### Changed
 

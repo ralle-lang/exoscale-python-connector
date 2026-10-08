@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 import responses
 
 from exoscale_connector.resources.iam_role import (
@@ -335,3 +336,51 @@ def test_enum_constants_serialize_as_plain_strings() -> None:
     assert rule.to_api_payload() == {"action": "allow", "expression": "true"}
     assert ServiceType.RULES == "rules"
     assert ServiceStrategy.DENY == "deny"
+
+
+@responses.activate
+def test_get_organization_policy_types_the_policy(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/iam-organization-policy",
+        json={"default-service-strategy": "allow", "services": {"sos": {"type": "deny"}}},
+    )
+    policy = IAMRoleClient(client).get_organization_policy()
+    assert policy.default_service_strategy == "allow"
+    assert policy.services["sos"].type == "deny"
+
+
+@responses.activate
+def test_set_organization_policy_puts_kebab_body_and_awaits(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/iam-organization-policy",
+        json={"id": "op-1", "state": "pending"},
+    )
+    responses.add(
+        responses.GET, f"{base_url}/operation/op-1", json={"id": "op-1", "state": "success"}
+    )
+    op = IAMRoleClient(client).set_organization_policy(IAMPolicy.allow_services(["compute"]))
+    assert op.state == "success"
+    assert json.loads(responses.calls[0].request.body) == {
+        "default-service-strategy": "deny",
+        "services": {"compute": {"type": "allow"}},
+    }
+
+
+def test_reset_organization_policy_requires_confirm(client) -> None:
+    for confirm in (False, "yes", 1):
+        with pytest.raises(ValueError, match="confirm=True"):
+            IAMRoleClient(client).reset_organization_policy(confirm=confirm)
+
+
+@responses.activate
+def test_reset_organization_policy_posts_reset_when_confirmed(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/iam-organization-policy:reset",
+        json={"id": "op-2", "state": "success"},
+    )
+    op = IAMRoleClient(client).reset_organization_policy(confirm=True, wait=False)
+    assert op.state == "success"
+    assert responses.calls[0].request.method == "POST"

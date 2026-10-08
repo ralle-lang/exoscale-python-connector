@@ -233,6 +233,72 @@ class IAMRoleClient(ResourceClient[IAMRole]):
             operation = self.client.wait_operation(operation, zone=zone)
         return operation
 
+    # ------------------------------------------------------------------ #
+    # Organization policy (applies org-wide, on top of every role policy)
+    # ------------------------------------------------------------------ #
+
+    def get_organization_policy(self, *, zone: str | None = None) -> IAMPolicy:
+        """Return the organization-wide IAM policy (``GET /iam-organization-policy``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.get("iam-organization-policy", zone=self._zone(zone))
+        return IAMPolicy.model_validate(payload)
+
+    def set_organization_policy(
+        self,
+        policy: IAMPolicy | dict,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Replace the organization-wide IAM policy (``PUT /iam-organization-policy``).
+
+        Evaluated for every API key in the organization in addition to its
+        role policy, so a too-strict policy can lock out the key making this
+        call. Read the current one with :meth:`get_organization_policy` first.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            "iam-organization-policy", zone=zone, json=to_api_payload(policy)
+        )
+        return self._await_operation(response, zone=zone, wait=wait)
+
+    def reset_organization_policy(
+        self,
+        *,
+        confirm: bool = False,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Reset the organization policy to the default (``POST /iam-organization-policy:reset``).
+
+        Destructive at organization scope: every customisation is discarded
+        for every key at once. Raises ``ValueError`` unless ``confirm=True``.
+        Deliberately not exposed on the CLI.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        if confirm is not True:
+            raise ValueError(
+                "reset_organization_policy() discards the org-wide policy; "
+                "pass confirm=True to proceed"
+            )
+        zone = self._zone(zone)
+        response = self.client.post("iam-organization-policy:reset", zone=zone)
+        return self._await_operation(response, zone=zone, wait=wait)
+
+    def _await_operation(self, response: dict, *, zone: str | None, wait: bool | None) -> Operation:
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation
+
     def _put_policy(
         self,
         role_id: str,
