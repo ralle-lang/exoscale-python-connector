@@ -101,7 +101,8 @@ role = roles.create(IAMRole(
 
 One `IAMPolicy` that applies to every API key in the organization, evaluated
 in addition to each key's role policy. It uses the same models and builders as
-role policies. Implemented from the API reference — pending live verification.
+role policies. `get_organization_policy` is live-verified (2026-10-08); the
+writes are implemented from the API reference and never run live.
 
 ```python
 current = roles.get_organization_policy()          # IAMPolicy

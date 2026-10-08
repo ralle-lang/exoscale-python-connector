@@ -519,8 +519,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         connecting to the host from :meth:`get_connection_info` (e.g. libpq
         ``sslrootcert`` with ``sslmode=verify-full``).
 
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        Live-verified 2026-10-08 (read-only smoke).
         """
         payload = self.client.get("dbaas-ca-certificate", zone=self._zone(zone))
         return str(payload.get("certificate") or "")

@@ -364,3 +364,21 @@ Also confirmed live on the same run: zone listing works without signing (#92),
 and SKS/DBaaS reads parse after the model fixes in #98/#99. No tainted
 nodepool or Grafana service exists on the tenant, so those two shapes are
 still covered by unit tests only.
+
+## Read-only smoke — 2026-10-08 (zone `at-vie-1`)
+
+**Context:** covers the 0.7.0 tier-A reads (#78). `tests/integration/test_smoke.py`
+ran in full, read-only: 27 passed, 4 skipped.
+
+- **Verified live:** `DBaaSServiceClient.get_ca_certificate()` returns a PEM
+  certificate, and `IAMRoleClient.get_organization_policy()` parses into
+  `IAMPolicy`.
+- **Skipped for lack of fixtures:** DBaaS `get_logs` / `get_metrics` (no DBaaS
+  service on the tenant) and SKS `list_deprecated_resources` (no cluster).
+  Unit tests only for now.
+- **Not run:** `create_database` / `delete_database` and the organization-policy
+  writes. Databases need the paid tier-4 DBaaS run; organization-policy writes
+  are never run live because they affect every key in the organization.
+- `vpc` and `kms` still 403. The VPC reason now reads "Forbidden by role policy
+  for networking", not "not enabled": the test key's role, not the tenant, is
+  what blocks it.
