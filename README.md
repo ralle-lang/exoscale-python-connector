@@ -20,6 +20,8 @@ into any project that needs to read or manage Exoscale resources programmaticall
 
 ## Install
 
+Requires Python 3.11 or newer.
+
 ```bash
 pip install exoscale-connector
 ```
