@@ -53,8 +53,13 @@ MODULE_SIBLING_OPERATIONS: dict[str, list[str]] = {
     "snapshot": ["instance/{}:create-snapshot"],
     # A block-volume snapshot is created through the block-storage collection.
     "block_volume_snapshot": ["block-storage/{}:create-snapshot"],
-    # SKS version discovery and kubeconfig live beside, not under, sks-cluster/.
-    "sks": ["sks-cluster-version", "sks-cluster-kubeconfig"],
+    # SKS version discovery, kubeconfig and the deprecated-API check live
+    # beside, not under, sks-cluster/.
+    "sks": [
+        "sks-cluster-version",
+        "sks-cluster-kubeconfig",
+        "sks-cluster-deprecated-resources/{}",
+    ],
     # DBaaS mutations use per-service-type paths (dbaas-postgres, dbaas-mysql, …)
     # plus the dbaas-service-type catalogue — all outside dbaas-service/.
     "dbaas": ["dbaas-*"],

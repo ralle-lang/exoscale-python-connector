@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `databases` field on `DBaaSService` (#78).
 - DBaaS `get_ca_certificate`, `get_logs` (typed, cursor-paged) and
   `get_metrics` (#78).
+- SKS `list_deprecated_resources`, the pre-upgrade check for Kubernetes APIs
+  a later release removes (#78).
 
 ### Changed
 

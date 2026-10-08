@@ -22,6 +22,17 @@ from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
 
+class SksDeprecatedResource(ExoscaleModel):
+    """A Kubernetes API in use on a cluster that a later release removes."""
+
+    group: str | None = None
+    version: str | None = None
+    resource: str | None = None
+    subresource: str | None = None
+    # Kubernetes release that removes this API, e.g. "1.32".
+    removed_release: str | None = None
+
+
 class SksNodepoolTaint(ExoscaleModel):
     """A Kubernetes taint applied to every node in a nodepool."""
 
@@ -128,6 +139,27 @@ class SksClusterClient(ResourceClient[SksCluster]):
         payload = self.client.get("sks-cluster-version", zone=self._zone(zone))
         versions = payload.get("sks-cluster-versions") or []
         return [v for v in versions if isinstance(v, str)]
+
+    def list_deprecated_resources(
+        self, cluster_id: str, *, zone: str | None = None
+    ) -> list[SksDeprecatedResource]:
+        """List deprecated Kubernetes APIs still in use on a cluster.
+
+        Wraps ``GET /sks-cluster-deprecated-resources/{id}``. Run it before a
+        version upgrade: anything listed with a ``removed_release`` at or below
+        the target version stops being served after the upgrade, so migrate
+        those workloads first. An empty list means nothing in use is affected.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.get(
+            f"sks-cluster-deprecated-resources/{cluster_id}", zone=self._zone(zone)
+        )
+        # The spec documents a bare array, which the client wraps as "data";
+        # accept the keyed shape other SKS listings use as well.
+        items = payload.get("data") or payload.get("sks-cluster-deprecated-resources") or []
+        return [SksDeprecatedResource.model_validate(i) for i in items if isinstance(i, dict)]
 
     def generate_kubeconfig(
         self,
