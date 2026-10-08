@@ -218,6 +218,12 @@ deprecated-resources, organization policy). Note the spec has no `GET` for the
 DBaaS database sub-resource; the names are read from the service's
 `databases` field._
 
+_**Tier B implemented** on `feat/0.7.0-tier-b`, together with the carried VPC
+subnet `instances` row. Deliberately left untyped: snapshot-consistency flags,
+`InstancePool.manager`, `SksCluster.audit` / `enable-operators-ca`,
+`InstanceType.zones`. `LoadBalancerService` now nests its healthcheck (a
+breaking model change). Tier C is all that remains._
+
 _**Where the tier A/B/C rows came from — and the process gap they expose (D5).**
 Not from drift. The backlog above them is drift-fed, and the weekly watch only
 ever reports what *changed* since the accepted snapshot; APIv2 surface that has
