@@ -145,3 +145,54 @@ def test_list_sks_versions(live_client) -> None:
     versions = SksClusterClient(live_client).list_versions()
     assert isinstance(versions, list) and versions, "no SKS versions returned"
     assert all(isinstance(v, str) and v for v in versions)
+
+
+# ---------------------------------------------------------------------------- #
+# 0.7.0 tier-A reads — skip when the tenant has nothing to read or forbids it.
+# ---------------------------------------------------------------------------- #
+
+
+def _skip_if_forbidden(label, call):
+    try:
+        return call()
+    except APIError as exc:
+        if exc.status_code == 403:
+            pytest.skip(f"{label}: forbidden on this tenant/credential ({exc})")
+        raise
+
+
+def test_dbaas_ca_certificate_is_pem(live_client) -> None:
+    pem = _skip_if_forbidden(
+        "dbaas-ca-certificate", DBaaSServiceClient(live_client).get_ca_certificate
+    )
+    assert pem.startswith("-----BEGIN CERTIFICATE-----")
+
+
+def test_dbaas_logs_and_metrics_are_readable(live_client) -> None:
+    dbaas = DBaaSServiceClient(live_client)
+    services = dbaas.list()
+    if not services:
+        pytest.skip("no DBaaS services on this tenant")
+    name = services[0].name
+    page = _skip_if_forbidden("dbaas-service-logs", lambda: dbaas.get_logs(name, limit=1))
+    assert isinstance(page.logs or [], list)
+    metrics = _skip_if_forbidden(
+        "dbaas-service-metrics", lambda: dbaas.get_metrics(name, period="hour")
+    )
+    assert isinstance(metrics, dict)
+
+
+def test_sks_deprecated_resources_is_readable(live_client) -> None:
+    sks = SksClusterClient(live_client)
+    clusters = sks.list()
+    if not clusters:
+        pytest.skip("no SKS clusters on this tenant")
+    found = sks.list_deprecated_resources(clusters[0].id)
+    assert isinstance(found, list)
+
+
+def test_iam_organization_policy_is_readable(live_client) -> None:
+    policy = _skip_if_forbidden(
+        "iam-organization-policy", IAMRoleClient(live_client).get_organization_policy
+    )
+    assert policy.default_service_strategy in ("allow", "deny")

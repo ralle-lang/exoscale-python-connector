@@ -211,8 +211,9 @@ dbaas.delete_database(name, "app", service_type="pg")
 
 ### TLS trust, logs and metrics
 
-Engine-generic reads, all implemented from the API reference — pending live
-verification:
+Engine-generic reads. `get_ca_certificate` is live-verified (2026-10-08);
+`get_logs` / `get_metrics` are implemented from the API reference — pending
+live verification (no DBaaS service on the test tenant):
 
 ```python
 # The CA that signs every DBaaS server certificate. Pin it to verify the host

@@ -1979,8 +1979,9 @@ dbaas.delete_database(name, "app", service_type="pg")
 
 ##### TLS trust, logs and metrics
 
-Engine-generic reads, all implemented from the API reference — pending live
-verification:
+Engine-generic reads. `get_ca_certificate` is live-verified (2026-10-08);
+`get_logs` / `get_metrics` are implemented from the API reference — pending
+live verification (no DBaaS service on the test tenant):
 
 ```python
 # The CA that signs every DBaaS server certificate. Pin it to verify the host
@@ -2483,7 +2484,8 @@ role = roles.create(IAMRole(
 
 One `IAMPolicy` that applies to every API key in the organization, evaluated
 in addition to each key's role policy. It uses the same models and builders as
-role policies. Implemented from the API reference — pending live verification.
+role policies. `get_organization_policy` is live-verified (2026-10-08); the
+writes are implemented from the API reference and never run live.
 
 ```python
 current = roles.get_organization_policy()          # IAMPolicy

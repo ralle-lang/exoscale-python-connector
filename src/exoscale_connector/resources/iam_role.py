@@ -240,8 +240,7 @@ class IAMRoleClient(ResourceClient[IAMRole]):
     def get_organization_policy(self, *, zone: str | None = None) -> IAMPolicy:
         """Return the organization-wide IAM policy (``GET /iam-organization-policy``).
 
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        Live-verified 2026-10-08 (read-only smoke).
         """
         payload = self.client.get("iam-organization-policy", zone=self._zone(zone))
         return IAMPolicy.model_validate(payload)
