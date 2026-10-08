@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-08
+
+Bug-fix release resolving the medium-severity findings of the 2026-09-16
+codebase audit. Three fixes change behaviour you may notice:
+
+- DBaaS create/update, the user and maintenance methods, and `delete` now
+  **wait** for their operation by default (pass `wait=False` to opt out).
+- An unrecognised `EXOSCALE_VERIFY_TLS` value now **raises** `ConfigError`
+  instead of silently disabling TLS verification.
+- `exoscale-snapshot` and `exoscale-block-volume-snapshot` no longer offer
+  `create`, which could only fail.
+
+Additive: `IAMAssumeRolePolicy`, `wait=` on the DBaaS user/maintenance
+methods, `--file` on `dbaas`/`kms create`, and `verbs=` on `run_resource_cli`.
+
 ### Fixed
 - **`DnsDomainClient.ensure()` works.** It always raised `ValueError`
   because its snake_case `name_field` was looked up in the kebab-case
@@ -212,7 +227,8 @@ upstream-drift triage. Purely additive: no existing behaviour changes.
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.4.0...v0.5.0
