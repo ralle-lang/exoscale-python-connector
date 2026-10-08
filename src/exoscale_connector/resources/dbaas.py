@@ -84,6 +84,23 @@ class DBaaSService(ExoscaleModel):
     databases: list[str] | None = None
 
 
+class DBaaSLogEntry(ExoscaleModel):
+    """One service log line."""
+
+    time: str | None = None
+    node: str | None = None
+    unit: str | None = None
+    message: str | None = None
+
+
+class DBaaSServiceLogs(ExoscaleModel):
+    """A page of service logs; pass :attr:`offset` back to fetch the next one."""
+
+    logs: list[DBaaSLogEntry] | None = None
+    offset: str | None = None
+    first_log_offset: str | None = None
+
+
 class DBaaSServiceClient(ResourceClient[DBaaSService]):
     """Manage Exoscale DBaaS (managed database) services.
 
@@ -490,6 +507,66 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
             f"dbaas-{url_type}/{name}/database/{database_name}", zone=zone
         )
         return self._settle(response, zone=zone, wait=wait)
+
+    # ------------------------------------------------------------------ #
+    # TLS trust and observability (engine-generic)
+    # ------------------------------------------------------------------ #
+
+    def get_ca_certificate(self, *, zone: str | None = None) -> str:
+        """Return the PEM CA certificate that signs DBaaS server certificates.
+
+        Wraps ``GET /dbaas-ca-certificate``. Pin it as the trust root when
+        connecting to the host from :meth:`get_connection_info` (e.g. libpq
+        ``sslrootcert`` with ``sslmode=verify-full``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.get("dbaas-ca-certificate", zone=self._zone(zone))
+        return str(payload.get("certificate") or "")
+
+    def get_logs(
+        self,
+        name: str,
+        *,
+        limit: int | None = None,
+        offset: str | None = None,
+        sort_order: str | None = None,
+        zone: str | None = None,
+    ) -> DBaaSServiceLogs:
+        """Fetch a page of service logs (``POST /dbaas-service-logs/{name}``).
+
+        A read despite the POST. ``limit`` is 1–500 (API default 100);
+        ``sort_order`` is ``"desc"`` (default) or ``"asc"``; ``offset`` is the
+        opaque cursor from a previous page's :attr:`DBaaSServiceLogs.offset`.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        body = {"limit": limit, "offset": offset, "sort-order": sort_order}
+        payload = self.client.post(
+            f"dbaas-service-logs/{name}",
+            zone=self._zone(zone),
+            json={k: v for k, v in body.items() if v is not None},
+        )
+        return DBaaSServiceLogs.model_validate(payload)
+
+    def get_metrics(self, name: str, *, period: str | None = None, zone: str | None = None) -> dict:
+        """Fetch service metrics (``POST /dbaas-service-metrics/{name}``).
+
+        A read despite the POST. ``period`` is one of ``hour`` (API default),
+        ``day``, ``week``, ``month``, ``year``. The metric series are
+        engine-specific, so the ``metrics`` object is returned as a raw dict.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.post(
+            f"dbaas-service-metrics/{name}",
+            zone=self._zone(zone),
+            json={"period": period} if period else {},
+        )
+        return dict(payload.get("metrics") or {})
 
     # ------------------------------------------------------------------ #
     # Generic engine sub-resources (settings / ACL / maintenance)

@@ -209,6 +209,32 @@ dbaas.delete_database(name, "app", service_type="pg")
   mysql raises `ValueError`.
 - Both methods await their operation unless `wait=False`.
 
+### TLS trust, logs and metrics
+
+Engine-generic reads, all implemented from the API reference — pending live
+verification:
+
+```python
+# The CA that signs every DBaaS server certificate. Pin it to verify the host
+# from get_connection_info(), e.g. libpq sslmode=verify-full sslrootcert=<file>.
+pem = dbaas.get_ca_certificate()
+
+# Logs page through an opaque cursor: pass the previous page's offset back.
+page = dbaas.get_logs(name, limit=100, sort_order="desc")
+for entry in page.logs or []:
+    print(entry.time, entry.node, entry.message)
+older = dbaas.get_logs(name, offset=page.offset)
+
+# Metrics for a period (hour / day / week / month / year); engine-specific
+# series, so a raw dict.
+metrics = dbaas.get_metrics(name, period="day")
+```
+
+- `get_logs` and `get_metrics` are reads even though the API exposes them as
+  `POST` (the options travel in the body); they never change the service.
+- Log lines can contain query text or client addresses — treat them like any
+  other operational data and keep them out of shared CI output.
+
 ### Generic engine sub-resources (settings / ACL / maintenance)
 
 Three read/trigger helpers that generalise across engine types:

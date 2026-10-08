@@ -609,3 +609,47 @@ def test_service_detail_exposes_database_names(client, base_url) -> None:
     )
     svc = DBaaSServiceClient(client).get_connection_info("pg-prod", service_type="pg")
     assert svc.databases == ["defaultdb", "app"]
+
+
+@responses.activate
+def test_get_ca_certificate_returns_pem(client, base_url) -> None:
+    pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+    responses.add(responses.GET, f"{base_url}/dbaas-ca-certificate", json={"certificate": pem})
+    assert DBaaSServiceClient(client).get_ca_certificate() == pem
+
+
+@responses.activate
+def test_get_logs_posts_only_given_options_and_types_the_page(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-service-logs/pg-prod",
+        json={
+            "logs": [{"time": "2026-10-08T10:00:00Z", "node": "n1", "message": "ready"}],
+            "offset": "cursor-2",
+            "first-log-offset": "cursor-0",
+        },
+    )
+    page = DBaaSServiceClient(client).get_logs("pg-prod", limit=50, sort_order="asc")
+    assert json.loads(responses.calls[0].request.body) == {"limit": 50, "sort-order": "asc"}
+    assert page.logs[0].message == "ready"
+    assert page.offset == "cursor-2"
+    assert page.first_log_offset == "cursor-0"
+
+
+@responses.activate
+def test_get_logs_without_options_sends_an_empty_body(client, base_url) -> None:
+    responses.add(responses.POST, f"{base_url}/dbaas-service-logs/pg-prod", json={"logs": []})
+    assert DBaaSServiceClient(client).get_logs("pg-prod").logs == []
+    assert json.loads(responses.calls[0].request.body) == {}
+
+
+@responses.activate
+def test_get_metrics_posts_period_and_unwraps_metrics(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-service-metrics/pg-prod",
+        json={"metrics": {"cpu_usage": {"data": []}}},
+    )
+    metrics = DBaaSServiceClient(client).get_metrics("pg-prod", period="day")
+    assert metrics == {"cpu_usage": {"data": []}}
+    assert json.loads(responses.calls[0].request.body) == {"period": "day"}
