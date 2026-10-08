@@ -9,13 +9,17 @@ name = "exoscale-connector"
 dynamic = ["version"]
 description = "A clean, typed, reusable Python connector for the Exoscale APIv2 — no CLI tool required."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Raphael Lang" }]
 keywords = ["exoscale", "api", "iac", "cloud", "connector"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -89,7 +93,7 @@ path = "src/exoscale_connector/__init__.py"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py311"
 src = ["src", "tests"]
 # The bundled skill is a generated artifact — scripts/generate_llms_txt.py owns
 # every byte of it, and test_llms_txt.py asserts it matches the generator. Ruff
