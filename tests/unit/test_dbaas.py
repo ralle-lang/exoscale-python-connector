@@ -541,3 +541,71 @@ def test_sub_resource_wait_false_skips_polling(client, base_url) -> None:
     result = DBaaSServiceClient(client).start_maintenance("pg-prod", service_type="pg", wait=False)
     assert result["state"] == "pending"
     assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_create_database_posts_name_and_pg_locale(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-postgres/pg-prod/database",
+        json={"id": "op-4", "state": "pending"},
+    )
+    responses.add(
+        responses.GET, f"{base_url}/operation/op-4", json={"id": "op-4", "state": "success"}
+    )
+    result = DBaaSServiceClient(client).create_database(
+        "pg-prod", "app", service_type="pg", lc_collate="C"
+    )
+    assert result["state"] == "success"
+    assert json.loads(responses.calls[0].request.body) == {
+        "database-name": "app",
+        "lc-collate": "C",
+    }
+
+
+@responses.activate
+def test_create_database_mysql_sends_only_the_name(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-mysql/my-db/database",
+        json={"id": "op-5", "state": "success"},
+    )
+    DBaaSServiceClient(client).create_database("my-db", "app", service_type="mysql", wait=False)
+    assert json.loads(responses.calls[0].request.body) == {"database-name": "app"}
+
+
+def test_create_database_rejects_locale_for_mysql(client) -> None:
+    with pytest.raises(ValueError, match="pg services only"):
+        DBaaSServiceClient(client).create_database(
+            "my-db", "app", service_type="mysql", lc_ctype="C"
+        )
+
+
+@pytest.mark.parametrize("method", ["create_database", "delete_database"])
+def test_database_methods_reject_engines_without_databases(client, method) -> None:
+    with pytest.raises(ValueError, match="no database sub-resource"):
+        getattr(DBaaSServiceClient(client), method)("cache", "app", service_type="valkey")
+
+
+@responses.activate
+def test_delete_database_hits_database_path(client, base_url) -> None:
+    responses.add(
+        responses.DELETE,
+        f"{base_url}/dbaas-postgres/pg-prod/database/app",
+        json={"id": "op-6", "state": "success"},
+    )
+    result = DBaaSServiceClient(client).delete_database(
+        "pg-prod", "app", service_type="postgres", wait=False
+    )
+    assert result["state"] == "success"
+
+
+@responses.activate
+def test_service_detail_exposes_database_names(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-postgres/pg-prod",
+        json={"name": "pg-prod", "type": "pg", "databases": ["defaultdb", "app"]},
+    )
+    svc = DBaaSServiceClient(client).get_connection_info("pg-prod", service_type="pg")
+    assert svc.databases == ["defaultdb", "app"]

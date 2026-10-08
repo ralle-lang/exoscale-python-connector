@@ -287,6 +287,7 @@ An Exoscale managed database service.
 | `uri_params` | `uri-params` | DBaaSConnectionInfo \| None |
 | `uri` | `uri` | str \| None |
 | `connection_info` | `connection-info` | DBaaSConnectionInfo \| None |
+| `databases` | `databases` | list[str] \| None |
 
 #### client `DBaaSServiceClient`
 
@@ -298,8 +299,12 @@ Inherits the common operations (see above) plus the methods below, if any.
 
 - `create(payload: Any, *, service_type: str, name: str, zone: str | None = None, wait: bool | None = None) -> DBaaSService`
   Create a managed database service and return it.
+- `create_database(name: str, database_name: str, *, service_type: str, lc_collate: str | None = None, lc_ctype: str | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
+  Create a database inside a pg or mysql service.
 - `create_user(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Create a database user (``POST dbaas-{type}/{name}/user``).
+- `delete_database(name: str, database_name: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
+  Delete a database from a pg or mysql service.
 - `delete_user(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
 - `ensure(payload: Any, **kwargs: Any) -> DBaaSService`
@@ -1906,6 +1911,24 @@ dbaas.reset_user_password(name, "analyst", service_type="pg")
 secret = dbaas.reveal_user_password(name, "analyst", service_type="pg")
 dbaas.delete_user(name, "analyst", service_type="pg")
 ```
+
+##### Databases (pg / mysql)
+
+A new service only holds its default database. Create and drop further ones
+inside it; the current list is the `databases` field of the type-specific
+detail. Implemented from the API reference — pending live verification.
+
+```python
+dbaas.create_database(name, "app", service_type="pg", lc_collate="C", lc_ctype="C")
+dbaas.get_connection_info(name, service_type="pg").databases  # ["defaultdb", "app"]
+dbaas.delete_database(name, "app", service_type="pg")
+```
+
+- Only pg and mysql have a database sub-resource; any other `service_type`
+  raises `ValueError` before a request is sent.
+- `lc_collate` / `lc_ctype` are PostgreSQL locale settings; passing them for
+  mysql raises `ValueError`.
+- Both methods await their operation unless `wait=False`.
 
 ##### Generic engine sub-resources (settings / ACL / maintenance)
 

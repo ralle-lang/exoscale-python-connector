@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- DBaaS `create_database` / `delete_database` for pg and mysql services, and
+  the `databases` field on `DBaaSService` (#78).
+
 ### Changed
 
 - **Breaking:** the minimum supported Python is now **3.11** (was 3.9).
