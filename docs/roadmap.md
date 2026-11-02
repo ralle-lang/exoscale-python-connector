@@ -379,7 +379,8 @@ Consequences:
   cannot use the engine.
 - **Already-shipped clients stay.** This governs what gets harvested from here
   on, not a demolition order. `VpcClient` shipped in 0.6.0 and VPC is itself a
-  per-account product (tier-1 live tests skip on its 403) — it stays: the code
+  per-account product (its live tests skip on a 403; verified live in full
+  on 2026-11-02 once the test key's role gained `networking`) — it stays: the code
   exists, is unit-tested, and removing it would be pure churn. KMS is a
   different case again — it is blocked by role policy, not enablement, so D4
   does not touch it.

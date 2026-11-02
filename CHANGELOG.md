@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LoadBalancerService` nested healthcheck, per-backend status and instance
   pool (#78).
 - `Vpc.default`, returned live though absent from the spec.
+- Live tests: VPC update, subnet update and `get_subnet` in tier 1; VPC subnet
+  attach/detach in tier 3.
 
 ### Changed
 

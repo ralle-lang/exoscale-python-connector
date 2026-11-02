@@ -127,7 +127,8 @@ def tier_3_enabled(require_mutation_allowed) -> None:
 
     Tier 3 spins up the smallest possible compute resources: instance(+lifecycle),
     instance-pool(+scale), compute snapshot from an instance, and block-volume
-    online operations (attach/resize/detach) that require an attached instance.
+    online operations (attach/resize/detach) that require an attached instance,
+    and VPC subnet attach/detach.
     """
     if not _env_bool("EXOSCALE_TEST_TIER_3"):
         pytest.skip("Tier 3 live tests disabled (set EXOSCALE_TEST_TIER_3=1 to enable)")

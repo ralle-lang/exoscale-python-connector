@@ -90,20 +90,24 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
 - **Cost**: €0. **Risk**: none — SGs are free metadata.
 
 #### 1a. `vpc` (+ subnets, routes)
-- **Ops**: VPC CRUD (`list`, `get`, `create`, `delete`); subnet
-  (`list_subnets`, `get_subnet`, `create_subnet`, `delete_subnet`); route
-  (`list_routes`, `list_subnet_routes`, `create_route`, `delete_route`).
-- **Live sequence**: create VPC `<prefix>-vpc` → create subnet
-  (`inet4`/`private`, `10.0.0.0/24`) → get/list subnet → create route
-  (`10.1.0.0/24` → `10.0.0.1`, **no `name`**) → list routes (subnet + VPC-wide)
-  → delete route → delete subnet → delete VPC.
+- **Ops**: VPC CRUD (`list`, `get`, `create`, `update`, `delete`); subnet
+  (`list_subnets`, `get_subnet`, `create_subnet`, `update_subnet`,
+  `delete_subnet`); route (`list_routes`, `list_subnet_routes`,
+  `create_route`, `delete_route`).
+- **Live sequence**: create VPC `<prefix>-vpc` → update description + labels →
+  create subnet (`inet4`/`private`, `10.0.0.0/24`) → get/list subnet → update
+  subnet → assert the VPC-wide list holds only the system route
+  (`kind: "Vpc"`, `cidr=10.0.0.0/24`) → create route (`10.1.0.0/24` →
+  `ip=10.0.0.10`, **no `name`**) → assert it is in the subnet list and not the
+  VPC-wide one → delete route → delete subnet → delete VPC.
 - **Cost**: €0. **Risk**: none — VPC/subnet/route are free metadata.
 - **Note**: instance ↔ subnet `attach_subnet`/`detach_subnet` needs a running
-  instance; covered in Tier 3.
-- **Tenant opt-in**: VPC is a per-account product. On a tenant without it the
-  API returns `403 "... not enabled"`; the smoke and Tier-1 tests **skip** on
-  that (endpoint is correct, the tenant just can't exercise it) rather than
-  fail — same policy as the DNS-quota skip.
+  instance; covered by `test_tier_3.py::test_vpc_subnet_attach_detach`.
+- **Access**: VPC is a per-account product, and the key's IAM role needs the
+  `networking` service. Without either, the API returns 403 (`... not enabled`
+  or `Forbidden by role policy for networking`); the smoke, Tier-1 and Tier-3
+  tests **skip** on that (endpoint is correct, the credential just can't
+  exercise it) rather than fail — same policy as the DNS-quota skip.
 
 #### 2. `private-network`
 - **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete` *(no attach/detach helper yet in connector)*.
@@ -415,7 +419,7 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 | 16 | sks | 4-SKS | ✅ | starter + 1× tiny nodepool, kubeconfig (with `groups`) |
 | 17 | iam-user | — | read-only (intentional) | list / get only — create would spam invite emails |
 | 18 | api-key | 1-opt | ✅ | gated by `EXOSCALE_TEST_TIER_1_API_KEY=1` (off by default; secret-bearing response) |
-| 19 | vpc (+subnets, routes) | 1 | ⏭️ skip (not enabled) | CRUD + subnet + route; skips on tenant 403 "not enabled" (attach/detach → Tier 3) |
+| 19 | vpc (+subnets, routes) | 1 + 3 | ✅ | all 16 endpoints verified 2026-11-02; CRUD + subnet + route in Tier 1, attach/detach in Tier 3 |
 | 20 | deploy-target | 0 | ✅ | read-only (`list`/`get`) — provisioned by Exoscale |
 | 21 | event (audit log) | 0 | ✅ | read-only (`list`) — bare-array response |
 | 22 | kms (key + crypto) | KMS-opt-in | ⏭️ skip (role policy) | crypto round-trip; test key's IAM role forbids KMS (403), so live-gated; key would linger ≥7 days |
@@ -436,7 +440,8 @@ tiers — no new switches:
 | Elastic IP reverse DNS | `test_tier_2.py::test_elastic_ip_reverse_dns` | 2 |
 | Instance vertical scaling | `test_tier_3.py::test_instance_scale` | 3 |
 | DBaaS users + update | extended `test_dbaas_pg_lifecycle` | 4 |
-| VPC + subnet + route lifecycle | `test_tier_1.py::test_vpc_lifecycle` | 1 (skips if VPC not enabled) |
+| VPC + subnet + route lifecycle | `test_tier_1.py::test_vpc_lifecycle` | 1 ✅ |
+| VPC subnet attach / detach | `test_tier_3.py::test_vpc_subnet_attach_detach` | 3 ✅ |
 | Peer-SG-by-id rule (typed reference) | extended `test_tier_1.py::test_security_group_lifecycle` | 1 ✅ |
 | deploy-target / event read-only reachability | `test_smoke.py` (added to `READ_ONLY_CLIENTS`) | 0 ✅ |
 | DBaaS first-class `version` + generic `get_settings` | extended `test_tier_4.py::test_dbaas_pg_lifecycle` | 4 ✅ |
