@@ -93,7 +93,7 @@ def test_rotation_methods(client, base_url) -> None:
     responses.add(
         responses.POST,
         f"{base_url}/kms-key/k1/enable-key-rotation",
-        json={"rotation": {"automatic": True, "rotation-period": 30}},
+        json={"rotation": {"automatic": True, "rotation-period": 90}},
         status=200,
     )
     responses.add(
@@ -115,7 +115,7 @@ def test_rotation_methods(client, base_url) -> None:
         status=200,
     )
     kms = KmsKeyClient(client)
-    assert kms.enable_rotation("k1", rotation_period=30)["rotation"]["rotation-period"] == 30
+    assert kms.enable_rotation("k1", rotation_period=90)["rotation"]["rotation-period"] == 90
     # rotation_period omitted -> body-less POST
     kms.enable_rotation("k1")
     assert responses.calls[1].request.body is None
@@ -149,9 +149,9 @@ def test_crypto_roundtrip_payloads(client, base_url) -> None:
     dec = kms.decrypt("k1", "CT")
     assert dec["plaintext"] == "PT"
     assert json.loads(responses.calls[1].request.body) == {"ciphertext": "CT"}
-    dk = kms.generate_data_key("k1", key_spec="AES-256", bytes_count=32)
+    dk = kms.generate_data_key("k1")
     assert dk["plaintext"] == "DK" and dk["ciphertext"] == "CT"
-    assert json.loads(responses.calls[2].request.body) == {"key-spec": "AES-256", "bytes-count": 32}
+    assert json.loads(responses.calls[2].request.body) == {"key-spec": "AES-256"}
 
 
 @responses.activate
@@ -160,13 +160,37 @@ def test_re_encrypt_sends_source_and_destination(client, base_url) -> None:
         responses.POST, f"{base_url}/kms-key/k1/re-encrypt", json={"ciphertext": "CT2"}, status=200
     )
     out = KmsKeyClient(client).re_encrypt(
-        "k1", source={"ciphertext": "CT"}, destination={"encryption-context": "CTX"}
+        "k1",
+        source={"key": "k1", "ciphertext": "CT"},
+        destination={"key": "k2", "encryption-context": "CTX"},
     )
     assert out["ciphertext"] == "CT2"
     assert json.loads(responses.calls[0].request.body) == {
-        "source": {"ciphertext": "CT"},
-        "destination": {"encryption-context": "CTX"},
+        "source": {"key": "k1", "ciphertext": "CT"},
+        "destination": {"key": "k2", "encryption-context": "CTX"},
     }
+
+
+@responses.activate
+def test_generate_data_key_sizes_by_bytes_count_alone(client, base_url) -> None:
+    # Live: the API rejects key-spec and bytes-count together.
+    responses.add(
+        responses.POST,
+        f"{base_url}/kms-key/k1/generate-data-key",
+        json={"plaintext": "DK", "ciphertext": "CT"},
+        status=200,
+    )
+    KmsKeyClient(client).generate_data_key("k1", bytes_count=16)
+    assert json.loads(responses.calls[0].request.body) == {"bytes-count": 16}
+
+
+def test_generate_data_key_rejects_key_spec_with_bytes_count(client) -> None:
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        KmsKeyClient(client).generate_data_key("k1", key_spec="AES-256", bytes_count=32)
+
+
+def test_key_parses_key_spec() -> None:
+    assert KmsKey.model_validate({"id": "k1", "key-spec": "AES-256"}).key_spec == "AES-256"
 
 
 @responses.activate
