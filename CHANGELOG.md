@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Feature release closing the core and typed-field gaps found by the 2026-08-31
 APIv2 coverage audit (#78, tiers A and B), plus the first full live
-verification of VPC. Two breaking changes:
+verification of VPC and KMS. Two breaking changes:
 
 - The minimum supported Python is now **3.11**; stay on 0.6.x for 3.9/3.10.
 - `LoadBalancerService` replaces its flat `healthcheck_*` fields with the
@@ -21,7 +21,8 @@ Highlights: DBaaS databases, CA certificate, logs and metrics; the SKS
 pre-upgrade deprecated-resources check; the organization-wide IAM policy;
 curated typed response fields across instances, pools, SKS, private networks,
 VPC subnets and load balancers. VPC route targets are documented in the
-`ip=<next-hop>` form the API actually accepts.
+`ip=<next-hop>` form the API actually accepts, and KMS data keys can be sized
+by byte count.
 
 ### Added
 
@@ -42,7 +43,8 @@ VPC subnets and load balancers. VPC route targets are documented in the
   `PrivateNetwork` DHCP options, leases, VNI; `VpcSubnet` attached instances;
   `LoadBalancerService` nested healthcheck, per-backend status and instance
   pool (#78).
-- `Vpc.default`, returned live though absent from the spec.
+- `Vpc.default` and `KmsKey.key_spec`, returned live though absent from the
+  spec.
 - Live tests: VPC update, subnet update and `get_subnet` in tier 1; VPC subnet
   attach/detach in tier 3.
 
@@ -72,6 +74,15 @@ VPC subnets and load balancers. VPC route targets are documented in the
   route deletes, and any other endpoint that deletes synchronously.
 - VPC docs: `create` returns the `Vpc` model, not an operation; subnet create
   accepts `addressfamily: "inet4"` only.
+- **`KmsKeyClient.generate_data_key(bytes_count=...)` always failed.** It also
+  sent `key-spec`, which the API rejects alongside `bytes-count`. `key_spec`
+  now defaults to `None` (`AES-256` is still used when neither is given), and
+  passing both raises `ValueError`.
+- **KMS rotation and deletion docs.** New keys already rotate every 365 days,
+  so `enable_rotation` needs a `disable_rotation` first (the API answers 400
+  otherwise); the period must be 90–2560 days. `cancel_deletion` leaves the
+  key disabled, not enabled. `re_encrypt` needs `key` in both envelopes.
+  Replicas follow the origin key and reject direct operations.
 
 ## [0.6.2] - 2026-10-08
 

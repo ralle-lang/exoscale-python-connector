@@ -57,6 +57,7 @@ class KmsKey(ExoscaleModel):
     # Set once a deletion is scheduled; cleared by cancel-deletion.
     delete_at: str | None = None
     usage: str | None = None  # "encrypt-decrypt"
+    key_spec: str | None = None
     source: str | None = None  # "exoscale-kms"
     multi_zone: bool | None = None
     origin_zone: str | None = None
@@ -99,7 +100,10 @@ class KmsKeyClient(ResourceClient[KmsKey]):
     # ------------------------------------------------------------------ #
 
     def enable(self, key_id: str, *, zone: str | None = None) -> dict:
-        """Enable a key (``POST /kms-key/{id}/enable``). Returns ``{"status": ...}``."""
+        """Enable a key (``POST /kms-key/{id}/enable``). Returns ``{"status": ...}``.
+
+        Also needed after :meth:`cancel_deletion`, which leaves the key disabled.
+        """
         return self.client.post(f"{self.collection_path}/{key_id}/enable", zone=self._zone(zone))
 
     def disable(self, key_id: str, *, zone: str | None = None) -> dict:
@@ -119,8 +123,12 @@ class KmsKeyClient(ResourceClient[KmsKey]):
     ) -> dict:
         """Enable automatic rotation (``POST .../enable-key-rotation``).
 
-        ``rotation_period`` is the interval in days; omit it for the API default.
-        Returns the updated ``{"rotation": {...}}`` config.
+        ``rotation_period`` is the interval in days (90–2560); omit it for the
+        API default of 365. Returns the updated ``{"rotation": {...}}`` config.
+
+        New keys already rotate automatically every 365 days, and calling this
+        while automatic rotation is on fails with 400 "Duplicate rotation call
+        not allowed". To change the period, :meth:`disable_rotation` first.
         """
         body = {"rotation-period": rotation_period} if rotation_period is not None else None
         return self.client.post(
@@ -130,7 +138,11 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         )
 
     def disable_rotation(self, key_id: str, *, zone: str | None = None) -> dict:
-        """Disable automatic rotation (``POST .../disable-key-rotation``)."""
+        """Disable automatic rotation (``POST .../disable-key-rotation``).
+
+        The returned config reports ``rotation-period`` 0 and a zero-time
+        ``next-at`` while rotation is off.
+        """
         return self.client.post(
             f"{self.collection_path}/{key_id}/disable-key-rotation", zone=self._zone(zone)
         )
@@ -205,9 +217,10 @@ class KmsKeyClient(ResourceClient[KmsKey]):
     ) -> dict:
         """Re-encrypt a payload from a source envelope to a destination one.
 
-        ``POST .../re-encrypt``. ``source`` carries the existing ciphertext (and
-        its encryption context); ``destination`` describes the new envelope.
-        Returns the new ``{"ciphertext": ...}``.
+        ``POST .../re-encrypt``. ``source`` needs ``key`` (the key that
+        encrypted it) and ``ciphertext``, plus its ``encryption-context`` if one
+        was used; ``destination`` needs ``key`` and may set a new
+        ``encryption-context``. Returns the new ``{"ciphertext": ...}``.
         """
         return self.client.post(
             f"{self.collection_path}/{key_id}/re-encrypt",
@@ -219,12 +232,16 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         self,
         key_id: str,
         *,
-        key_spec: str = "AES-256",
+        key_spec: str | None = None,
         bytes_count: int | None = None,
         encryption_context: str | None = None,
         zone: str | None = None,
     ) -> dict:
         """Generate a data key (``POST .../generate-data-key``).
+
+        Size the key with either ``key_spec`` (``"AES-256"``, the default when
+        neither is given) or ``bytes_count`` (1–1024); the API rejects both
+        together, so passing both raises ``ValueError``.
 
         Returns both the wrapped ``ciphertext`` (store this) and the ``plaintext``
         data key (use it, then discard — never persist it).
@@ -232,9 +249,13 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         .. warning:: The returned ``plaintext`` data key is secret — never log,
            print, or store it; keep only the ``ciphertext``.
         """
-        body: dict[str, Any] = {"key-spec": key_spec}
-        if bytes_count is not None:
-            body["bytes-count"] = bytes_count
+        if key_spec is not None and bytes_count is not None:
+            raise ValueError("key_spec and bytes_count are mutually exclusive")
+        body: dict[str, Any] = (
+            {"bytes-count": bytes_count}
+            if bytes_count is not None
+            else {"key-spec": key_spec or "AES-256"}
+        )
         if encryption_context is not None:
             body["encryption-context"] = encryption_context
         return self.client.post(
@@ -256,9 +277,11 @@ class KmsKeyClient(ResourceClient[KmsKey]):
     ) -> dict:
         """Schedule a key for deletion after a waiting period (``POST .../schedule-deletion``).
 
-        ``delay_days`` sets the waiting window (API default if omitted). The key
-        moves to ``pending-deletion``; call :meth:`cancel_deletion` before the
-        window elapses to abort. Returns ``{"delete-at": ...}``.
+        ``delay_days`` sets the waiting window, 7–30 days (API default 30 if
+        omitted). The key moves to ``pending-deletion`` and can no longer
+        encrypt; call :meth:`cancel_deletion` before the window elapses to
+        abort. Returns ``{"delete-at": ...}``. Replicas follow the origin key and
+        cannot be scheduled on their own.
         """
         body = {"delay-days": delay_days} if delay_days is not None else None
         return self.client.post(
@@ -268,7 +291,11 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         )
 
     def cancel_deletion(self, key_id: str, *, zone: str | None = None) -> dict:
-        """Cancel a scheduled deletion (``POST .../cancel-deletion``), restoring the key."""
+        """Cancel a scheduled deletion (``POST .../cancel-deletion``).
+
+        The key comes back **disabled**, not enabled; call :meth:`enable` to use
+        it again.
+        """
         return self.client.post(
             f"{self.collection_path}/{key_id}/cancel-deletion", zone=self._zone(zone)
         )
@@ -281,7 +308,10 @@ class KmsKeyClient(ResourceClient[KmsKey]):
         """Replicate a multi-zone key into another zone (``POST .../replicate``).
 
         ``zone_target`` is the destination zone; ``zone`` (as everywhere) is the
-        zone the request is issued against. Returns ``{"status": ...}``.
+        zone the request is issued against. Returns ``{"status": ...}`` —
+        ``"target-registered"`` on first replication, which completes in the
+        background. The replica mirrors the origin key's status with a short
+        lag, and operations issued directly against it are rejected.
         """
         return self.client.post(
             f"{self.collection_path}/{key_id}/replicate",

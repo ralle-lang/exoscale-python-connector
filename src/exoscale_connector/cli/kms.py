@@ -51,13 +51,20 @@ def _build_parser() -> Any:
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--id", required=True)
 
-    p_enrot = sub.add_parser("enable-rotation", help="Enable automatic rotation")
+    p_enrot = sub.add_parser(
+        "enable-rotation",
+        help="Enable automatic rotation (new keys already rotate; disable-rotation first)",
+    )
     p_enrot.add_argument("--id", required=True)
-    p_enrot.add_argument("--period", type=int, default=None, help="Rotation period in days")
+    p_enrot.add_argument(
+        "--period", type=int, default=None, help="Rotation period in days, 90-2560 (default 365)"
+    )
 
     p_sched = sub.add_parser("schedule-deletion", help="Schedule a key for deletion")
     p_sched.add_argument("--id", required=True)
-    p_sched.add_argument("--delay-days", type=int, default=None, help="Waiting period in days")
+    p_sched.add_argument(
+        "--delay-days", type=int, default=None, help="Waiting period in days, 7-30 (default 30)"
+    )
 
     p_rep = sub.add_parser("replicate", help="Replicate a multi-zone key into another zone")
     p_rep.add_argument("--id", required=True)

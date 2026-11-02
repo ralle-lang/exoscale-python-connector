@@ -796,6 +796,7 @@ An Exoscale-managed KMS key.
 | `status_since` | `status-since` | str \| None |
 | `delete_at` | `delete-at` | str \| None |
 | `usage` | `usage` | str \| None |
+| `key_spec` | `key-spec` | str \| None |
 | `source` | `source` | str \| None |
 | `multi_zone` | `multi-zone` | bool \| None |
 | `origin_zone` | `origin-zone` | str \| None |
@@ -815,7 +816,7 @@ API collection: `kms-key`; resource model: `KmsKey`.
 Inherits the common operations (see above) plus the methods below, if any.
 
 - `cancel_deletion(key_id: str, *, zone: str | None = None) -> dict`
-  Cancel a scheduled deletion (``POST .../cancel-deletion``), restoring the key.
+  Cancel a scheduled deletion (``POST .../cancel-deletion``).
 - `decrypt(key_id: str, ciphertext: str, *, encryption_context: str | None = None, zone: str | None = None) -> dict`
   Decrypt ``ciphertext`` (``POST .../decrypt``). Returns Base64 ``{"plaintext": ...}``.
 - `delete(*args: Any, **kwargs: Any) -> Any`
@@ -830,7 +831,7 @@ Inherits the common operations (see above) plus the methods below, if any.
   Enable automatic rotation (``POST .../enable-key-rotation``).
 - `encrypt(key_id: str, plaintext: str, *, encryption_context: str | None = None, zone: str | None = None) -> dict`
   Encrypt ``plaintext`` under the key (``POST .../encrypt``).
-- `generate_data_key(key_id: str, *, key_spec: str = 'AES-256', bytes_count: int | None = None, encryption_context: str | None = None, zone: str | None = None) -> dict`
+- `generate_data_key(key_id: str, *, key_spec: str | None = None, bytes_count: int | None = None, encryption_context: str | None = None, zone: str | None = None) -> dict`
   Generate a data key (``POST .../generate-data-key``).
 - `list_rotations(key_id: str, *, zone: str | None = None) -> list[dict]`
   List a key's past rotations (``GET .../list-key-rotations``).
@@ -3057,6 +3058,10 @@ Two things set KMS apart:
 - **Synchronous.** KMS endpoints return their result directly — no async
   operation envelopes to wait on.
 
+All 16 `/kms-key` endpoints were verified live on 2026-11-02; see
+[live test results](../live-test-results.md). API keys need the IAM `kms`
+service.
+
 #### Model
 
 ```python
@@ -3064,7 +3069,7 @@ class KeyRotationConfig(ExoscaleModel):
     automatic: Optional[bool]
     manual_count: Optional[int]
     next_at: Optional[str]
-    rotation_period: Optional[int]     # days
+    rotation_period: Optional[int]     # days; 0 while automatic rotation is off
 
 
 class KmsKey(ExoscaleModel):
@@ -3075,6 +3080,7 @@ class KmsKey(ExoscaleModel):
     status_since: Optional[str]
     delete_at: Optional[str]           # set once a deletion is scheduled
     usage: Optional[str]               # "encrypt-decrypt"
+    key_spec: Optional[str]            # returned live, not in the spec
     source: Optional[str]              # "exoscale-kms"
     multi_zone: Optional[bool]
     origin_zone: Optional[str]
@@ -3099,8 +3105,8 @@ exoscale-kms create --json '{"name": "app-key", "usage": "encrypt-decrypt", "mul
 exoscale-kms enable --id <uuid>
 exoscale-kms disable --id <uuid>
 exoscale-kms rotate --id <uuid>
+exoscale-kms disable-rotation --id <uuid>              # new keys already rotate yearly
 exoscale-kms enable-rotation --id <uuid> --period 90
-exoscale-kms disable-rotation --id <uuid>
 exoscale-kms list-rotations --id <uuid>
 exoscale-kms schedule-deletion --id <uuid> --delay-days 7
 exoscale-kms cancel-deletion --id <uuid>
@@ -3119,8 +3125,10 @@ kms = KmsKeyClient(ExoscaleClient.from_env(zone="de-fra-1"))
 key = kms.create({"name": "app-key", "usage": "encrypt-decrypt"})
 fetched = kms.get(key.id)
 
-# Rotation
-kms.enable_rotation(key.id, rotation_period=90)
+# Rotation: new keys already rotate every 365 days. To change the period,
+# disable first — enabling while automatic rotation is on is a 400.
+kms.disable_rotation(key.id)
+kms.enable_rotation(key.id, rotation_period=90)   # 90–2560 days
 kms.rotate(key.id)
 rotations = kms.list_rotations(key.id)
 
@@ -3130,13 +3138,22 @@ enc = kms.encrypt(key.id, plaintext_b64)
 dec = kms.decrypt(key.id, enc["ciphertext"])
 assert dec["plaintext"] == plaintext_b64
 
+# Re-encrypt, e.g. to drop or change the encryption context
+new = kms.re_encrypt(
+    key.id,
+    source={"key": key.id, "ciphertext": enc["ciphertext"]},
+    destination={"key": key.id},
+)
+
 # Data key: use the plaintext, store only the ciphertext.
-dk = kms.generate_data_key(key.id, key_spec="AES-256")
+dk = kms.generate_data_key(key.id)                 # AES-256 (32 bytes)
+dk16 = kms.generate_data_key(key.id, bytes_count=16)
 # dk["plaintext"] -> use then discard;  dk["ciphertext"] -> persist
 
 # Deletion lifecycle (no immediate delete)
-kms.schedule_deletion(key.id, delay_days=7)   # -> {"delete-at": ...}
-kms.cancel_deletion(key.id)                    # abort while pending
+kms.schedule_deletion(key.id, delay_days=7)   # 7–30 days -> {"delete-at": ...}
+kms.cancel_deletion(key.id)                    # abort while pending; key is now disabled
+kms.enable(key.id)                             # ...so re-enable it
 ```
 
 #### Gotchas
@@ -3153,7 +3170,29 @@ kms.cancel_deletion(key.id)                    # abort while pending
 - **`encryption_context` must match.** If you pass one to `encrypt`, you must
   pass the identical context to `decrypt`.
 - **Replication needs a multi-zone key.** Create with `"multi-zone": true`, then
-  `replicate(key_id, to_zone)`; `replicas` lists where it currently lives.
+  `replicate(key_id, to_zone)`; `replicas` lists where it currently lives. The
+  first call answers `{"status": "target-registered"}` and completes in the
+  background: the replica is briefly not found in the target zone. It then
+  mirrors the origin key's status with a short lag. Operations issued against
+  the replica (e.g. `schedule_deletion` in its zone) fail with 400 "Operation
+  not allowed on replica"; schedule the origin key and the replica follows.
+- **Automatic rotation is on by default.** A new key rotates every 365 days.
+  `enable_rotation` while it is on fails with 400 "Duplicate rotation call not
+  allowed"; call `disable_rotation` first, then `enable_rotation` with the new
+  period (90–2560 days, default 365). While off, the rotation config reports
+  `rotation_period` 0 and a zero-time `next_at`.
+- **`cancel_deletion` leaves the key disabled.** A key in `pending-deletion`
+  can't encrypt ("Key is disabled"), and cancelling restores it to `disabled`,
+  not `enabled` — call `enable()` afterwards. `delay_days` must be 7–30.
+- **Data key size: `key_spec` or `bytes_count`, not both.** The API rejects the
+  combination; the client raises `ValueError`. With neither, it asks for
+  `AES-256`.
+- **`re_encrypt` needs the key id in both envelopes.** `source` takes `key`,
+  `ciphertext` and the original `encryption-context` if one was used;
+  `destination` takes `key` and an optional new context.
+- **Crypto responses carry extra algorithm fields.** `encrypt`/`decrypt` add
+  `encryption-algorithm`, and `re_encrypt` adds `source-`/`destination-encryption-algorithm`,
+  alongside the documented `ciphertext`/`plaintext`.
 - **Synchronous, so `wait=` is irrelevant** — every call returns its result
   immediately, unlike the async asset types.
 

@@ -126,6 +126,9 @@ ALLOWED_DIVERGENCES: dict[str, dict[str, str]] = {
     "InstancePool": {
         "created-at": "live response field absent from the spec instance-pool schema",
     },
+    "KmsKey": {
+        "key-spec": "live response field (verified 2026-11-02); absent from get-kms-key-response",
+    },
     "SSHKey": {
         "public-key": "create-request field; the spec ssh-key response schema omits it",
     },
