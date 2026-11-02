@@ -132,7 +132,7 @@ def test_private_network_lifecycle(live_client, run_id, tracker, tier_1_enabled)
 
 
 def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
-    """VPC: create + subnet + route CRUD + delete (all free, no compute).
+    """VPC: CRUD + subnet CRUD + route CRUD (all free, no compute).
 
     Instance attach/detach needs a running instance and is covered in Tier 3.
     """
@@ -142,9 +142,9 @@ def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
         created = vpc.create({"name": name, "description": "connector tier-1 smoke"})
     except APIError as exc:
         # VPC access is gated per tenant/credential (product "... not enabled",
-        # or an IAM role that doesn't grant it). A 403 means the endpoint is
-        # correct but this account/key can't exercise it — skip, don't fail
-        # (see docs/live-test-plan.md).
+        # or an IAM role without the `networking` service). A 403 means the
+        # endpoint is correct but this account/key can't exercise it — skip,
+        # don't fail (see docs/live-test-plan.md).
         if exc.status_code == 403:
             pytest.skip(f"VPC forbidden on this tenant/credential ({exc})")
         raise
@@ -154,6 +154,9 @@ def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
 
     assert vpc.get(vpc_id).name == name
     assert any(v.id == vpc_id for v in vpc.list())
+    updated = vpc.update(vpc_id, {"description": "updated", "labels": {"connector": "tier-1"}})
+    assert updated.description == "updated"
+    assert vpc.get(vpc_id).labels == {"connector": "tier-1"}
 
     # Subnet
     subnet_op = vpc.create_subnet(
@@ -167,27 +170,43 @@ def test_vpc_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
     )
     subnet_id = subnet_op.reference_id
     assert subnet_id, "subnet create did not reference an id"
-    subnets = vpc.list_subnets(vpc_id)
-    assert any(s.id == subnet_id for s in subnets)
-    assert vpc.get_subnet(vpc_id, subnet_id).ipv4_block == "10.0.0.0/24"
+    tracker.register("subnet", lambda: vpc.delete_subnet(vpc_id, subnet_id), subnet_id)
+    assert any(s.id == subnet_id for s in vpc.list_subnets(vpc_id))
+    subnet = vpc.get_subnet(vpc_id, subnet_id)
+    assert subnet.ipv4_block == "10.0.0.0/24"
+    assert subnet.instances == []
 
-    # Route (per subnet); `name` is intentionally not sent.
+    # Subnet update is synchronous: a settled operation, nothing polled.
+    sub_op = vpc.update_subnet(vpc_id, subnet_id, {"description": "updated subnet"})
+    assert sub_op.state == "success" and sub_op.reference_id == subnet_id
+    assert vpc.get_subnet(vpc_id, subnet_id).description == "updated subnet"
+
+    # Every subnet gets a read-only system route; the VPC-wide list shows only those.
+    system = vpc.list_routes(vpc_id)
+    assert [(r.kind, r.target) for r in system] == [("Vpc", "cidr=10.0.0.0/24")]
+
+    # Route (per subnet); the next hop needs the "ip=" prefix, `name` is not sent.
     route_op = vpc.create_route(
         vpc_id,
         subnet_id,
-        VpcRoute(destination="10.1.0.0/24", target="10.0.0.1"),
+        VpcRoute(destination="10.1.0.0/24", target="ip=10.0.0.10"),
     )
     route_id = route_op.reference_id
     assert route_id, "route create did not reference an id"
-    assert any(r.id == route_id for r in vpc.list_subnet_routes(vpc_id, subnet_id))
-    assert any(r.id == route_id for r in vpc.list_routes(vpc_id))
+    tracker.register("route", lambda: vpc.delete_route(vpc_id, subnet_id, route_id), route_id)
+    route = next(r for r in vpc.list_subnet_routes(vpc_id, subnet_id) if r.id == route_id)
+    assert (route.kind, route.target) == ("Subnet", "ip=10.0.0.10")
+    assert all(r.id != route_id for r in vpc.list_routes(vpc_id))
 
-    # Teardown (inner-to-outer)
-    vpc.delete_route(vpc_id, subnet_id, route_id)
-    vpc.delete_subnet(vpc_id, subnet_id)
+    # Teardown (inner-to-outer); deletes are synchronous with an empty body.
+    assert vpc.delete_route(vpc_id, subnet_id, route_id).state == "success"
+    tracker.unregister(route_id)
+    assert vpc.delete_subnet(vpc_id, subnet_id).state == "success"
+    tracker.unregister(subnet_id)
     assert_safe_name(name)
-    vpc.delete(vpc_id)
+    assert vpc.delete(vpc_id).state == "success"
     tracker.unregister(vpc_id)
+    assert vpc.get_or_none(vpc_id) is None
 
 
 def test_anti_affinity_group_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:

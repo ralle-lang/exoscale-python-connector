@@ -13,6 +13,7 @@ Covers:
   * Compute snapshot created from an instance
   * Block-volume online ops (attach / resize / detach) — the operations Tier 2
     couldn't exercise because they need a running instance
+  * VPC subnet attach / detach of an instance
 
 Every test creates its own instance + deps (ssh-key, security-group) and tears
 them down. Resources carry the conn-test- prefix; the tracker handles cleanup
@@ -33,6 +34,7 @@ from exoscale_connector.resources.private_network import PrivateNetworkClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
 from exoscale_connector.resources.snapshot import SnapshotClient
 from exoscale_connector.resources.ssh_key import SSHKey, SSHKeyClient
+from exoscale_connector.resources.vpc import VpcClient
 
 from ._fixtures import (
     assert_safe_name,
@@ -388,3 +390,61 @@ def test_instance_scale(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
 
     instances.delete(inst.id)
     tracker.unregister(inst.id)
+
+
+def test_vpc_subnet_attach_detach(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
+    """VPC subnet attach/detach: the instance shows up in ``subnet.instances``."""
+    vpcs = VpcClient(tier_3_client)
+    instances = InstanceClient(tier_3_client)
+    vpc_name = make_name(run_id, "attach-vpc")
+    try:
+        vpc_id = vpcs.create({"name": vpc_name}).id
+    except APIError as exc:
+        # Same gate as tier 1: VPC needs the product and the IAM `networking` service.
+        if exc.status_code == 403:
+            pytest.skip(f"VPC forbidden on this tenant/credential ({exc})")
+        raise
+    assert vpc_id
+    tracker.register("vpc", lambda: vpcs.delete(vpc_id), vpc_id)
+    subnet_id = vpcs.create_subnet(
+        vpc_id,
+        {
+            "name": make_name(run_id, "attach-sub"),
+            "addressfamily": "inet4",
+            "address-space": "private",
+            "ipv4-block": "10.0.0.0/24",
+        },
+    ).reference_id
+    assert subnet_id
+    tracker.register("subnet", lambda: vpcs.delete_subnet(vpc_id, subnet_id), subnet_id)
+
+    inst_name = make_name(run_id, "attach-inst")
+    inst = instances.create(
+        {
+            "name": inst_name,
+            "instance-type": {"id": resolve_instance_type(tier_3_client, "standard.tiny")},
+            "template": {"id": resolve_linux_template(tier_3_client)},
+            "disk-size": 10,
+        }
+    )
+    assert inst.id
+    tracker.register("instance", lambda: instances.delete(inst.id), inst.id)
+    wait_for_state(lambda: instances.get(inst.id), "running", timeout=600, interval=10)
+
+    assert vpcs.attach_subnet(vpc_id, subnet_id, inst.id).state == "success"
+    attached = {i.id: i.ipv4 for i in vpcs.get_subnet(vpc_id, subnet_id).instances or []}
+    assert inst.id in attached
+    assert (attached[inst.id] or "").startswith("10.0.0.")
+
+    assert vpcs.detach_subnet(vpc_id, subnet_id, inst.id).state == "success"
+    after = vpcs.get_subnet(vpc_id, subnet_id).instances or []
+    assert all(i.id != inst.id for i in after)
+
+    assert_safe_name(inst_name)
+    instances.delete(inst.id)
+    tracker.unregister(inst.id)
+    vpcs.delete_subnet(vpc_id, subnet_id)
+    tracker.unregister(subnet_id)
+    assert_safe_name(vpc_name)
+    vpcs.delete(vpc_id)
+    tracker.unregister(vpc_id)

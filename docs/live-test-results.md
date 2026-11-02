@@ -390,3 +390,37 @@ instance pools or load balancers, so `InstancePool` and the nested
 `LoadBalancerService` healthcheck are covered by unit tests here; tier 4's
 load-balancer lifecycle exercises the healthcheck shape when it next runs.
 
+## VPC full verification — 2026-11-02 (zone `at-vie-1`)
+
+**Context:** the test key's IAM role gained the `networking` service, which
+VPC is checked under. Its 403 had read "Forbidden by role policy for
+networking" since 2026-10-08. First live run of every `/vpc` endpoint: all 16
+work. Two `standard.micro` instances (under 10 minutes each) exercised
+attach/detach. 0 leaked resources.
+
+**Spec-vs-reality findings (documented in vpc.md gotchas):**
+
+11. **Route `target` is prefixed: `ip=<next-hop>`.** A bare address — the
+    form the docs and tier-1 test used — is rejected with
+    `400 Invalid value in target - bad format`, as are `cidr=…`, instance,
+    subnet and VPC ids. The spec only says "Route target". A next hop outside
+    the subnet and a `0.0.0.0/0` destination are accepted.
+12. **Every subnet gets a read-only system route** (`kind: "Vpc"`,
+    `target: "cidr=<subnet-block>"`). `GET /vpc/{id}/route` returns only those;
+    routes created on a subnet appear only in `GET …/subnet/{id}/route`.
+    `list_routes` was documented as the union of all subnet routes.
+13. **Subnet create accepts `addressfamily: "inet4"` only.** `dual` is
+    rejected (400). It exists only in the response schema.
+14. **All three deletes are synchronous with an empty body.** The connector
+    returned `Operation(state=None)`; empty delete bodies now yield
+    `state="success"`. VPC/subnet create and attach/detach are async; VPC
+    update, subnet update and route create return the resource.
+15. **Off-spec response fields:** `Vpc.default` (boolean, now typed) and
+    `Vpc.dhcp-options` (kept untyped). The instance response gains a `vpc`
+    object (`id`, `name`, `subnets`) once attached, also kept untyped. A route
+    `name` is still accepted and silently ignored.
+
+**Follow-up run (same day):** the rewritten `test_tier_1.py::test_vpc_lifecycle`,
+the new `test_tier_3.py::test_vpc_subnet_attach_detach`, and the full
+`test_smoke.py` ran together: 30 passed, 3 skipped (KMS role policy; no DBaaS
+service or SKS cluster on the tenant). 0 leaked resources.
