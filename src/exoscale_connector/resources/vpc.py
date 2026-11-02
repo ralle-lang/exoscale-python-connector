@@ -26,10 +26,12 @@ class VpcRoute(ExoscaleModel):
 
     id: str | None = None
     description: str | None = None
-    # CIDR the route matches, and the next-hop target.
+    # CIDR the route matches.
     destination: str | None = None
+    # Prefixed next hop: "ip=<address>" on routes you create. The system route
+    # every subnet gets carries "cidr=<subnet-block>".
     target: str | None = None
-    # "Subnet" | "Vpc"
+    # "Subnet" (created via create_route) | "Vpc" (system route, read-only)
     kind: str | None = None
 
 
@@ -48,7 +50,7 @@ class VpcSubnet(ExoscaleModel):
     description: str | None = None
     # "private"
     address_space: str | None = None
-    # "inet4" | "dual"
+    # Create accepts only "inet4"; responses may also report "dual".
     addressfamily: str | None = None
     ipv4_block: str | None = None
     labels: dict[str, str] | None = None
@@ -65,6 +67,8 @@ class Vpc(ExoscaleModel):
     description: str | None = None
     labels: dict[str, str] | None = None
     created_at: str | None = None
+    # Not in the spec, but returned live; ``dhcp-options`` stays untyped.
+    default: bool | None = None
 
 
 class VpcClient(ResourceClient[Vpc]):
@@ -201,7 +205,11 @@ class VpcClient(ResourceClient[Vpc]):
     # ------------------------------------------------------------------ #
 
     def list_routes(self, vpc_id: str, *, zone: str | None = None) -> list[VpcRoute]:
-        """List every route in a VPC (``GET vpc/{vpc_id}/route``)."""
+        """List a VPC's system routes (``GET vpc/{vpc_id}/route``).
+
+        Returns only the ``kind="Vpc"`` route each subnet gets, not the routes
+        added with :meth:`create_route`; read those via :meth:`list_subnet_routes`.
+        """
         payload = self.client.get(f"{self.collection_path}/{vpc_id}/route", zone=self._zone(zone))
         items = payload.get("routes") or []
         return [VpcRoute.model_validate(i) for i in items if isinstance(i, dict)]
@@ -229,9 +237,10 @@ class VpcClient(ResourceClient[Vpc]):
         """Add a route to a subnet.
 
         Endpoint: ``POST vpc/{vpc_id}/subnet/{subnet_id}/route``. ``payload``
-        needs ``destination`` (CIDR) and ``target`` (next hop); ``description``
-        is optional. The ``name`` request property was dropped upstream, so do
-        not send it.
+        needs ``destination`` (CIDR) and ``target``, the next hop written as
+        ``"ip=<address>"`` (a bare address is rejected with 400 "bad format");
+        ``description`` is optional. The ``name`` request property was dropped
+        upstream, so do not send it.
         """
         zone = self._zone(zone)
         response = self.client.post(
@@ -270,8 +279,11 @@ class VpcClient(ResourceClient[Vpc]):
         Route create and subnet update are synchronous upstream: the spec has
         them return the resource itself, not an operation. Those bodies become
         a settled Operation referencing the resource, so nothing is polled.
+        Subnet and route deletes answer with an empty body once done.
         """
-        if response and not _looks_like_operation(response):
+        if not response:
+            return Operation(state="success")
+        if not _looks_like_operation(response):
             resource_id = response.get("id")
             return Operation(
                 state="success", reference=Reference(id=resource_id) if resource_id else None

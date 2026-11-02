@@ -9,7 +9,7 @@ import json
 
 import responses
 
-from exoscale_connector.resources.vpc import VpcClient, VpcRoute, VpcSubnet
+from exoscale_connector.resources.vpc import Vpc, VpcClient, VpcRoute, VpcSubnet
 
 
 @responses.activate
@@ -109,19 +109,19 @@ def test_create_route_omits_name(client, base_url) -> None:
         responses.POST,
         f"{base_url}/vpc/v1/subnet/s1/route",
         # Spec: the route itself, not an operation envelope.
-        json={"id": "r-1", "destination": "0.0.0.0/0", "target": "10.0.0.1"},
+        json={"id": "r-1", "destination": "0.0.0.0/0", "target": "ip=10.0.0.1", "kind": "Subnet"},
         status=200,
     )
     op = VpcClient(client).create_route(
         "v1",
         "s1",
-        VpcRoute(destination="0.0.0.0/0", target="10.0.0.1"),
+        VpcRoute(destination="0.0.0.0/0", target="ip=10.0.0.1"),
     )
     assert op.state == "success"
     assert op.reference_id == "r-1"
     assert len(responses.calls) == 1  # nothing polled
     sent = json.loads(responses.calls[0].request.body)
-    assert sent == {"destination": "0.0.0.0/0", "target": "10.0.0.1"}
+    assert sent == {"destination": "0.0.0.0/0", "target": "ip=10.0.0.1"}
     assert "name" not in sent
 
 
@@ -142,15 +142,26 @@ def test_update_subnet_returns_settled_operation_for_direct_body(client, base_ur
 
 @responses.activate
 def test_list_routes_returns_typed_models(client, base_url) -> None:
+    # Live shape: the VPC-wide list carries only the system route per subnet.
     responses.add(
         responses.GET,
         f"{base_url}/vpc/v1/route",
-        json={"routes": [{"id": "r1", "destination": "10.1.0.0/16", "target": "10.0.0.1"}]},
+        json={
+            "routes": [
+                {
+                    "id": "r1",
+                    "destination": "10.0.0.0/24",
+                    "target": "cidr=10.0.0.0/24",
+                    "kind": "Vpc",
+                }
+            ]
+        },
         status=200,
     )
     routes = VpcClient(client).list_routes("v1")
     assert isinstance(routes[0], VpcRoute)
-    assert routes[0].destination == "10.1.0.0/16"
+    assert routes[0].kind == "Vpc"
+    assert routes[0].target == "cidr=10.0.0.0/24"
 
 
 @responses.activate
@@ -176,3 +187,35 @@ def test_subnet_parses_attached_instances() -> None:
         {"id": "sn-1", "instances": [{"id": "i-1", "ipv4": "172.16.0.10"}]}
     )
     assert [(i.id, i.ipv4) for i in subnet.instances] == [("i-1", "172.16.0.10")]
+
+
+@responses.activate
+def test_delete_subnet_with_empty_body_is_settled(client, base_url) -> None:
+    # Live: subnet/route/VPC deletes are synchronous and answer 200 with no body.
+    responses.add(responses.DELETE, f"{base_url}/vpc/v1/subnet/s1", body=b"", status=200)
+    op = VpcClient(client).delete_subnet("v1", "s1")
+    assert op.state == "success"
+    assert len(responses.calls) == 1  # nothing polled
+
+
+@responses.activate
+def test_delete_route_with_empty_body_is_settled(client, base_url) -> None:
+    responses.add(responses.DELETE, f"{base_url}/vpc/v1/subnet/s1/route/r1", body=b"", status=200)
+    op = VpcClient(client).delete_route("v1", "s1", "r1")
+    assert op.state == "success"
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_delete_vpc_with_empty_body_is_settled(client, base_url) -> None:
+    responses.add(responses.DELETE, f"{base_url}/vpc/v1", body=b"", status=200)
+    op = VpcClient(client).delete("v1")
+    assert op.state == "success"
+    assert len(responses.calls) == 1
+
+
+def test_vpc_parses_default_flag() -> None:
+    vpc = Vpc.model_validate({"id": "v1", "default": False, "dhcp-options": {"dns-servers": []}})
+    assert vpc.default is False
+    # Off-spec and element types unverified: kept untyped on purpose.
+    assert vpc.model_extra["dhcp-options"] == {"dns-servers": []}

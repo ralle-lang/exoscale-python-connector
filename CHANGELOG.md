@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PrivateNetwork` DHCP options, leases, VNI; `VpcSubnet` attached instances;
   `LoadBalancerService` nested healthcheck, per-backend status and instance
   pool (#78).
+- `Vpc.default`, returned live though absent from the spec.
 
 ### Changed
 
@@ -39,6 +40,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   minimum-dependency job runs on 3.11 (#121).
 - CI's upper bound moves from Python 3.13 to 3.14, now declared in the
   classifiers.
+
+### Fixed
+
+- **VPC route docs used a target format the API rejects.** A route's `target`
+  is `ip=<next-hop>`; the bare address in the docs and the tier-1 test fails
+  with 400. Verified live together with every other `/vpc` endpoint.
+- **`VpcClient.list_routes` was documented as listing every route.** It
+  returns only the system route each subnet gets; use `list_subnet_routes`
+  for the routes you create.
+- **Deletes that answer with an empty body now return a settled operation**
+  (`state="success"`) instead of `state=None`. This covers VPC, subnet and
+  route deletes, and any other endpoint that deletes synchronously.
+- VPC docs: `create` returns the `Vpc` model, not an operation; subnet create
+  accepts `addressfamily: "inet4"` only.
 
 ## [0.6.2] - 2026-10-08
 
