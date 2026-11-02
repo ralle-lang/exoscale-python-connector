@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-02
+
+Feature release closing the core and typed-field gaps found by the 2026-08-31
+APIv2 coverage audit (#78, tiers A and B), plus the first full live
+verification of VPC. Two breaking changes:
+
+- The minimum supported Python is now **3.11**; stay on 0.6.x for 3.9/3.10.
+- `LoadBalancerService` replaces its flat `healthcheck_*` fields with the
+  nested `healthcheck` model.
+
+Highlights: DBaaS databases, CA certificate, logs and metrics; the SKS
+pre-upgrade deprecated-resources check; the organization-wide IAM policy;
+curated typed response fields across instances, pools, SKS, private networks,
+VPC subnets and load balancers. VPC route targets are documented in the
+`ip=<next-hop>` form the API actually accepts.
+
 ### Added
 
 - DBaaS `create_database` / `delete_database` for pg and mysql services, and
@@ -37,8 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields never received data from the API and serialised to keys it does not
   define; read `svc.healthcheck.mode` instead of `svc.healthcheck_mode` (#78).
 - **Breaking:** the minimum supported Python is now **3.11** (was 3.9).
-  Python 3.9 is end-of-life and 3.10 reaches end-of-life in October 2026;
-  users on either should stay on 0.6.x. CI now tests 3.11 and 3.13, and the
+  Python 3.9 and 3.10 are end-of-life (3.10 since October 2026); users on
+  either should stay on 0.6.x. CI tests 3.11 and 3.14, and the
   minimum-dependency job runs on 3.11 (#121).
 - CI's upper bound moves from Python 3.13 to 3.14, now declared in the
   classifiers.
@@ -277,7 +293,8 @@ upstream-drift triage. Purely additive: no existing behaviour changes.
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.5.0...v0.6.0
