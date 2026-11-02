@@ -305,10 +305,10 @@ not hardcoded).
 
 #### 22. `kms` (key + rotation + crypto) — `EXOSCALE_TEST_KMS=1`
 - **Ops**: `list`, `get`, `create`, `enable`/`disable`, `enable_rotation`/`disable_rotation`/`rotate`/`list_rotations`, `encrypt`/`decrypt`/`re_encrypt`/`generate_data_key`, `schedule_deletion`/`cancel_deletion`, `replicate`. (No `delete` — KMS has none.)
-- **Live sequence** (`test_kms.py::test_kms_key_lifecycle`): create key `<prefix>-kms` → get (assert `enabled`) → `enable_rotation(period=30)` → `rotate` → `list_rotations` → Base64 `encrypt` → `decrypt` and assert the plaintext round-trips → `generate_data_key` (assert both parts present, **never print**) → `schedule_deletion(delay_days=7)`.
+- **Live sequence** (`test_kms.py::test_kms_key_lifecycle`): create key `<prefix>-kms` → get (assert `enabled`) → `disable` (encrypt refused) → `enable` → assert default automatic rotation (365 d) → `disable_rotation` → `enable_rotation(period=90)` → `rotate` → `list_rotations` → Base64 `encrypt`/`decrypt` with an encryption context → `re_encrypt` dropping the context → `generate_data_key` by spec (32 bytes) and by `bytes_count=16` (assert sizes only, **never print**) → `schedule_deletion(7)` → `cancel_deletion` (assert `disabled`) → `enable` → final `schedule_deletion(delay_days=7)`. `replicate` was verified by hand on 2026-11-02 (see results); the test leaves it out so a run creates no cross-zone replica.
 - **Cleanup caveat**: **there is no immediate delete.** `schedule_deletion`'s minimum `delay-days` is 7, so the key stays in `pending-deletion` for ~7 days before Exoscale removes it. Each run leaves one such key. Gated behind its own `EXOSCALE_TEST_KMS=1` flag for that reason.
 - **Cost**: a KMS key's monthly charge, prorated (small); the key persists ≥7 days.
-- **Risk**: secret-bearing responses (plaintext, data key) — asserted for presence, never logged/printed. Skips on any 403 access gate — the product may be off (`... not enabled`) or the API key's IAM role may not grant KMS (`Forbidden by role policy for kms`, which is what the current test key returns).
+- **Risk**: secret-bearing responses (plaintext, data key) — asserted for presence, never logged/printed. Skips on any 403 access gate — the product may be off (`... not enabled`) or the API key's IAM role may not grant KMS (`Forbidden by role policy for kms`).
 
 ---
 
@@ -422,7 +422,7 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 | 19 | vpc (+subnets, routes) | 1 + 3 | ✅ | all 16 endpoints verified 2026-11-02; CRUD + subnet + route in Tier 1, attach/detach in Tier 3 |
 | 20 | deploy-target | 0 | ✅ | read-only (`list`/`get`) — provisioned by Exoscale |
 | 21 | event (audit log) | 0 | ✅ | read-only (`list`) — bare-array response |
-| 22 | kms (key + crypto) | KMS-opt-in | ⏭️ skip (role policy) | crypto round-trip; test key's IAM role forbids KMS (403), so live-gated; key would linger ≥7 days |
+| 22 | kms (key + crypto) | KMS-opt-in | ✅ | all 16 endpoints verified 2026-11-02; each run leaves one key pending deletion for 7 days |
 
 For a granular per-asset view (fields, gotchas, end-to-end examples), see
 the [asset type reference](asset-types/README.md).

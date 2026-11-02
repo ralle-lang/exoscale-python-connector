@@ -424,3 +424,38 @@ attach/detach. 0 leaked resources.
 the new `test_tier_3.py::test_vpc_subnet_attach_detach`, and the full
 `test_smoke.py` ran together: 30 passed, 3 skipped (KMS role policy; no DBaaS
 service or SKS cluster on the tenant). 0 leaked resources.
+
+## KMS full verification — 2026-11-02 (zone `at-vie-1`)
+
+**Context:** the test key's IAM role gained the `kms` service. A one-off script
+exercised all 16 `/kms-key` endpoints on a single multi-zone key, including
+replication to `ch-gva-2`; then `test_kms.py` ran with the fixes below. Three
+test keys (plus one replica) were left pending deletion; Exoscale removes them
+after the 7-day window.
+
+**Spec-vs-reality findings (documented in kms.md gotchas):**
+
+16. **New keys already rotate automatically** (every 365 days). Calling
+    `enable-key-rotation` while it is on is a 400 "Duplicate rotation call not
+    allowed"; disable first to change the period. The test also used a 30-day
+    period, below the spec's minimum of 90, which is what failed first.
+17. **`generate_data_key(bytes_count=...)` always failed:** the client also
+    sent `key-spec`, and the API rejects the two together. Fixed in the client.
+18. **`cancel-deletion` restores the key `disabled`**, not `enabled`. A key
+    pending deletion refuses to encrypt ("Key is disabled").
+19. **Replication is asynchronous:** `replicate` answers `target-registered`,
+    the replica is briefly not found in the target zone, then mirrors the
+    origin's status with a short lag. Operations issued against the replica are
+    rejected ("Operation not allowed on replica"); scheduling the origin key's
+    deletion carries the replica along.
+20. **Off-spec response fields:** `key-spec` on the key (now typed), and
+    `encryption-algorithm` / `source-` and `destination-encryption-algorithm`
+    on the crypto responses. While rotation is off, the config reports
+    `rotation-period` 0 and a zero-time `next-at`.
+
+**Confirmed as documented:** encryption-context mismatch fails decrypt, the
+deletion delay is bounded to 7–30 days, and re-encrypt can drop a context.
+
+**Follow-up run (same day):** the corrected `test_kms.py::test_kms_key_lifecycle`
+and the full `test_smoke.py` ran together: 30 passed, 2 skipped (no DBaaS
+service or SKS cluster on the tenant). KMS no longer skips anywhere.
