@@ -39,7 +39,7 @@ def kms_enabled(require_mutation_allowed) -> None:
 
 
 def test_kms_key_lifecycle(live_client, run_id, tracker, kms_enabled) -> None:
-    """Create → rotate → encrypt/decrypt round-trip → schedule deletion."""
+    """State, rotation, crypto, data keys and the deletion lifecycle on one key."""
     kms = KmsKeyClient(live_client)
     name = make_name(run_id, "kms")[:50]
 
@@ -60,25 +60,57 @@ def test_kms_key_lifecycle(live_client, run_id, tracker, kms_enabled) -> None:
 
     assert kms.get(key_id).status == "enabled"
 
-    # Rotation
-    kms.enable_rotation(key_id, rotation_period=30)
+    # State: a disabled key refuses to encrypt.
+    plaintext_b64 = base64.b64encode(b"connector-kms-smoke").decode()
+    kms.disable(key_id)
+    assert kms.get(key_id).status == "disabled"
+    with pytest.raises(APIError):
+        kms.encrypt(key_id, plaintext_b64)
+    kms.enable(key_id)
+    assert kms.get(key_id).status == "enabled"
+
+    # Rotation: new keys already rotate yearly; re-enabling while on is a 400,
+    # so changing the period means disable first.
+    rotation = kms.get(key_id).rotation
+    assert rotation is not None and rotation.automatic is True
+    assert rotation.rotation_period == 365
+    assert kms.disable_rotation(key_id)["rotation"]["automatic"] is False
+    enabled = kms.enable_rotation(key_id, rotation_period=90)["rotation"]
+    assert enabled["automatic"] is True and enabled["rotation-period"] == 90
     kms.rotate(key_id)
     rotations = kms.list_rotations(key_id)
     assert isinstance(rotations, list) and rotations, "expected at least one rotation"
 
     # Envelope crypto round-trip. plaintext/ciphertext are Base64 on the wire.
-    plaintext_b64 = base64.b64encode(b"connector-kms-smoke").decode()
-    enc = kms.encrypt(key_id, plaintext_b64)
+    context = base64.b64encode(b"connector-ctx").decode()
+    enc = kms.encrypt(key_id, plaintext_b64, encryption_context=context)
     assert enc.get("ciphertext"), "encrypt returned no ciphertext"
-    dec = kms.decrypt(key_id, enc["ciphertext"])
+    dec = kms.decrypt(key_id, enc["ciphertext"], encryption_context=context)
     assert dec.get("plaintext") == plaintext_b64, "decrypt did not round-trip the plaintext"
 
-    # Data key: assert both parts present without ever printing them.
-    dk = kms.generate_data_key(key_id, key_spec="AES-256")
-    assert dk.get("ciphertext") and dk.get("plaintext"), "generate-data-key missing a part"
+    # Re-encrypt dropping the context; the result decrypts without one.
+    re_enc = kms.re_encrypt(
+        key_id,
+        source={"key": key_id, "ciphertext": enc["ciphertext"], "encryption-context": context},
+        destination={"key": key_id},
+    )
+    assert kms.decrypt(key_id, re_enc["ciphertext"]).get("plaintext") == plaintext_b64
 
-    # Deletion lifecycle (no immediate delete — this schedules and lingers).
+    # Data keys, sized by spec or by byte count: assert without ever printing them.
+    dk = kms.generate_data_key(key_id)
+    assert dk.get("ciphertext") and dk.get("plaintext"), "generate-data-key missing a part"
+    assert len(base64.b64decode(dk["plaintext"])) == 32
+    dk16 = kms.generate_data_key(key_id, bytes_count=16)
+    assert len(base64.b64decode(dk16["plaintext"])) == 16
+
+    # Deletion lifecycle (no immediate delete — the final schedule lingers).
     assert_safe_name(name)
+    assert kms.schedule_deletion(key_id, delay_days=7).get("delete-at")
+    assert kms.get(key_id).status == "pending-deletion"
+    kms.cancel_deletion(key_id)
+    # Cancelling restores the key disabled, not enabled.
+    assert kms.get(key_id).status == "disabled"
+    kms.enable(key_id)
     sched = kms.schedule_deletion(key_id, delay_days=7)
     assert sched.get("delete-at"), "schedule-deletion returned no delete-at"
     # The key is now pending-deletion; leave the tracked cleanup as a no-op re-schedule.

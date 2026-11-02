@@ -46,7 +46,8 @@ by byte count.
 - `Vpc.default` and `KmsKey.key_spec`, returned live though absent from the
   spec.
 - Live tests: VPC update, subnet update and `get_subnet` in tier 1; VPC subnet
-  attach/detach in tier 3.
+  attach/detach in tier 3; KMS state, re-encrypt, data-key sizing and
+  cancel-deletion in the KMS test.
 
 ### Changed
 

@@ -387,8 +387,9 @@ Consequences:
   per-account product (its live tests skip on a 403; verified live in full
   on 2026-11-02 once the test key's role gained `networking`) — it stays: the code
   exists, is unit-tested, and removing it would be pure churn. KMS is a
-  different case again — it is blocked by role policy, not enablement, so D4
-  does not touch it.
+  different case again — it was blocked by role policy, not enablement, so D4
+  does not touch it (verified live in full on 2026-11-02 once the test key's
+  role gained `kms`).
 - Nothing is removed from `DBaaSServiceClient` for ClickHouse. Engine-generic
   methods still accept the type; it is unsupported and unverified, not
   amputated.
