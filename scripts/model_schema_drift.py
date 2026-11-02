@@ -129,6 +129,9 @@ ALLOWED_DIVERGENCES: dict[str, dict[str, str]] = {
     "SSHKey": {
         "public-key": "create-request field; the spec ssh-key response schema omits it",
     },
+    "Vpc": {
+        "default": "live response boolean (verified 2026-11-02); absent from the spec vpc schema",
+    },
 }
 
 

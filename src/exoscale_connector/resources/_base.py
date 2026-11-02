@@ -192,9 +192,15 @@ class ResourceClient(Generic[ModelT]):
         zone: str | None = None,
         wait: bool | None = None,
     ) -> Operation:
-        """Delete a resource by id, awaiting the async operation by default."""
+        """Delete a resource by id, awaiting the async operation by default.
+
+        Some endpoints (e.g. ``DELETE /vpc/{id}``) delete synchronously and
+        answer with an empty body; that yields a settled ``success`` operation.
+        """
         zone = self._zone(zone)
         response = self.client.delete(f"{self.collection_path}/{resource_id}", zone=zone)
+        if not response:
+            return Operation(state="success")
         operation = Operation.model_validate(response)
         if self._should_wait(wait) and operation.id:
             operation = self.client.wait_operation(operation, zone=zone)
