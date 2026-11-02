@@ -93,8 +93,8 @@ grew up around the now-retired APIv1 and a lower-level, OpenAPI-generated
 `exoscale.api.v2.Client`. This project instead gives every asset type the same
 uniform, pydantic-typed client plus a matching per-asset CLI. It talks only to
 APIv2, reads credentials only from the environment, polls async operations to
-completion, and backs every asset type with a live test that has run end-to-end
-against a real account. It depends on just `requests` and `pydantic`, and can be
+completion, and backs its asset types with live tests run end-to-end against a
+real account (KMS is the one exception so far; see below). It depends on just `requests` and `pydantic`, and can be
 vendored by copying one folder.
 
 ## Documentation
@@ -129,8 +129,9 @@ vendored by copying one folder.
   surfaced and how they were fixed.
 
 Every asset type the connector supports has a live test that has actually run
-end-to-end against a real account; the gotchas in the asset-type pages are
-empirical, not theoretical.
+end-to-end against a real account, except KMS: its test exists, but the test
+account's API key is not yet allowed to use KMS, so it skips. Elsewhere the
+gotchas in the asset-type pages are empirical, not theoretical.
 
 ## Maintenance & support
 

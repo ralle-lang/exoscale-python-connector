@@ -224,6 +224,11 @@ subnet `instances` row. Deliberately left untyped: snapshot-consistency flags,
 `InstanceType.zones`. `LoadBalancerService` now nests its healthcheck (a
 breaking model change). Tier C is all that remains._
 
+_**0.7.0 shipped 2026-11-02 with tiers A and B** (#78 closed). Tier C's
+migration family, engine-specific endpoints and Kafka rows moved to #136 on
+milestone 0.8.0, in that order; external endpoints + integrations stay here in
+the backlog per the D4 deferral._
+
 _**Where the tier A/B/C rows came from — and the process gap they expose (D5).**
 Not from drift. The backlog above them is drift-fed, and the weekly watch only
 ever reports what *changed* since the accepted snapshot; APIv2 surface that has
