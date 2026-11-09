@@ -354,6 +354,13 @@ reason (`KNOWN_UNCALLED` for operations an equivalent
 endpoint already covers); `tests/unit/test_request_field_audit.py` keeps that list pointed at real
 operations.
 
+Write every client call so the audit can read it: **a literal path per
+method** (`f"{self.collection_path}/{id}:resize-disk"`), not a shared helper
+that interpolates the action (`f"...:{action}"` renders as `{}:{}` and matches
+*any* colon action, so it hides gaps). Likewise pass the body directly
+(`json=body`) rather than `json=body or None`, which the audit treats as an
+opaque passthrough.
+
 ## Stability & compatibility
 
 **Versioning.** This project follows [Semantic Versioning](https://semver.org),
