@@ -459,3 +459,13 @@ deletion delay is bounded to 7–30 days, and re-encrypt can drop a context.
 **Follow-up run (same day):** the corrected `test_kms.py::test_kms_key_lifecycle`
 and the full `test_smoke.py` ran together: 30 passed, 2 skipped (no DBaaS
 service or SKS cluster on the tenant). KMS no longer skips anywhere.
+
+## VPC subnet `ipv4` pin — 2026-11-09 (zone `at-vie-1`)
+
+**Context:** 0.7.1 adds `attach_subnet(..., ipv4=...)`, sending the optional
+`ipv4` field of `attach-instance-to-subnet`.
+`tests/integration/test_tier_3.py::test_vpc_subnet_attach_detach` attaches the
+instance without an address, detaches it, re-attaches it with a pinned
+address from the subnet block, and checks the subnet's `instances` list reports
+exactly that lease. **1 passed** in 59 s. The API honours the field as the spec
+describes; no mismatches.
