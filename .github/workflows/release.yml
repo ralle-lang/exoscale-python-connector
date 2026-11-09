@@ -19,9 +19,11 @@ jobs:
       - name: Run the full check suite before building
         run: |
           pip install -e '.[dev]'
-          ruff check src tests
+          ruff check src tests scripts
+          ruff format --check src tests scripts
           mypy src
           pytest tests/unit -q
+          python scripts/generate_llms_txt.py --check
       - name: Build sdist and wheel
         run: |
           pip install build
