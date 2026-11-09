@@ -689,7 +689,7 @@ Inherits the common operations (see above) plus the methods below, if any.
   Change the instance's compute offering (``PUT instance/{id}:scale``).
 - `set_reverse_dns(resource_id: str, domain_name: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
-- `start(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+- `start(instance_id: str, *, rescue_profile: str | None = None, zone: str | None = None, wait: bool | None = None) -> Operation`
   Start a stopped instance.
 - `stop(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Stop a running instance gracefully (``PUT instance/{id}:stop``).
@@ -2969,6 +2969,9 @@ instances.stop(instance.id)
 instances.start(instance.id)
 instances.reboot(instance.id)
 
+# Boot a stopped instance into Rescue Mode ("netboot-efi" for UEFI templates)
+instances.start(instance.id, rescue_profile="netboot")
+
 # Update + delete
 instances.update(instance.id, {"labels": {"role": "web"}})
 instances.delete(instance.id)
@@ -2988,6 +2991,11 @@ instances.delete(instance.id)
   stop/start/reboot. The Tier 3 test uses a `wait_for_state(getter,
   expected, timeout)` helper.
 - **Type change requires a stop/start cycle** (no online vertical scaling).
+- **Rescue Mode is a start option.** `start(id, rescue_profile=...)` sends
+  `{"rescue-profile": ...}` on `PUT instance/{id}:start`. The spec allows
+  `netboot` and `netboot-efi`; pick the one matching the template's
+  `boot_mode` (`legacy` → `netboot`, `uefi` → `netboot-efi`). The instance must
+  be stopped first.
 
 #### End-to-end example
 

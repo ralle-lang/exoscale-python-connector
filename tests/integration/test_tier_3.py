@@ -34,6 +34,7 @@ from exoscale_connector.resources.private_network import PrivateNetworkClient
 from exoscale_connector.resources.security_group import SecurityGroupClient
 from exoscale_connector.resources.snapshot import SnapshotClient
 from exoscale_connector.resources.ssh_key import SSHKey, SSHKeyClient
+from exoscale_connector.resources.template import TemplateClient
 from exoscale_connector.resources.vpc import VpcClient
 
 from ._fixtures import (
@@ -94,7 +95,7 @@ def _instance_payload(
 
 
 def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
-    """Instance: create + get + find + update labels + stop/start/reboot + delete."""
+    """Instance: create + get + find + update labels + stop/start/reboot + rescue start + delete."""
     sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
     tiny_id = resolve_instance_type(tier_3_client, "standard.tiny")
     template_id = resolve_linux_template(tier_3_client)
@@ -122,6 +123,14 @@ def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> N
     wait_for_state(lambda: instances.get(inst_id), "running", timeout=300)
     instances.reboot(inst_id)
     # A reboot may briefly dip into "rebooting" before returning to "running".
+    wait_for_state(lambda: instances.get(inst_id), "running", timeout=300)
+
+    # Rescue boot: the profile has to match the template's boot mode.
+    template = TemplateClient(tier_3_client).get(template_id)
+    profile = "netboot-efi" if template.boot_mode == "uefi" else "netboot"
+    instances.stop(inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
+    assert instances.start(inst_id, rescue_profile=profile).state == "success"
     wait_for_state(lambda: instances.get(inst_id), "running", timeout=300)
 
     assert_safe_name(payload["name"])
