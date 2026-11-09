@@ -50,6 +50,12 @@ fields (user `access-control` / `authentication` / `allow-replication` /
 access-control update, the per-engine user/role lists). `[BETA]` DBaaS
 operations — integrations, external endpoints, ClickHouse — are excluded.
 
+**Status (2026-11-09):** code, unit tests and docs done on
+`feat/136-dbaas-tier-c`; the request audit reports no non-beta gaps. Live
+verification is open: every new method needs a running service (Tier 4,
+paid), and the preconditions (plan level, engine state) are unknown, so a
+short pg probe comes first, then live tests per engine.
+
 ## Shipped since v0.2.0
 
 See `CHANGELOG.md` for details.

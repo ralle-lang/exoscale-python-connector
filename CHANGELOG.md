@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and `authentication` (mysql). Each rejects the wrong engine with
     `ValueError`.
   - Typed `DBaaSTask` and `DBaaSMigrationStatus` responses.
+- `SksNodepool.addons` is typed (nodepool addons such as `storage-lvm`).
 - `scripts/request_field_audit.py` reports `[BETA]` operations in their own
   section instead of as gaps. DBaaS integrations, external endpoints and
   ClickHouse stay unwrapped (`[BETA]`).

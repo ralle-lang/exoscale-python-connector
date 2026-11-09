@@ -1327,6 +1327,7 @@ A pool of worker nodes within an SKS cluster.
 | `nvidia_mig_profiles` | `nvidia-mig-profiles` | dict[str, Any] \| None |
 | `deploy_target` | `deploy-target` | Reference \| None |
 | `kubelet_image_gc` | `kubelet-image-gc` | SksKubeletImageGc \| None |
+| `addons` | `addons` | list[str] \| None |
 
 #### model `SksNodepoolTaint`
 
@@ -4316,6 +4317,7 @@ class SksNodepool(ExoscaleModel):
     nvidia_mig_profiles: Optional[Dict[str, Any]]  # MIG profiles for GPU nodes, keyed by GPU model
     deploy_target: Optional[Reference]           # dedicated / edge placement
     kubelet_image_gc: Optional[SksKubeletImageGc]  # high_threshold, low_threshold, min_age
+    addons: Optional[List[str]]                  # nodepool addons, e.g. ["storage-lvm"]
 
 
 class SksCluster(ExoscaleModel):
