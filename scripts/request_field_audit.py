@@ -68,6 +68,8 @@ KNOWN_UNCALLED: dict[tuple[str, str], str] = {
             "valkey",
         )
     },
+    ("POST", "iam-role/{}/assume"): "[BETA] in the spec; the connector does not ship beta "
+    "endpoints (also answered 404 live, 2026-11-09)",
 }
 
 

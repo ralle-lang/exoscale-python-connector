@@ -384,20 +384,3 @@ def test_reset_organization_policy_posts_reset_when_confirmed(client, base_url) 
     op = IAMRoleClient(client).reset_organization_policy(confirm=True, wait=False)
     assert op.state == "success"
     assert responses.calls[0].request.method == "POST"
-
-
-@responses.activate
-def test_assume_returns_temporary_key_and_hides_secret(client, base_url) -> None:
-    responses.add(
-        responses.POST,
-        f"{base_url}/iam-role/r-1/assume",
-        json={"key": "EXOtmp", "secret": "s3cr3t", "role-id": "r-1", "expires-at": "2026-11-09"},
-    )
-    key = IAMRoleClient(client).assume("r-1", 900)
-    assert json.loads(responses.calls[0].request.body) == {"ttl": 900}
-    assert key.key == "EXOtmp" and key.secret == "s3cr3t" and key.role_id == "r-1"
-    assert "s3cr3t" not in repr(key)
-
-
-def test_role_parses_max_session_ttl() -> None:
-    assert IAMRole.model_validate({"max-session-ttl": 3600}).max_session_ttl == 3600

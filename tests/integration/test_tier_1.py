@@ -268,7 +268,7 @@ def test_ssh_key_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None
 
 
 def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
-    """IAM role: create deny-all, update, policy setters, max-session-ttl, delete."""
+    """IAM role: create deny-all, update, policy setters, delete."""
     roles = IAMRoleClient(live_client)
     name = make_name(run_id, "role")
     payload = IAMRole(
@@ -303,11 +303,6 @@ def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> Non
     roles.set_assume_role_policy(
         role_id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true"))
     )
-
-    # max-session-ttl is accepted on update but not echoed by get (observed
-    # 2026-11-09), so only the call is checked. assume() is not exercised: the
-    # endpoint answered 404 on this tenant (see the iam-role page).
-    roles.update(role_id, {"max-session-ttl": 900})
 
     assert_safe_name(name)
     roles.delete(role_id)

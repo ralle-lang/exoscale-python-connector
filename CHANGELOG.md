@@ -14,8 +14,7 @@ Closes every non-DBaaS gap found by the new request-level coverage audit
 spec, under path families the connector already covered, but had no client
 method. Live-verified on tier 1, tier 3 and tier 4 SKS, except as noted below.
 
-Not yet live-verified: `IAMRoleClient.assume` (the test tenant answers 404),
-`PrivateNetworkClient.update_instance_ip` and private-network `reset_field`
+Not yet live-verified: `PrivateNetworkClient.update_instance_ip` and private-network `reset_field`
 (private-network creation is disabled on the test tenant), and the
 load-balancer `get_service` / `reset_service_field`.
 
@@ -39,8 +38,6 @@ load-balancer `get_service` / `reset_service_field`.
   `ElasticIPClient.attach_instance` / `detach_instance`;
   `PrivateNetworkClient.update_instance_ip`.
 - `InstancePoolClient.evict` removes named members from a pool.
-- `IAMRoleClient.assume` returns a temporary key (`IAMAssumedRoleKey`, secret
-  hidden from `repr`); `IAMRole` gains `max_session_ttl`.
 - `DnsDomainClient.get_zone_file` exports a domain as a BIND zone file.
 - `SksClusterClient`: `upgrade`, `upgrade_service_level`, `scale_nodepool`,
   `evict_nodepool_members`, credential rotation (`rotate_ccm_credentials`,
