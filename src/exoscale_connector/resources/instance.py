@@ -5,6 +5,8 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-compute
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference
@@ -152,6 +154,129 @@ class InstanceClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[Instance])
             zone=zone,
             json={"instance-type": {"id": instance_type_id}},
         )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def resize_disk(
+        self,
+        instance_id: str,
+        disk_size: int,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Grow the instance's root disk to ``disk_size`` GiB.
+
+        Endpoint: ``PUT instance/{id}:resize-disk``. Disks only grow; a smaller
+        size is rejected by the API.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:resize-disk",
+            zone=zone,
+            json={"disk-size": disk_size},
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def reset(
+        self,
+        instance_id: str,
+        *,
+        template_id: str | None = None,
+        disk_size: int | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Re-install the instance from its template, **wiping the disk**.
+
+        Endpoint: ``PUT instance/{id}:reset``. Pass ``template_id`` to re-install
+        from a different template and ``disk_size`` (GiB) to change the disk.
+        """
+        body: dict[str, Any] = {}
+        if template_id is not None:
+            body["template"] = {"id": template_id}
+        if disk_size is not None:
+            body["disk-size"] = disk_size
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:reset", zone=zone, json=body
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def revert_to_snapshot(
+        self,
+        instance_id: str,
+        snapshot_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Roll the instance's disk back to one of its snapshots.
+
+        Endpoint: ``POST instance/{id}:revert-snapshot`` with ``{"id": snapshot_id}``.
+        The instance must be stopped.
+        """
+        zone = self._zone(zone)
+        response = self.client.post(
+            f"{self.collection_path}/{instance_id}:revert-snapshot",
+            zone=zone,
+            json={"id": snapshot_id},
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def add_protection(
+        self, instance_id: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> Operation:
+        """Turn on destruction protection (``PUT instance/{id}:add-protection``).
+
+        A protected instance cannot be deleted until :meth:`remove_protection`.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:add-protection", zone=zone
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def remove_protection(
+        self, instance_id: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> Operation:
+        """Turn off destruction protection (``PUT instance/{id}:remove-protection``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:remove-protection", zone=zone
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def reset_password(
+        self, instance_id: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> Operation:
+        """Generate a new password for the template's default user.
+
+        Endpoint: ``PUT instance/{id}:reset-password``. Read the new value with
+        :meth:`reveal_password`.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:reset-password", zone=zone
+        )
+        return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
+
+    def reveal_password(self, instance_id: str, *, zone: str | None = None) -> str | None:
+        """Return the instance's current password (``GET instance/{id}:password``).
+
+        The value is a credential: do not log or print it.
+        """
+        payload = self.client.get(
+            f"{self.collection_path}/{instance_id}:password", zone=self._zone(zone)
+        )
+        value = payload.get("password")
+        return value if isinstance(value, str) else None
+
+    def enable_tpm(
+        self, instance_id: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> Operation:
+        """Add a virtual TPM to the instance (``POST instance/{id}:enable-tpm``)."""
+        zone = self._zone(zone)
+        response = self.client.post(f"{self.collection_path}/{instance_id}:enable-tpm", zone=zone)
         return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
 
     # ------------------------------------------------------------------ #

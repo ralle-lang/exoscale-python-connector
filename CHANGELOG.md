@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `InstanceClient.start(..., rescue_profile=...)` boots a stopped instance into
   Rescue Mode (`netboot` / `netboot-efi`).
+- `InstanceClient`: `resize_disk`, `reset` (re-install), `revert_to_snapshot`,
+  `add_protection` / `remove_protection`, `reset_password` / `reveal_password`
+  and `enable_tpm`.
 - `reset_field(id, field)` on instances, instance pools, elastic IPs, private
   networks and load balancers clears an optional field
   (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and
