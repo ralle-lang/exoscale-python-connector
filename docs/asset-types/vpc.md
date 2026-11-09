@@ -91,6 +91,9 @@ vpc.attach_subnet(vpc_id, subnet_id, instance_id)
 leases = {i.id: i.ipv4 for i in vpc.get_subnet(vpc_id, subnet_id).instances}
 vpc.detach_subnet(vpc_id, subnet_id, instance_id)
 
+# ... or pin the instance's address inside the subnet block
+vpc.attach_subnet(vpc_id, subnet_id, instance_id, ipv4="10.0.0.42")
+
 # Routes (per subnet); the next hop needs the "ip=" prefix
 op = vpc.create_route(vpc_id, subnet_id, {"destination": "0.0.0.0/0", "target": "ip=10.0.0.10"})
 routes = vpc.list_subnet_routes(vpc_id, subnet_id)   # yours + the system route
@@ -121,8 +124,10 @@ vpc.delete(vpc_id)
 - **Instance membership lives on the subnet.** Join with
   `attach_subnet(vpc_id, subnet_id, instance_id)` (wraps
   `PUT vpc/{vpc}/subnet/{subnet}/attach` with `{"instance": {"id": ...}}`), not
-  the instance's own update endpoint. The subnet's `instances` list then names
-  the instance and its address from the subnet block. The instance response
+  the instance's own update endpoint. Pass `ipv4=` to pin a fixed address
+  from the subnet block (sent as the optional `ipv4` body field); without it
+  the API picks one. The subnet's `instances` list then names the instance and
+  its address. The instance response
   also gains a `vpc` object (`id`, `name`, `subnets`), kept untyped and
   readable via `instance.model_extra["vpc"]`.
 - **Do not send `name` when creating a route.** The request property was

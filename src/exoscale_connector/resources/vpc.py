@@ -17,6 +17,8 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-vpc
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient, _looks_like_operation
 
@@ -162,19 +164,25 @@ class VpcClient(ResourceClient[Vpc]):
         subnet_id: str,
         instance_id: str,
         *,
+        ipv4: str | None = None,
         zone: str | None = None,
         wait: bool | None = None,
     ) -> Operation:
         """Attach an instance to a subnet.
 
         Endpoint: ``PUT vpc/{vpc_id}/subnet/{subnet_id}/attach`` with body
-        ``{"instance": {"id": instance_id}}``.
+        ``{"instance": {"id": instance_id}}``. Pass ``ipv4`` to pin the
+        instance's address (it must fall inside the subnet's block); omit it to
+        let the API pick one.
         """
         zone = self._zone(zone)
+        body: dict[str, Any] = {"instance": {"id": instance_id}}
+        if ipv4 is not None:
+            body["ipv4"] = ipv4
         response = self.client.put(
             f"{self.collection_path}/{vpc_id}/subnet/{subnet_id}/attach",
             zone=zone,
-            json={"instance": {"id": instance_id}},
+            json=body,
         )
         return self._wait_sub_operation(response, zone=zone, wait=wait)
 
