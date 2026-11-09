@@ -422,6 +422,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Delete a DNS record and return the settled operation.
 - `get_record(domain_id: str, record_id: str, *, zone: str | None = None) -> DnsRecord`
   Fetch a single DNS record by its id.
+- `get_zone_file(domain_id: str, *, zone: str | None = None) -> str | None`
+  Export the domain as a BIND zone file (``GET dns-domain/{id}/zone``).
 - `list_records(domain_id: str, *, zone: str | None = None) -> list[DnsRecord]`
   Return all records for a domain.
 - `update_record(domain_id: str, record_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> DnsRecord`
@@ -2334,6 +2336,9 @@ record = dns.create_record(zone.id, {
 records = dns.list_records(zone.id)
 dns.update_record(zone.id, record.id, {"ttl": 7200})
 dns.delete_record(zone.id, record.id)
+
+# Export the whole domain as a BIND zone file (str)
+zone_file = dns.get_zone_file(zone.id)
 ```
 
 #### Gotchas
@@ -2351,6 +2356,10 @@ dns.delete_record(zone.id, record.id)
 - **Account DNS quota.** Most accounts have a cap on the number of DNS
   zones you can have at once. A `400: DNS subscription limit reached`
   means you need to free a slot or raise the limit.
+- **Zone-file export is read-only.** `get_zone_file(id)` wraps
+  `GET dns-domain/{id}/zone` and returns the `zone-file` string; there is no
+  matching import endpoint, so restore records one by one with
+  `create_record`.
 
 #### End-to-end example
 

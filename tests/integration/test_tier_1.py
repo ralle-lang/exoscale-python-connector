@@ -362,6 +362,9 @@ def test_dns_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
     updated = dns.get_record(domain_id, record_id)
     assert updated.ttl == 7200
 
+    zone_file = dns.get_zone_file(domain_id)
+    assert zone_file and "192.0.2.1" in zone_file
+
     dns.delete_record(domain_id, record_id)
     tracker.unregister(record_id)
 

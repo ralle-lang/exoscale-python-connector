@@ -168,3 +168,13 @@ def test_delete_record_returns_settled_operation(client, base_url) -> None:
     )
     op = DnsDomainClient(client).delete_record("dom1", "rec1")
     assert op.state == "success"
+
+
+@responses.activate
+def test_get_zone_file(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dns-domain/d-1/zone",
+        json={"zone-file": "$ORIGIN example.test.\n"},
+    )
+    assert DnsDomainClient(client).get_zone_file("d-1") == "$ORIGIN example.test.\n"

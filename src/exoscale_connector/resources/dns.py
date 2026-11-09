@@ -67,6 +67,12 @@ class DnsDomainClient(ResourceClient[DnsDomain]):
     # Record sub-resource
     # ------------------------------------------------------------------ #
 
+    def get_zone_file(self, domain_id: str, *, zone: str | None = None) -> str | None:
+        """Export the domain as a BIND zone file (``GET dns-domain/{id}/zone``)."""
+        payload = self.client.get(f"{self.collection_path}/{domain_id}/zone", zone=self._zone(zone))
+        value = payload.get("zone-file")
+        return value if isinstance(value, str) else None
+
     def list_records(self, domain_id: str, *, zone: str | None = None) -> list[DnsRecord]:
         """Return all records for a domain.
 
