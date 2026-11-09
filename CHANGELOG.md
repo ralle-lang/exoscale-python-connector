@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-09
+
+Small feature release: pin a fixed address when attaching an instance to a VPC
+subnet.
+
 ### Added
 
 - `VpcClient.attach_subnet(..., ipv4=...)` pins the instance's address in the
@@ -310,7 +315,8 @@ upstream-drift triage. Purely additive: no existing behaviour changes.
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.0...v0.6.1
