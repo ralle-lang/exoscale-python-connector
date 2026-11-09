@@ -55,13 +55,17 @@ keys.delete(key_id)
   your one chance to capture it).
 - **`id_field = "key"`** — the path token is the `key` field, not a uuid in
   `id`. `keys.get("EXO...")` calls `GET /api-key/EXO...`.
-- **`update` not exposed.** The API does not allow rotating a key in place —
-  delete and create a new one.
+- **No update endpoint.** `update()` is inherited from the shared client but
+  the API has no update for keys (and the CLI has no `update` verb); to rotate
+  a key, delete it and create a new one.
 - **Tier 1 live test for create is gated separately** (off by default) so
   the standard Tier 1 run never produces a stray secret-bearing response.
   Enable with `EXOSCALE_TEST_TIER_1_API_KEY=1`.
 
 ## End-to-end example
+
+Distilled from
+[`tests/integration/test_tier_1.py::test_api_key_lifecycle`](../../tests/integration/test_tier_1.py):
 
 ```python
 from exoscale_connector import ExoscaleClient

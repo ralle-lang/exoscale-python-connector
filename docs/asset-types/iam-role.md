@@ -26,6 +26,10 @@ class IAMPolicy(ExoscaleModel):
     services: Optional[Dict[str, IAMPolicyService]]   # keyed by service name
 
 
+class IAMAssumeRolePolicy(ExoscaleModel):
+    rules: Optional[List[IAMPolicyRule]]       # build with IAMAssumeRolePolicy.with_rules(...)
+
+
 class IAMRole(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -59,7 +63,9 @@ exoscale-iam-role delete --id <uuid>
 
 ```python
 from exoscale_connector import ExoscaleClient
-from exoscale_connector.resources.iam_role import IAMPolicy, IAMRole, IAMRoleClient
+from exoscale_connector.resources.iam_role import (
+    IAMAssumeRolePolicy, IAMPolicy, IAMPolicyRule, IAMRole, IAMRoleClient,
+)
 
 roles = IAMRoleClient(ExoscaleClient.from_env(zone="de-fra-1"))
 
@@ -70,6 +76,11 @@ role = roles.create(IAMRole(
 ))
 
 roles.update(role.id, {"description": "list+get only (updated)"})
+
+# Change the policies of an existing role
+roles.set_policy(role.id, IAMPolicy.allow_services(["compute"]))
+roles.set_assume_role_policy(role.id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true")))
+
 roles.delete(role.id)
 ```
 
@@ -166,7 +177,9 @@ Distilled from
 
 ```python
 from exoscale_connector import ExoscaleClient
-from exoscale_connector.resources.iam_role import IAMPolicy, IAMRole, IAMRoleClient
+from exoscale_connector.resources.iam_role import (
+    IAMAssumeRolePolicy, IAMPolicy, IAMPolicyRule, IAMRole, IAMRoleClient,
+)
 
 roles = IAMRoleClient(ExoscaleClient.from_env(zone="de-fra-1"))
 
@@ -180,5 +193,12 @@ role = roles.create(IAMRole(
 assert roles.get(role.id).name == "connector-smoke"
 roles.update(role.id, {"description": "updated"})
 assert roles.get(role.id).description == "updated"
+
+# Policy setters: :policy sub-endpoint vs. the generic role PUT
+roles.set_policy(role.id, IAMPolicy.allow_services(["compute"]))
+assert "compute" in roles.get(role.id).policy.services
+roles.set_assume_role_policy(role.id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true")))
+# (not echoed by get() — see Gotchas)
+
 roles.delete(role.id)
 ```

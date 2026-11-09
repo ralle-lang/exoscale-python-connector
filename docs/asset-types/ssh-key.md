@@ -48,8 +48,9 @@ keys.delete("laptop")
 - **Name is the id.** `keys.get("laptop")` calls `GET /ssh-key/laptop`, not
   `GET /ssh-key/<uuid>`. `id_field` / `name_field` are both `"name"` on this
   client.
-- **No `update` endpoint.** Keys are immutable — to rotate, delete and
-  recreate. The connector intentionally exposes no `update`.
+- **No `update` endpoint.** Keys are immutable — the API has no update
+  endpoint, so the inherited `update()` fails server-side. To rotate, delete
+  and recreate.
 - **Public key format.** Send the OpenSSH single-line form
   (`"ssh-ed25519 AAAA... optional comment"`). The API computes the
   fingerprint and returns it on subsequent `get` responses; `public_key`

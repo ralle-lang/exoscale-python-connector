@@ -24,6 +24,14 @@ connector works without it installed.
 class Bucket(ExoscaleModel):
     name: Optional[str]            # globally unique across all of S3
     creation_date: Optional[str]
+
+
+class S3Object(ExoscaleModel):     # list_objects() item
+    key: Optional[str]
+    size: Optional[int]
+    etag: Optional[str]
+    storage_class: Optional[str]
+    last_modified: Optional[str]
 ```
 
 ## CLI
@@ -111,7 +119,7 @@ assert not buckets.exists(name)
 
 ## Object-level operations
 
-Added on the extensions branch; live-verified in Tier 2
+Live-verified in Tier 2
 (`test_bucket_object_roundtrip`, 2026-06-10):
 
 ```bash
@@ -128,8 +136,12 @@ buckets.list_objects("backups", prefix="logs/", limit=100)   # paginates interna
 buckets.get_object("backups", "a.txt")                        # bytes, in memory
 buckets.upload_file("backups", "big.bin", "/path/big.bin")    # multipart-capable
 buckets.download_file("backups", "big.bin", "/path/big.bin")
+buckets.delete_object("backups", "a.txt")
 buckets.presign_get("backups", "a.txt", expires_in=600)       # bearer capability!
+buckets.presign_put("backups", "a.txt", expires_in=600)       # bearer capability!
 buckets.set_lifecycle("backups", [{"ID": "expire", "Status": "Enabled", ...}])
+buckets.get_lifecycle("backups")                               # None when unset
+buckets.set_cors("backups", [{"AllowedMethods": ["GET"], "AllowedOrigins": ["*"]}])
 buckets.get_cors("backups")                                    # None when unset
 ```
 

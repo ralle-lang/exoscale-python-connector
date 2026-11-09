@@ -81,11 +81,9 @@ def test_load_balancer_lifecycle(tier_3_client, run_id, tracker, tier_4_lb_enabl
     settled_lb = wait_for_state(lambda: lbs.get(lb_id), "running", timeout=300)
     assert settled_lb.name == lb_name
 
-    # 3. Add a TCP service pointing at the pool. Use a dict payload (matches
-    #    the live wire format including the nested healthcheck and instance-pool
-    #    reference) — the LoadBalancerService model on this version of the
-    #    connector flattens healthcheck fields and lacks instance-pool, so dicts
-    #    are the more faithful API exercise.
+    # 3. Add a TCP service pointing at the pool. A dict payload in the live wire
+    #    format (nested healthcheck, instance-pool reference); a
+    #    LoadBalancerService model serialises to the same shape.
     svc_name = make_name(run_id, "svc")[:64]
     service_payload = {
         "name": svc_name,

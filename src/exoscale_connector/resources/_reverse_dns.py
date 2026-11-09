@@ -4,9 +4,9 @@ The APIv2 exposes reverse DNS under a dedicated path family,
 ``/reverse-dns/{kind}/{id}`` (kind being ``instance`` or ``elastic-ip``), not
 nested under the resource itself.
 
-.. warning::
-   These endpoints are implemented from the API reference and are **pending
-   live verification** — they are not yet covered by a recorded live-test run.
+Live-verified on elastic-ip (2026-06-10, ``test_elastic_ip_reverse_dns``),
+which also confirmed the set call is POST. The instance variant shares this
+code, but its own calls have not been exercised live.
 """
 
 from __future__ import annotations

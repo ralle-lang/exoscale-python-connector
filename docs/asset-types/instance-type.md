@@ -21,6 +21,7 @@ as `family.size` (`standard.tiny`); the API addresses them by UUID —
 
 ```bash
 exoscale-instance-type list-instance-types
+exoscale-instance-type get-instance-type --id <uuid>
 exoscale-connector instance-type --output table list-instance-types
 ```
 

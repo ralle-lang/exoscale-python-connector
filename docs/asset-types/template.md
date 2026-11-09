@@ -18,6 +18,8 @@ checksum.
 | `url` / `checksum` | str | registration source (private templates) |
 | `boot_mode` | str | `legacy` \| `uefi` |
 | `default_user` | str | |
+| `ssh_key_enabled` / `password_enabled` | bool | required on registration (see gotcha) |
+| `created_at` | str | |
 | `maintainer` | str | read-only |
 | `application_consistent_snapshot_enabled` | bool | QEMU guest agent present |
 | `zones` | list[str] | zones the template is available in |
@@ -27,7 +29,8 @@ checksum.
 ```bash
 exoscale-template list-templates
 exoscale-template get-template --id <uuid>
-exoscale-template create-template --json '{"name": "...", "url": "...", "checksum": "..."}'
+exoscale-template find-template --name <name>
+exoscale-template create-template --json '{"name": "...", "url": "...", "checksum": "...", "ssh-key-enabled": false, "password-enabled": false}'
 exoscale-template delete-template --id <uuid>
 ```
 

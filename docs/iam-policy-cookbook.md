@@ -126,9 +126,10 @@ role = roles.create(IAMRole(
 
 ## Updating the policy on an existing role
 
-Policy changes on an existing role go through dedicated sub-endpoints — the
-generic `update()` only changes the role's own attributes (name, description,
-permissions, labels). Use `set_policy` / `set_assume_role_policy`:
+On an existing role the permission policy has a dedicated
+`PUT /iam-role/{id}:policy` sub-endpoint, while the assume-role policy travels
+in the generic `PUT /iam-role/{id}` body. Use `set_policy` /
+`set_assume_role_policy`, which hide that asymmetry:
 
 ```python
 roles.set_policy(role_id, IAMPolicy.allow_services(["compute", "dns"]))
@@ -159,7 +160,9 @@ if role.policy:
 Every recipe above also works as the organization policy, which applies to all
 keys on top of their roles: `roles.set_organization_policy(policy)`. Read the
 current one with `roles.get_organization_policy()` first — see
-[iam-role](asset-types/iam-role.md#organization-policy).
+[iam-role](asset-types/iam-role.md#organization-policy). To discard all
+customisations, `roles.reset_organization_policy(confirm=True)` (raises
+`ValueError` without `confirm=True`; deliberately not on the CLI).
 
 ## Writing expressions
 

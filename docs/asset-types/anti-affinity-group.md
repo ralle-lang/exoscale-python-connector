@@ -40,12 +40,13 @@ aag.delete(group.id)
 
 ## Gotchas
 
-- **No `update` endpoint.** The API does not support modifying an AAG in
-  place — `update()` is intentionally not exposed on this client. To change
-  anything, delete and recreate.
+- **No `update` endpoint.** The API has no `PUT /anti-affinity-group/{id}`;
+  the inherited `update()` fails server-side. To change anything, delete and
+  recreate.
 - **Members are read-only here.** Instances are assigned via the
-  *instance* create/update endpoint by including the AAG id in the
-  instance's `anti-affinity-groups` array.
+  *instance* create payload by including the AAG id in the instance's
+  `anti-affinity-groups` array (it cannot be changed on an existing
+  instance).
 
 ## End-to-end example
 

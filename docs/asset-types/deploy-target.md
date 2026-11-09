@@ -18,8 +18,8 @@ class DeployTarget(ExoscaleModel):
 ## CLI
 
 ```bash
-exoscale-deploy-target list
-exoscale-deploy-target get --id <uuid>
+exoscale-deploy-target list-deploy-targets
+exoscale-deploy-target get-deploy-target --id <uuid>
 ```
 
 ## Library

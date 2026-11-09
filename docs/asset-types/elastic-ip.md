@@ -65,8 +65,6 @@ eips.delete(eip.id)
   some account types. Delete promptly when no longer needed.
 - **Healthcheck is optional** — the EIP itself works as a static address
   without one; configure it when you want EIP-managed failover.
-- **Attach to an instance** is done via the instance's update endpoint
-  (not exposed on this client).
 - **Setting reverse DNS is a POST, not a PUT.** The API reference's path
   symmetry suggests `PUT /reverse-dns/elastic-ip/{id}`, but the live API
   404s on PUT and takes **POST** for create/update (confirmed live

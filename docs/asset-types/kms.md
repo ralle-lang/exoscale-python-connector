@@ -108,6 +108,9 @@ dk16 = kms.generate_data_key(key.id, bytes_count=16)
 kms.schedule_deletion(key.id, delay_days=7)   # 7–30 days -> {"delete-at": ...}
 kms.cancel_deletion(key.id)                    # abort while pending; key is now disabled
 kms.enable(key.id)                             # ...so re-enable it
+
+# Replication (multi-zone keys only; async — answers "target-registered")
+kms.replicate(key.id, "at-vie-1")
 ```
 
 ## Gotchas
@@ -124,7 +127,7 @@ kms.enable(key.id)                             # ...so re-enable it
 - **`encryption_context` must match.** If you pass one to `encrypt`, you must
   pass the identical context to `decrypt`.
 - **Replication needs a multi-zone key.** Create with `"multi-zone": true`, then
-  `replicate(key_id, to_zone)`; `replicas` lists where it currently lives. The
+  `replicate(key_id, zone_target)`; `replicas` lists where it currently lives. The
   first call answers `{"status": "target-registered"}` and completes in the
   background: the replica is briefly not found in the target zone. It then
   mirrors the origin key's status with a short lag. Operations issued against
@@ -149,3 +152,54 @@ kms.enable(key.id)                             # ...so re-enable it
   alongside the documented `ciphertext`/`plaintext`.
 - **Synchronous, so `wait=` is irrelevant** — every call returns its result
   immediately, unlike the async asset types.
+
+## End-to-end example
+
+Distilled from
+[`tests/integration/test_kms.py::test_kms_key_lifecycle`](../../tests/integration/test_kms.py)
+(`replicate` is left out so a run creates no cross-zone replica):
+
+```python
+import base64
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.kms import KmsKeyClient
+
+kms = KmsKeyClient(ExoscaleClient.from_env(zone="de-fra-1"))
+plaintext_b64 = base64.b64encode(b"hello").decode()
+context = base64.b64encode(b"tenant=demo").decode()
+
+key_id = kms.create({"name": "demo-kms", "usage": "encrypt-decrypt"}).id
+assert kms.get(key_id).status == "enabled"
+
+# Disabled keys refuse to encrypt
+kms.disable(key_id)
+kms.enable(key_id)
+
+# Rotation: on by default (365 days); disable before changing the period
+assert kms.get(key_id).rotation.automatic
+kms.disable_rotation(key_id)
+kms.enable_rotation(key_id, rotation_period=90)
+kms.rotate(key_id)
+kms.list_rotations(key_id)
+
+# Envelope crypto with an encryption context, then re-encrypt without it
+enc = kms.encrypt(key_id, plaintext_b64, encryption_context=context)
+assert kms.decrypt(key_id, enc["ciphertext"], encryption_context=context)["plaintext"] == plaintext_b64
+re_enc = kms.re_encrypt(
+    key_id,
+    source={"key": key_id, "ciphertext": enc["ciphertext"], "encryption-context": context},
+    destination={"key": key_id},
+)
+assert kms.decrypt(key_id, re_enc["ciphertext"])["plaintext"] == plaintext_b64
+
+# Data keys: by spec (AES-256, 32 bytes) and by size — never print them
+dk = kms.generate_data_key(key_id)
+dk16 = kms.generate_data_key(key_id, bytes_count=16)
+
+# Deletion lifecycle; cancel leaves the key disabled
+kms.schedule_deletion(key_id, delay_days=7)
+kms.cancel_deletion(key_id)
+assert kms.get(key_id).status == "disabled"
+kms.enable(key_id)
+kms.schedule_deletion(key_id, delay_days=7)   # final: lingers 7 days, then removed
+```

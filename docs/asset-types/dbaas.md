@@ -32,6 +32,20 @@ class DBaaSService(ExoscaleModel):
     uri_params: Optional[DBaaSConnectionInfo]
     uri: Optional[str]
     connection_info: Optional[DBaaSConnectionInfo]
+    databases: Optional[List[str]]  # pg/mysql: databases inside the service
+
+
+class DBaaSLogEntry(ExoscaleModel):
+    time: Optional[str]
+    node: Optional[str]
+    unit: Optional[str]
+    message: Optional[str]
+
+
+class DBaaSServiceLogs(ExoscaleModel):     # get_logs() page
+    logs: Optional[List[DBaaSLogEntry]]
+    offset: Optional[str]                  # cursor for the next page
+    first_log_offset: Optional[str]
 ```
 
 ## CLI
@@ -115,7 +129,8 @@ plans = dbaas.list_service_types()
   larger plans. Use a generous timeout in `wait_for_state`.
 - **Mutations return an operation, awaited by default.** Per the spec,
   create/update, `create_user`/`delete_user`/`reset_user_password`,
-  `start_maintenance` and `delete` all answer with an operation. The
+  `create_database`/`delete_database`, `start_maintenance` and `delete` all
+  answer with an operation. The
   connector awaits it unless `wait=False`; the user/maintenance methods
   return the settled envelope as a dict. A settled operation does **not**
   mean the service is `running` (it passes through `rebuilding`), so
@@ -170,8 +185,8 @@ dbaas.delete(name)
 ## Service updates and user management
 
 `update()`, `create_user()` and `delete_user()` are live-verified (extended
-Tier 4 pg lifecycle, 2026-06-10). `reset_user_password()` is the one method
-still implemented from the API reference only — the live test doesn't call
+Tier 4 pg lifecycle, 2026-06-10). `reset_user_password()` is implemented from
+the API reference only — the live test doesn't call
 it (resetting `avnadmin`'s password mid-test would be disruptive for no
 extra wire-shape coverage):
 
@@ -238,18 +253,21 @@ metrics = dbaas.get_metrics(name, period="day")
 
 ### Generic engine sub-resources (settings / ACL / maintenance)
 
-Three read/trigger helpers that generalise across engine types:
+Three read/trigger helpers that generalise across engine types.
+`get_settings` is live-verified (Tier 4 pg lifecycle); `get_acl_config` /
+`start_maintenance` are implemented from the API reference — pending live
+verification:
 
 ```python
 # Discover the settings schema an engine accepts (short type form: "pg", not
 # "postgres"). Response shape is engine-specific -> raw dict.
-schema = dbaas.get_settings("clickhouse")           # GET /dbaas-settings-clickhouse
+schema = dbaas.get_settings("pg")                   # GET /dbaas-settings-pg
 
-# Per-service ACL configuration (clickhouse / kafka / opensearch).
-acls = dbaas.get_acl_config("my-ch-1", service_type="clickhouse")
+# Per-service ACL configuration (kafka / opensearch).
+acls = dbaas.get_acl_config("my-kafka-1", service_type="kafka")
 
 # Run the pending maintenance update now instead of waiting for the window.
-dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
+dbaas.start_maintenance("my-pg-1", service_type="pg")
 ```
 
 - **`get_settings` uses the short type form** (`pg`, `mysql`, `clickhouse`) — the
@@ -262,9 +280,9 @@ dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
   Exoscale tenant — every ClickHouse operation returns `403 "... not enabled"`,
   read-only ones included — so nothing about it can be live-verified here.
   `service_type="clickhouse"` is still accepted by the engine-generic methods;
-  it is simply unsupported. The engine-agnostic `get_settings` /
-  `get_acl_config` / `start_maintenance` helpers below are unaffected and work
-  for pg, mysql, valkey and the rest.
+  it is simply unsupported. The `get_settings` / `start_maintenance` helpers
+  above work for every engine; `get_acl_config` applies to kafka and
+  opensearch.
 - **`delete_user` is unverified for ClickHouse.** Upstream moved that engine's
   delete to `DELETE /dbaas-clickhouse/{name}/user/{user-uuid}` — path parameter
   renamed *and* retyped to a UUID, which is consistent with ClickHouse carrying

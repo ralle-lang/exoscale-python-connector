@@ -25,8 +25,10 @@ class Instance(ExoscaleModel):
     public_ip: Optional[str]
     ipv6_address: Optional[str]
     ssh_key: Optional[SshKeyReference]
+    security_groups: List[Reference]
     labels: Optional[dict]
     manager: Optional[Reference]      # set when the instance is a pool member
+    deploy_target: Optional[Reference]   # pinned placement; set at create (see deploy-target.md)
     created_at: Optional[str]
     # Attachments (read them here; change them via attach/detach endpoints)
     anti_affinity_groups: Optional[List[Reference]]
@@ -51,7 +53,10 @@ exoscale-instance create --json '{"name":"web-01","instance-type":{"id":"<type-i
 exoscale-instance delete --id <uuid>
 ```
 
-> `start` / `stop` / `reboot` are exposed via the library client.
+> Lifecycle and maintenance actions (`start`/`stop`/`reboot`, `scale`,
+> `resize_disk`, `reset`, `revert_to_snapshot`, protection, password,
+> `enable_tpm`, `reset_field`, reverse DNS) are library-only; the CLI has
+> list/get/find/create/delete.
 
 ## Library
 

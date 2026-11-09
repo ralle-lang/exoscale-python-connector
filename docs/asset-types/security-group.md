@@ -29,7 +29,7 @@ class SecurityGroup(ExoscaleModel):
     name: Optional[str]             # the human-readable identifier
     description: Optional[str]
     rules: List[SecurityGroupRule]  # embedded on every detail response
-    external_sources: Optional[List[str]]  # IP set names (Exoscale-managed allow/deny lists)
+    external_sources: Optional[List[str]]  # CIDRs counted as members (add_/remove_external_source)
 ```
 
 ## CLI
