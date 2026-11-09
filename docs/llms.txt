@@ -468,8 +468,12 @@ API collection: `elastic-ip`; resource model: `ElasticIP`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `attach_instance(elastic_ip_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Attach the elastic IP to an instance (``PUT elastic-ip/{id}:attach``).
 - `delete_reverse_dns(resource_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove the PTR record (``DELETE /reverse-dns/{kind}/{id}``).
+- `detach_instance(elastic_ip_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Detach the elastic IP from an instance (``PUT elastic-ip/{id}:detach``).
 - `get_reverse_dns(resource_id: str, *, zone: str | None = None) -> str | None`
   Return the PTR domain name for the resource, or ``None`` if unset.
 - `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
@@ -1064,6 +1068,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Detach a compute instance from this private network.
 - `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
+- `update_instance_ip(network_id: str, instance_id: str, ip: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Change an attached instance's static lease (``PUT private-network/{id}:update-ip``).
 
 ### `exoscale_connector.resources.security_group`
 
@@ -1114,10 +1120,18 @@ API collection: `security-group`; resource model: `SecurityGroup`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `add_external_source(security_group_id: str, cidr: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Add a CIDR to the group's external sources (``PUT security-group/{id}:add-source``).
 - `add_rule(security_group_id: str, rule: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Append a rule to a security group.
+- `attach_instance(security_group_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Add an instance to the group (``PUT security-group/{id}:attach``).
 - `delete_rule(security_group_id: str, rule_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove a single rule from a security group by rule id.
+- `detach_instance(security_group_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Remove an instance from the group (``PUT security-group/{id}:detach``).
+- `remove_external_source(security_group_id: str, cidr: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Remove a CIDR from the external sources (``PUT security-group/{id}:remove-source``).
 
 ### `exoscale_connector.resources.sks`
 
@@ -2405,6 +2419,9 @@ eip = eips.create({"description": "web-frontend", "addressfamily": "inet4"})
 print(eip.ip)        # the assigned public IPv4
 
 eips.update(eip.id, {"description": "web-frontend (production)"})
+
+eips.attach_instance(eip.id, instance_id)   # PUT elastic-ip/{id}:attach
+eips.detach_instance(eip.id, instance_id)
 eips.delete(eip.id)
 ```
 
@@ -2426,6 +2443,10 @@ eips.delete(eip.id)
 - **Clear an optional field with `reset_field(id, "description")`.** It wraps
   `DELETE /elastic-ip/{id}/{field}`; the spec allows `description`. Use it
   instead of sending an empty value through `update`.
+- **Attaching does not configure the guest.** `attach_instance` binds the
+  address to the instance on the Exoscale side; a manual EIP must still be
+  added to an interface inside the OS. The instance's `elastic_ips` list
+  reflects the attachment.
 
 #### End-to-end example
 
@@ -3652,6 +3673,7 @@ pn.delete(network.id)
 # Join / remove an instance (east-west networking)
 pn.attach_instance(network.id, instance_id)                 # DHCP / unmanaged
 pn.attach_instance(network.id, instance_id, ip="10.0.0.42") # static lease (managed)
+pn.update_instance_ip(network.id, instance_id, "10.0.0.43")  # move the lease
 pn.detach_instance(network.id, instance_id)
 ```
 
@@ -3670,6 +3692,10 @@ pn.detach_instance(network.id, instance_id)
 - **Clear an optional field with `reset_field(id, "labels")`.** It wraps
   `DELETE /private-network/{id}/{field}`; the spec allows `labels`. Use it
   instead of sending an empty value through `update`.
+- **Change a static lease with `update_instance_ip`** (`PUT
+  private-network/{id}:update-ip`). Managed networks only, and the new address
+  must sit inside `start-ip`..`end-ip`. The network's `leases` list shows the
+  result.
 
 #### End-to-end example
 
@@ -3768,6 +3794,14 @@ sg.add_rule(group.id, SecurityGroupRule(
     description="https-from-anywhere",
 ))
 sg.delete_rule(group.id, rule_id)
+
+# Membership, driven from the group side
+sg.attach_instance(group.id, instance_id)
+sg.detach_instance(group.id, instance_id)
+
+# External sources: CIDRs treated as members of the group
+sg.add_external_source(group.id, "198.51.100.0/24")
+sg.remove_external_source(group.id, "198.51.100.0/24")
 ```
 
 #### Gotchas
@@ -3786,6 +3820,10 @@ sg.delete_rule(group.id, rule_id)
   Exoscale-managed **public** group by adding `"visibility": "public"`
   (`{"security-group": {"id": "<uuid>", "visibility": "public"}}`). Both round-trip
   on the response as a `SecurityGroupResource`.
+- **External sources are not rules.** `add_external_source` /
+  `remove_external_source` (`PUT security-group/{id}:add-source` /
+  `:remove-source`) edit the group's `external_sources` CIDR list. Rules in
+  *other* groups that reference this group then also match those CIDRs.
 
 #### End-to-end example
 
