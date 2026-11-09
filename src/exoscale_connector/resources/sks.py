@@ -99,6 +99,8 @@ class SksNodepool(ExoscaleModel):
     # Dedicated-hypervisor / edge placement for the nodepool's instances.
     deploy_target: Reference | None = None
     kubelet_image_gc: SksKubeletImageGc | None = None
+    # Nodepool addons, e.g. ["storage-lvm"] (values listed on the sks page).
+    addons: list[str] | None = None
 
 
 class SksCluster(ExoscaleModel):

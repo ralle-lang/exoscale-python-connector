@@ -420,3 +420,9 @@ def test_get_inspection_returns_none_before_first_run(client, base_url) -> None:
         status=404,
     )
     assert SksClusterClient(client).get_inspection("c-1") is None
+
+
+def test_nodepool_addons_are_typed() -> None:
+    np = SksNodepool.model_validate({"id": "np-1", "addons": ["storage-lvm"]})
+    assert np.addons == ["storage-lvm"]
+    assert np.to_api_payload()["addons"] == ["storage-lvm"]
