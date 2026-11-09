@@ -92,6 +92,7 @@ SCHEMA_ALIASES: dict[str, str] = {
     "ElasticIPHealthcheck": "elastic-ip-healthcheck",
     "DBaaSServiceLogs": "dbaas-service-logs",
     "SksDeprecatedResource": "sks-cluster-deprecated-resource",
+    "SksKubeletImageGc": "kubelet-image-gc",
     "IAMPolicy": "iam-policy",
     "IAMAssumeRolePolicy": "iam-assume-role-policy",
     "IAMPolicyService": "iam-service-policy",

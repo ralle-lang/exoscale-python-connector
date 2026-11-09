@@ -30,6 +30,8 @@ class SksNodepool(ExoscaleModel):
     instance_prefix: Optional[str]
     public_ip_assignment: Optional[str]
     nvidia_mig_profiles: Optional[Dict[str, Any]]  # MIG profiles for GPU nodes, keyed by GPU model
+    deploy_target: Optional[Reference]           # dedicated / edge placement
+    kubelet_image_gc: Optional[SksKubeletImageGc]  # high_threshold, low_threshold, min_age
 
 
 class SksCluster(ExoscaleModel):
@@ -127,14 +129,30 @@ op = sks.create_nodepool(cluster.id, SksNodepool(
 ))
 np_id = op.reference_id
 
-# Scale
-sks.update_nodepool(cluster.id, np_id, {"size": 3})
-sks.update_nodepool(cluster.id, np_id, {"size": 1})
+# Scale, or remove specific nodes (member ids from the nodepool's instance pool)
+sks.scale_nodepool(cluster.id, np_id, 3)
+sks.evict_nodepool_members(cluster.id, np_id, ["<member-instance-id>"])
+
+# Cluster reads: CA certificates, diagnostic report, Karpenter manifests
+ca = sks.get_authority_cert(cluster.id, "control-plane")   # or aggregation / kubelet
+report = sks.get_inspection(cluster.id)                     # free-form dict
+nodeclass = sks.generate_karpenter_nodeclass(cluster.id)    # manifest str
+karpenter_np = sks.generate_karpenter_nodepool(cluster.id)
+
+# Credential rotation (async; the cluster stays up)
+sks.rotate_ccm_credentials(cluster.id)
+sks.rotate_csi_credentials(cluster.id)
+sks.rotate_karpenter_credentials(cluster.id)
+sks.rotate_operators_ca(cluster.id)
 
 # Before a version upgrade: which Kubernetes APIs in use does a later release
 # remove? Migrate anything whose removed_release <= the target version first.
 for r in sks.list_deprecated_resources(cluster.id):
     print(r.group, r.version, r.resource, "removed in", r.removed_release)
+
+# Upgrade the control plane, or move starter -> pro (one-way, billed)
+sks.upgrade(cluster.id, "<newer version from list_versions()>")
+sks.upgrade_service_level(cluster.id)
 
 # Cleanup (nodepool first, then cluster)
 sks.delete_nodepool(cluster.id, np_id)
@@ -176,6 +194,15 @@ sks.delete(cluster.id)
   response. Use `op.reference_id` and then read the nodepool out of the
   cluster's `nodepools` array (or `list_nodepools(cluster_id)` which
   does exactly that).
+- **`upgrade` moves the control plane only.** `PUT sks-cluster/{id}/upgrade`
+  takes a version from `list_versions()`; check `list_deprecated_resources`
+  first. Existing nodes keep their version until they are replaced.
+- **`upgrade_service_level` is one-way.** It moves `starter` to `pro`, there
+  is no downgrade endpoint, and `pro` is billed.
+- **`scale_nodepool` vs `evict_nodepool_members`.** Scaling down lets the API
+  choose which nodes go; evict drains and destroys exactly the instances you
+  name (members of the nodepool's `instance_pool`) and shrinks the size to
+  match.
 
 ## End-to-end example
 
