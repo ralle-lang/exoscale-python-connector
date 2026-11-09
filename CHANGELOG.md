@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- DBaaS tier C (#136), every non-beta DBaaS operation the request audit
+  reported, all implemented from the API reference and pending live
+  verification:
+  - Migration: `check_migration`, `get_task`, `get_migration_status`,
+    `stop_migration` (pg / mysql / valkey).
+  - PostgreSQL: `create_connection_pool` / `update_connection_pool` /
+    `delete_connection_pool` (pools listed on the new typed
+    `DBaaSService.connection_pools`, URI hidden from `repr`),
+    `set_allow_replication`, `check_upgrade`.
+  - MySQL: `enable_writes`.
+  - Kafka: topic and Schema Registry ACL entries (`add_kafka_topic_acl`,
+    `delete_kafka_topic_acl`, `add_kafka_schema_registry_acl`,
+    `delete_kafka_schema_registry_acl`) and `reveal_kafka_connect_password`.
+  - OpenSearch: `set_opensearch_acl_config`.
+  - Valkey: `list_valkey_users` (`DBaaSValkeyUser`) and
+    `update_valkey_user_access_control`.
+  - `create_user` gains `allow_replication` (pg), `authentication` (mysql)
+    and `access_control` (valkey); `reset_user_password` gains `password`
+    and `authentication` (mysql). Each rejects the wrong engine with
+    `ValueError`.
+  - Typed `DBaaSTask` and `DBaaSMigrationStatus` responses.
+- `scripts/request_field_audit.py` reports `[BETA]` operations in their own
+  section instead of as gaps. DBaaS integrations, external endpoints and
+  ClickHouse stay unwrapped (`[BETA]`).
+
 ### Fixed
 
 - `ElasticIPClient.find_by_name`, `ensure()` and `exoscale-elastic-ip find`
