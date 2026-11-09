@@ -39,18 +39,34 @@ def test_get_returns_model(client, base_url) -> None:
 
 
 @responses.activate
-def test_find_by_name_matches_on_ip_field(client, base_url) -> None:
-    # ElasticIPs have no 'name' field; find_by_name falls through gracefully
-    # (returns None when no attribute matches).
+def test_find_by_name_matches_on_description(client, base_url) -> None:
+    # EIPs have no 'name' field; description is the label find_by_name keys on.
     responses.add(
         responses.GET,
         f"{base_url}/elastic-ip",
-        json={"elastic-ips": [{"id": "eip1", "ip": "1.2.3.4"}]},
+        json={
+            "elastic-ips": [
+                {"id": "eip1", "ip": "1.2.3.4"},
+                {"id": "eip2", "ip": "5.6.7.8", "description": "Web Front"},
+            ]
+        },
         status=200,
     )
-    # name_field defaults to "name"; ElasticIP has no name, so no match.
-    found = ElasticIPClient(client).find_by_name("1.2.3.4")
-    assert found is None
+    eips = ElasticIPClient(client)
+    assert eips.find_by_name("web front").id == "eip2"  # case-insensitive
+    assert eips.find_by_name("1.2.3.4") is None  # the address is not a label
+
+
+@responses.activate
+def test_ensure_keys_on_description(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/elastic-ip",
+        json={"elastic-ips": [{"id": "eip2", "ip": "5.6.7.8", "description": "web"}]},
+        status=200,
+    )
+    assert ElasticIPClient(client).ensure({"description": "web"}).id == "eip2"
+    assert len(responses.calls) == 1  # found, so no create
 
 
 @responses.activate

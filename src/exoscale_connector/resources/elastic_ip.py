@@ -47,6 +47,9 @@ class ElasticIPClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[ElasticIP
     collection_path = "elastic-ip"
     model = ElasticIP
     list_key = "elastic-ips"
+    # EIPs have no ``name``; ``description`` is their only human label, so
+    # find_by_name / ensure / CLI ``find --name`` match on it.
+    name_field = "description"
     _rdns_kind = "elastic-ip"
 
     def attach_instance(
