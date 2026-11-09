@@ -58,6 +58,7 @@ record = dns.create_record(zone.id, {
     "name": "www", "type": "A", "content": "192.0.2.1", "ttl": 3600,
 })
 records = dns.list_records(zone.id)
+rec = dns.get_record(zone.id, record.id)
 dns.update_record(zone.id, record.id, {"ttl": 7200})
 dns.delete_record(zone.id, record.id)
 
@@ -113,7 +114,10 @@ assert any(r.id == rec.id for r in listed)
 dns.update_record(zone_id, rec.id, {"ttl": 7200})
 assert dns.get_record(zone_id, rec.id).ttl == 7200
 
-# 5. Cleanup (records first, then zone)
+# 5. Export the zone; the record shows up in the BIND file
+assert "192.0.2.1" in dns.get_zone_file(zone_id)
+
+# 6. Cleanup (records first, then zone)
 dns.delete_record(zone_id, rec.id)
 dns.delete(zone_id)
 ```

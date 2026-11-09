@@ -16,7 +16,6 @@ class BlockVolumeSnapshotRef(ExoscaleModel):
 class BlockVolume(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
-    description: Optional[str]
     size: Optional[int]                          # GiB (on get); see resize gotcha
     state: Optional[str]                         # "detached" | "attached"
     created_at: Optional[str]
@@ -50,10 +49,11 @@ volumes = BlockVolumeClient(ExoscaleClient.from_env(zone="de-fra-1"))
 # Create (size in GiB)
 vol = volumes.create({"name": "data", "size": 10})
 
+op = volumes.create_snapshot(vol.id)   # works detached; snapshot id is op.reference_id
+
 # Online ops — these require the volume to be attached to a running instance
 volumes.attach(vol.id, instance_id)
 volumes.resize(vol.id, 20)       # GiB; see gotcha
-op = volumes.create_snapshot(vol.id)   # snapshot id is op.reference_id
 volumes.detach(vol.id)
 
 volumes.delete(vol.id)
@@ -78,7 +78,8 @@ volumes.delete(vol.id)
   the `:resize-volume` 200 response as the volume itself. The connector returns
   a settled `Operation` (`state == "success"`, `reference_id` = the volume id)
   for that shape without polling, and still awaits a real operation envelope.
-  **Not live-verified:** live runs have only seen 400/409 on this endpoint.
+  The endpoint and verb are live-verified (they answer, not 404), but the
+  success body is not: live runs have only seen 400/409 (tenant quota).
 - **Attach requires `standard.small` or larger** — `standard.tiny` is
   rejected with `409: Instance size must be at least small`.
 - **Delete fails (412) if attached**: detach first. The Tier 3 test wraps

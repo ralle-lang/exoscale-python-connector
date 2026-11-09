@@ -5,8 +5,7 @@ sequence that would exercise it, the cost/risk, and the cleanup. It exists so
 you can read it once and decide, **per asset type**, what's OK to run against
 the test tenant — *before* anything is provisioned.
 
-The mocked unit suite (`pytest -m "not integration"`) is already green (163
-tests). The mocked layer proves the connector *calls the path it implements*;
+The mocked unit suite (`pytest -m "not integration"`) is already green. The mocked layer proves the connector *calls the path it implements*;
 this plan covers the live layer that proves the paths match the real API.
 
 ---
@@ -41,7 +40,7 @@ shared tenant from any cross-contamination.
 | 4 | **Master mutation switch** — `EXOSCALE_ALLOW_MUTATION=1` must be set; absent, mutating tests skip. | Already implemented in `tests/integration/conftest.py`. |
 | 5 | **Per-tier opt-in switches** (see [tiers](#tier-model)) — each cost or time-sensitive tier needs its own flag. | New fixtures in conftest. |
 | 6 | **Run-end sweep** — at session end, the harness deletes every id still in the registry (best-effort), then logs anything that survived (orphan candidates). | Pytest session-scope finalizer. |
-| 7 | **Orphan garbage collector** (standalone) — a separate `scripts/gc_test_resources.py` that lists every asset type, filters by `conn-test-*` *and* age > 1h, and prompts before deletion. Use only if a session crashed mid-way. | Tool, not auto-run. |
+| 7 | **Orphan garbage collector** (standalone) — planned: list every asset type, filter by `conn-test-*` *and* age > 1h, prompt before deletion. Use only if a session crashed mid-way. | Not implemented — clean up with the `exoscale-<asset> list \| jq` check in the [pre-flight checklist](#pre-flight-checklist-before-any-live-run). |
 | 8 | **No prod fingerprint** — there is no hardcoded tenant id in the test code. You set the zone(s) and creds via env vars. (Open-source policy.) | The connector itself enforces this. |
 
 ---
@@ -53,10 +52,10 @@ enable exactly what you want; no flag = skipped.
 
 | Tier | Flag | Cost order | Examples |
 |------|------|-----------|----------|
-| 0 — read-only smoke | `EXOSCALE_RUN_LIVE_TESTS=1` | €0 | Every asset-type `list()` call (already implemented) |
-| 1 — free mutations | `EXOSCALE_TEST_TIER_1=1` | €0 | security-group, private-network, anti-affinity-group, ssh-key, iam-role, dns |
+| 0 — read-only smoke | `EXOSCALE_RUN_LIVE_TESTS=1` (+ `EXOSCALE_TEST_ZONE`) | €0 | Every asset-type `list()` call (already implemented) |
+| 1 — free mutations | `EXOSCALE_TEST_TIER_1=1` | €0 | security-group, vpc, private-network, anti-affinity-group, ssh-key, iam-role, dns (api-key behind `EXOSCALE_TEST_TIER_1_API_KEY=1`) |
 | 2 — cheap, no compute | `EXOSCALE_TEST_TIER_2=1` | < €0.01/run | bucket (S3), block-volume + snapshot (detached), elastic-ip |
-| 3 — compute, minutes-of-runtime | `EXOSCALE_TEST_TIER_3=1` | ~€0.01–0.05/run | instance(+lifecycle), instance-pool(+scale), compute-snapshot, block-volume attach/detach |
+| 3 — compute, minutes-of-runtime | `EXOSCALE_TEST_TIER_3=1` | ~€0.01–0.05/run | instance(+lifecycle, scale), instance-pool(+scale, evict), compute-snapshot(+template), block-volume attach/detach, SG/EIP attach (`test_instance_network_attachments`), private-network attach and static lease (`test_private_network_static_lease`), VPC subnet attach (`test_vpc_subnet_attach_detach`) |
 | 4 — expensive / long-lived | `EXOSCALE_TEST_TIER_4_DBAAS=1`, `EXOSCALE_TEST_TIER_4_SKS=1`, `EXOSCALE_TEST_TIER_4_LB=1` | each ~€0.01–0.10/run, 10–20 min | dbaas, sks(+nodepool+kubeconfig), load-balancer(+service) |
 | KMS — opt-in, lingering | `EXOSCALE_TEST_KMS=1` | key cost; **key lingers ≥7 days** | kms (crypto round-trip) |
 | ❌ — out of live scope | n/a | n/a | iam-user create (sends invite emails) |
@@ -110,8 +109,9 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
   exercise it) rather than fail — same policy as the DNS-quota skip.
 
 #### 2. `private-network`
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete` *(no attach/detach helper yet in connector)*.
-- **Live sequence**: create unmanaged L2 PN `<prefix>-pn` → get → update description → delete.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `reset_field`; instance membership `attach_instance`, `detach_instance`, `update_instance_ip` (Tier 3: `test_private_network_instance_attach_detach`, `test_private_network_static_lease`).
+- **Live sequence**: create unmanaged L2 PN `<prefix>-pn` → get → update description + labels → reset labels → delete.
+- **Note**: private-network creation is currently disabled on the test tenant (`403 Operation 'create-private-network' not enabled`, 2026-11-09); these tests skip on it.
 - **Cost**: €0. **Risk**: none.
 
 #### 3. `anti-affinity-group`
@@ -125,18 +125,18 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
 - **Cost**: €0. **Risk**: none. The private key never leaves the test process.
 
 #### 5. `iam-role`
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`.
-- **Live sequence**: create role `<prefix>-role` with a minimal policy (deny-all default + permit `compute/listInstances` only) → get → update description → delete.
-- **Cost**: €0. **Risk**: roles are scoped to the account. The role we create has zero effective permissions outside `listInstances`; even if leaked, harmless.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `set_policy`, `set_assume_role_policy`; organization policy `get_organization_policy` (read-only smoke) / `set_organization_policy` / `reset_organization_policy` (never run live).
+- **Live sequence**: create role `<prefix>-role` with a deny-all policy → get → update description → `set_policy(IAMPolicy.allow_services(["compute"]))` (assert it round-trips) → `set_assume_role_policy` with a deny-all rule (accepted; not echoed by `get`) → delete.
+- **Cost**: €0. **Risk**: roles are scoped to the account. No API key is bound to the role; even if one were, it could only reach `compute`.
 
 #### 6. `dns` (domain + records)
-- **Ops**: domain CRUD (`list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`); record CRUD (`list_records`, `get_record`, `create_record`, `update_record`, `delete_record`).
+- **Ops**: domain CRUD (`list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`); `get_zone_file`; record CRUD (`list_records`, `get_record`, `create_record`, `update_record`, `delete_record`).
 - **Live sequence**:
   1. Create zone `<prefix>.test` (a name we don't own — won't resolve publicly, that's fine).
-  2. Create records: A `www` → `192.0.2.1`, TXT `_test` → `"hello"`, MX `@` → `10 mail.<prefix>.test`.
-  3. List/get records.
-  4. Update the A record TTL.
-  5. Delete each record.
+  2. Create an A record `www` → `192.0.2.1`; list records.
+  3. Update its TTL; `get_record` and assert.
+  4. `get_zone_file`; assert the record is in the BIND export.
+  5. Delete the record.
   6. Delete the zone.
 - **Cost**: Exoscale DNS may charge per zone (verify your account; typically ~€0/month for unused zones, or single-digit cents). **Risk**: zone is isolated.
 
@@ -145,19 +145,19 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
 ### Tier 2 — cheap, no compute
 
 #### 7. `elastic-ip`
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`. (No reverse-DNS-reset helper in connector yet.)
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `reset_field`; reverse DNS `get_reverse_dns` / `set_reverse_dns` / `delete_reverse_dns` (`test_elastic_ip_reverse_dns`); `attach_instance` / `detach_instance` (Tier 3, `test_instance_network_attachments`).
 - **Live sequence**: create EIP with description `<prefix>-eip` → get → update description → delete.
 - **Cost**: EIP is charged ~€0.0027/hr while allocated; ~€0 for a few minutes.
 - **Risk**: none. The address is released on delete.
 
 #### 8. `bucket` (Object Storage — S3 via boto3)
-- **Ops**: `list`, `exists`, `create`, `delete`.
+- **Ops**: bucket `list`, `exists`, `create`, `delete`; objects `put_object`, `get_object`, `list_objects`, `delete_object`, `upload_file`, `download_file`, `presign_get`, `presign_put`; lifecycle and CORS get/set.
 - **Prereq**: `boto3` installed (`pip install '.[sos]'`).
 - **Live sequence**:
   1. Bucket name `<prefix>-bucket-<16-char-random>` (globally unique).
   2. `create` → `exists` → `list` (assert presence) → `delete`.
 - **Cost**: ~€0 (empty bucket for minutes).
-- **Risk**: bucket name collision — mitigated by 16-char random suffix. `delete_bucket` fails if non-empty; we never write objects, so safe.
+- **Risk**: bucket name collision — mitigated by 16-char random suffix. `delete_bucket` fails if non-empty; `test_bucket_object_roundtrip` deletes its object before deleting the bucket.
 
 #### 9. `block-volume` (detached only — attach + resize live in Tier 3)
 - **Ops** (this tier): `list`, `get`, `find_by_name`, `get_or_none`, `create`, `delete`, `create_snapshot`.
@@ -174,7 +174,7 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
 
 #### 10. `block-volume-snapshot`
 - **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `delete`, `update`, `create_from_volume`.
-- **Live sequence**: covered inside the block-volume test above (step 4–6).
+- **Live sequence**: covered inside the block-volume test above (steps 3–4).
 
 ---
 
@@ -186,7 +186,7 @@ smallest current Linux LTS the account has access to (resolved at fixture time,
 not hardcoded).
 
 #### 11. `instance` (+ lifecycle)
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `start`, `stop`, `reboot`.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `start` (incl. `rescue_profile=`), `stop`, `reboot`, `scale`, `reset_field`, `add_protection` / `remove_protection`, `reset_password` / `reveal_password`, `resize_disk`, `enable_tpm`, `reset`, `revert_to_snapshot`.
 - **Live sequence**:
   1. Prereqs: ssh-key (`<prefix>-key`) + security-group (`<prefix>-sg`) — created and torn down by Tier 1 fixtures.
   2. `create` `<prefix>-instance` (type `standard.tiny`, disk 10 GB, no public-IP if API allows, attached to the SG + ssh-key above).
@@ -199,7 +199,7 @@ not hardcoded).
 - **Risk**: longest single-test runtime (~10 min); slowest cleanup. The `EXOSCALE_TEST_TIER_3=1` flag controls all of this.
 
 #### 12. `instance-pool` (+ scale)
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `scale`.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `scale`, `evict`, `reset_field`.
 - **Live sequence**:
   1. `create` `<prefix>-pool` with `size=1`, type `standard.tiny`, 10 GB.
   2. Wait until 1 member is running.
@@ -211,7 +211,7 @@ not hardcoded).
 - **Risk**: pool deletion cascades to member instances — wait for cascade before reusing names.
 
 #### 13. `snapshot` (compute snapshot)
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `delete`, `create_from_instance`, `export`.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `delete`, `create_from_instance`, `export`, `promote_to_template` (plus `InstanceClient.revert_to_snapshot` and `TemplateClient.copy`, exercised in the same test).
 - **Live sequence** (runs while the Tier 3 instance from #11 exists):
   1. `create_from_instance(instance_id)`; wait until `state` is terminal —
      current Exoscale auto-exports snapshots so the terminal state is
@@ -243,30 +243,31 @@ not hardcoded).
 ### Tier 4 — expensive / long-lived (each gated separately)
 
 #### 14. `load-balancer` (+ services) — `EXOSCALE_TEST_TIER_4_LB=1`
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `add_service`, `update_service`, `delete_service`.
-- **Prereq**: an `instance-pool` to point a service at (creates one inline if Tier 3 isn't already running).
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`, `reset_field`, `add_service`, `get_service`, `update_service`, `reset_service_field`, `delete_service`.
+- **Prereq**: an `instance-pool` to point a service at (the test creates its own).
 - **Live sequence**:
-  1. Create LB `<prefix>-lb` (smallest NLB profile).
-  2. Create `<prefix>-pool-lb` (size=1, standard.tiny) as the service backend.
+  1. Create `<prefix>-pool-lb` (size=1, standard.tiny) as the service backend.
+  2. Create LB `<prefix>-lb` (smallest NLB profile).
   3. `add_service` port 80 → backend port 80, healthcheck tcp/80.
   4. Get LB; assert service appears under `.services`.
-  5. `update_service` (change healthcheck interval).
-  6. `delete_service`.
-  7. `delete` LB.
-  8. Delete the backing pool.
+  5. `update_service` (full spec; change healthcheck interval).
+  6. `get_service`; `reset_service_field(description)`; `reset_field(description)`; wait for the service to return to `running`.
+  7. `delete_service`.
+  8. `delete` LB.
+  9. Delete the backing pool.
 - **Cost**: NLB basic ~€0.0185/hr; pool tiny ~€0.0054/hr; ~10 min run ≈ €0.005.
 - **Risk**: LB and pool must both be cleaned. The fixture tracks both ids.
 
 #### 15. `dbaas` — `EXOSCALE_TEST_TIER_4_DBAAS=1`
-- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create` (type-specific), `update`, `delete`, `get_connection_info`, `reveal_user_password`, `list_service_types`, `get_settings`, `get_acl_config`, `start_maintenance`.
+- **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create` (type-specific), `update`, `delete`, `get_connection_info`, `reveal_user_password`, `create_user`, `delete_user`, `reset_user_password`, `create_database`, `delete_database`, `list_service_types`, `get_settings`, `get_acl_config`, `start_maintenance`, `get_ca_certificate`, `get_logs`, `get_metrics`.
 - **Live sequence**:
   1. `list_service_types()`; pick the cheapest **pg** plan dynamically (typically `hobbyist-2` or equivalent — resolved at run time, not hardcoded).
-  2. `create(service_type="pg", name="<prefix>-pg", payload={"plan": <cheapest>, "version": <stable>})`.
+  2. `create(service_type="pg", name="<prefix>-pg", payload={"plan": <cheapest>, "ip-filter": ["203.0.113.0/24"]})`.
   3. Wait until `state == "running"` (5–10 min).
   4. `get`; assert; `get_connection_info` — assert host/port present, **never print the credentials**.
   5. `reveal_user_password("avnadmin")` — assert non-empty, **never print**.
   6. `update` maintenance window or `ip-filter` to a no-op change.
-  7. `delete` (`POWEROFF`-then-`DELETE` if required by API; verified at run).
+  7. `delete`.
 - **Additive-coverage checks** (0.6.0): `get_settings("pg")` is read-only and can
   run as a free Tier-0-style probe; `get_acl_config`/`start_maintenance` and the
   first-class `version` update param need a live service (fold into the sequence
@@ -286,21 +287,22 @@ not hardcoded).
   refused, the product is off for the whole tenant and no key will fix it.
   Catalogue endpoints prove nothing — `GET /dbaas-service-type` cheerfully lists
   ClickHouse and all 112 of its plans on a tenant that cannot touch the engine.
-  Where a product *is* in scope but off for this tenant (VPC), tests **skip** on
-  that 403 rather than fail.
+  Where a product *is* in scope but off for this tenant (e.g. private-network
+  creation since 2026-11-09; VPC before 2026-11-02), tests **skip** on that 403
+  rather than fail.
 
 #### 16. `sks` (cluster + nodepool + kubeconfig) — `EXOSCALE_TEST_TIER_4_SKS=1`
-- **Ops**: cluster CRUD (`list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`); nodepool CRUD (`list_nodepools`, `get_nodepool`, `create_nodepool`, `update_nodepool`, `delete_nodepool`); `generate_kubeconfig`.
+- **Ops**: cluster CRUD (`list`, `get`, `find_by_name`, `get_or_none`, `create`, `update`, `delete`); `list_versions`, `list_deprecated_resources`, `generate_kubeconfig`, `upgrade`, `upgrade_service_level`, `rotate_ccm_credentials`, `rotate_csi_credentials`, `rotate_karpenter_credentials`, `rotate_operators_ca`, `get_authority_cert`, `get_inspection`, `generate_karpenter_nodeclass`, `generate_karpenter_nodepool`; nodepool (`list_nodepools`, `get_nodepool`, `create_nodepool`, `update_nodepool`, `scale_nodepool`, `evict_nodepool_members`, `delete_nodepool`).
 - **Live sequence**:
-  1. `create` cluster `<prefix>-sks` (service-level `starter`, smallest version available, CNI `calico`).
-  2. Wait `state == "running"` (5–10 min).
-  3. `create_nodepool(<cluster_id>, size=1, instance_type=standard.tiny, disk_size=20)`.
-  4. Wait nodepool ready.
-  5. **Upscale**: `update_nodepool` size to 2; wait; assert; `update_nodepool` size back to 1.
-  6. `generate_kubeconfig` for a temp user `<prefix>-kube`; assert kubeconfig YAML present, **don't print**.
-  7. `delete_nodepool`.
-  8. `delete` cluster.
-- **Cost**: starter control plane is free; 1 × standard.tiny for ~15 min ≈ €0.001; brief 2x during upscale.
+  1. `create` cluster `<prefix>-sks` (`starter`, lowest version available, CNI `calico`, addons `exoscale-cloud-controller` + `exoscale-container-storage-interface`); wait `running`.
+  2. `generate_kubeconfig` for a temp user `<prefix>-kube` (with `groups`); assert present, **don't print**.
+  3. `get_authority_cert` for all three authorities; `get_inspection` (`None` on a fresh cluster); `rotate_ccm_credentials`, `rotate_csi_credentials`.
+  4. `create_nodepool` (size=1, `standard.small`, disk 20, `kubelet_image_gc`); wait `running`; assert the image-GC settings.
+  5. `scale_nodepool` to 2; wait; `evict_nodepool_members` one named member; wait for size 1.
+  6. `upgrade` to the next supported version (if any); `upgrade_service_level` to `pro`.
+  7. `update` addons + `karpenter` and `enable-operators-ca`; `rotate_karpenter_credentials`, `rotate_operators_ca`; both Karpenter generators.
+  8. `delete_nodepool`; `delete` cluster.
+- **Cost**: a few cents — the `pro` control plane is billed after step 6, and 2 × `standard.small` run briefly during the scale step.
 - **Risk**: longest total runtime (~15 min). Cluster delete must complete before nodepool ids release.
 
 #### 22. `kms` (key + rotation + crypto) — `EXOSCALE_TEST_KMS=1`
@@ -321,7 +323,7 @@ not hardcoded).
 
 #### `api-key` create — **gated, off by default**
 - The API key create works without email side-effects, but the **secret is returned exactly once** and would briefly exist as an attachment to a role.
-- Plan: create key bound to the Tier 1 `<prefix>-role`, assert `.secret` is non-empty (without printing it), then immediately `delete` both the key and the role.
+- Plan: create key bound to its own temporary deny-all role `<prefix>-role-for-key`, assert `.secret` is non-empty (without printing it), then immediately `delete` both the key and the role.
 - Gated separately: `EXOSCALE_TEST_TIER_1_API_KEY=1` (off even within Tier 1 unless you flip this).
 
 ---
@@ -338,7 +340,7 @@ If every tier is enabled and a single full run completes successfully:
 | 3 | < €0.05 (most of this is the instance type-change cycle) |
 | 4 LB | < €0.01 |
 | 4 DBaaS | €0.01–0.05 (depends on cheapest plan in your account) |
-| 4 SKS | < €0.01 |
+| 4 SKS | a few cents (`pro` is billed; brief 2 × `standard.small`) |
 | **Total worst case** | **~€0.10 per full run** |
 
 If a run *crashes* mid-way and orphans the most expensive thing (a DBaaS
@@ -353,22 +355,23 @@ designed to make this rare.
 Every per-asset test follows this skeleton:
 
 ```python
-def test_<asset>_lifecycle(live_client, run_id, tracker):
+def test_<asset>_lifecycle(live_client, run_id, tracker, tier_<n>_enabled):
     # 1. PROVISION
-    created = <Client>(live_client).create(payload=<minimal_payload(run_id)>)
-    tracker.register(<Client>, created.id)        # for guaranteed teardown
+    client = <Client>(live_client)
+    created = client.create(<minimal_payload(run_id)>)
+    tracker.register("<asset>", lambda: client.delete(created.id), created.id)  # guaranteed teardown
 
     # 2. VERIFY
-    fetched = <Client>(live_client).get(created.id)
+    fetched = client.get(created.id)
     assert_minimum_fields(fetched)
 
     # 3. MUTATE (where the API supports it)
-    <Client>(live_client).update(created.id, {...})
-    <Client>(live_client).<extra_op>(...)         # start/stop/scale/resize/...
+    client.update(created.id, {...})
+    client.<extra_op>(...)                        # start/stop/scale/resize/...
 
     # 4. CLEANUP
-    <Client>(live_client).delete(created.id)
-    tracker.unregister(<Client>, created.id)
+    client.delete(created.id)
+    tracker.unregister(created.id)
 ```
 
 The session finalizer iterates the tracker; anything left is a leak and is
@@ -382,14 +385,13 @@ deleted with the safety-prefix guard.
       **test/staging tenant**, not production.
 - [ ] `EXOSCALE_API_KEY` / `EXOSCALE_API_SECRET` are injected into the
       environment; no secrets on the command line.
-- [ ] `EXOSCALE_ZONE` set to a zone you actually want to provision in.
+- [ ] `EXOSCALE_TEST_ZONE` set to a zone you actually want to provision in.
 - [ ] `EXOSCALE_RUN_LIVE_TESTS=1`.
 - [ ] Tier flags set explicitly for what you approved.
 - [ ] `EXOSCALE_ALLOW_MUTATION=1` *only* for the tiers you approved.
 - [ ] No leftover `conn-test-*` resources from a prior crashed run. Quick
       manual check: `exoscale-<asset> list | jq '.[] | select(.name | startswith("conn-test-"))'`
-      for the asset types you're about to test, or run the orphan-cleanup
-      snippet at the top of [live-test-results.md](live-test-results.md).
+      for the asset types you're about to test.
 
 ---
 
@@ -414,9 +416,9 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 | 11 | instance + lifecycle | 3 | ✅ | `standard.tiny`, 10 GiB, stop/start/reboot |
 | 12 | instance-pool + scale | 3 | ✅ | size 1 → 2 → 1 |
 | 13 | compute snapshot | 3 | ✅ | created from the instance, exported state |
-| 14 | load-balancer + service | 4-LB | ✅ | own backing pool, full-spec update_service |
+| 14 | load-balancer + service | 4-LB | ✅ | own backing pool, full-spec update_service, get_service / field resets (2026-11-09) |
 | 15 | dbaas | 4-DBaaS | ✅ | cheapest pg plan, connection-info, password reveal |
-| 16 | sks | 4-SKS | ✅ | starter + 1× tiny nodepool, kubeconfig (with `groups`) |
+| 16 | sks | 4-SKS | ✅ | starter→pro, 1× small nodepool, kubeconfig, CA/inspection, rotation, scale/evict, upgrade, Karpenter (2026-11-09) |
 | 17 | iam-user | — | read-only (intentional) | list / get only — create would spam invite emails |
 | 18 | api-key | 1-opt | ✅ | gated by `EXOSCALE_TEST_TIER_1_API_KEY=1` (off by default; secret-bearing response) |
 | 19 | vpc (+subnets, routes) | 1 + 3 | ✅ | all 16 endpoints verified 2026-11-02; CRUD + subnet + route in Tier 1, attach/detach in Tier 3 |
@@ -427,24 +429,37 @@ run log, total cost, runtime, and the bugs each tier surfaced.
 For a granular per-asset view (fields, gotchas, end-to-end examples), see
 the [asset type reference](asset-types/README.md).
 
-## Extensions branch additions (next run)
+## Coverage added after the first tier runs
 
-New live coverage added alongside the feature work, slotted into the existing
-tiers — no new switches:
+Live coverage added alongside later feature work, slotted into the existing
+tiers (the template test needs its own image env vars):
 
 | Surface | Test | Tier |
 |---|---|---|
-| zones / templates / instance-types catalogues | `test_smoke.py` (3 new read-only tests) | 0 |
-| `ensure()` idempotency | `test_tier_1.py::test_ensure_is_idempotent` | 1 |
-| SOS object put/list/get/presign/delete | `test_tier_2.py::test_bucket_object_roundtrip` | 2 |
-| Elastic IP reverse DNS | `test_tier_2.py::test_elastic_ip_reverse_dns` | 2 |
-| Instance vertical scaling | `test_tier_3.py::test_instance_scale` | 3 |
-| DBaaS users + update | extended `test_dbaas_pg_lifecycle` | 4 |
+| zones / templates / instance-types catalogues | `test_smoke.py` (3 new read-only tests) | 0 ✅ |
+| `ensure()` idempotency | `test_tier_1.py::test_ensure_is_idempotent` | 1 ✅ |
+| SOS object put/list/get/presign/delete | `test_tier_2.py::test_bucket_object_roundtrip` | 2 ✅ |
+| Elastic IP reverse DNS | `test_tier_2.py::test_elastic_ip_reverse_dns` | 2 ✅ |
+| Instance vertical scaling | `test_tier_3.py::test_instance_scale` | 3 ✅ |
+| DBaaS users + update | extended `test_dbaas_pg_lifecycle` | 4 ✅ |
 | VPC + subnet + route lifecycle | `test_tier_1.py::test_vpc_lifecycle` | 1 ✅ |
 | VPC subnet attach / detach | `test_tier_3.py::test_vpc_subnet_attach_detach` | 3 ✅ |
 | Peer-SG-by-id rule (typed reference) | extended `test_tier_1.py::test_security_group_lifecycle` | 1 ✅ |
 | deploy-target / event read-only reachability | `test_smoke.py` (added to `READ_ONLY_CLIENTS`) | 0 ✅ |
 | DBaaS first-class `version` + generic `get_settings` | extended `test_tier_4.py::test_dbaas_pg_lifecycle` | 4 ✅ |
+| Template register / delete | `test_tier_1.py::test_template_register_delete` (needs `EXOSCALE_TEST_TEMPLATE_URL` / `EXOSCALE_TEST_TEMPLATE_CHECKSUM`) | 1 ✅ |
+| DBaaS CA certificate, IAM organization policy (reads) | `test_smoke.py::test_dbaas_ca_certificate_is_pem`, `::test_iam_organization_policy_is_readable` | 0 ✅ |
+| DBaaS logs / metrics, SKS deprecated resources (reads) | `test_smoke.py::test_dbaas_logs_and_metrics_are_readable`, `::test_sks_deprecated_resources_is_readable` | 0 (skip without a service / cluster) |
+| KMS key lifecycle + crypto | `test_kms.py::test_kms_key_lifecycle` | KMS ✅ |
+| DNS zone-file export | extended `test_tier_1.py::test_dns_lifecycle` | 1 ✅ |
+| Private-network labels reset | extended `test_tier_1.py::test_private_network_lifecycle` | 1 (skips: PN create disabled) |
+| SG external sources | extended `test_tier_1.py::test_security_group_lifecycle` | 1 ✅ |
+| Instance rescue / protection / password / disk resize / TPM / reset; pool evict; snapshot revert / promote, template copy | extended `test_instance_lifecycle`, `test_instance_pool_lifecycle`, `test_compute_snapshot_lifecycle` | 3 ✅ |
+| SG / EIP attach from the group/address side, EIP reset | `test_tier_3.py::test_instance_network_attachments` | 3 ✅ |
+| Private-network static lease + `update_instance_ip` | `test_tier_3.py::test_private_network_static_lease` | 3 (skips: PN create disabled) |
+| VPC subnet pinned `ipv4` | extended `test_tier_3.py::test_vpc_subnet_attach_detach` | 3 ✅ |
+| LB `get_service` / field resets | extended `test_tier_4.py::test_load_balancer_lifecycle` | 4 ✅ |
+| SKS upgrade / pro / scale / evict / rotation / CA / inspection / Karpenter | extended `test_tier_4.py::test_sks_lifecycle` | 4 ✅ |
 
 Run any tier with `EXOSCALE_RECORD=1` to also produce sanitized wire
 recordings for the offline replay suite (see the developer guide).

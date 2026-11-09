@@ -84,13 +84,14 @@ pools.delete(pool.id)          # cascade-deletes member instances
   size to stay correct.
 - **Pass `anti-affinity-groups: [{"id": ...}]` at create to spread members
   across distinct physical hosts** — this is the supported way an instance pool
-  guarantees host spread for HA. Like anti-affinity groups generally, it is
-  **create-only**: it can't be changed on an existing pool, so decide up front.
+  guarantees host spread for HA. Unlike on a single instance, the spec lets
+  `update` change a pool's `anti-affinity-groups` (and `reset_field` clear
+  it); this is not live-verified, so decide up front where you can.
 - **Clear an optional field with `reset_field(id, "description")`.** It wraps
   `DELETE /instance-pool/{id}/{field}`. Resettable fields include
   `description`, `labels`, `anti-affinity-groups`, `security-groups`,
-  `elastic-ips`, `private-networks`, `ssh-key`, `user-data` and
-  `deploy-target`. Use it instead of sending an empty value through `update`.
+  `elastic-ips`, `private-networks`, `ssh-key`, `user-data`,
+  `deploy-target` and `ipv6-enabled`. Use it instead of sending an empty value through `update`.
 - **`evict` picks the members, `scale` does not.** `evict(pool_id, ids)`
   (`PUT instance-pool/{id}:evict`) destroys exactly those member instances and
   lowers `size` to match. Scaling down lets the API choose which members go.

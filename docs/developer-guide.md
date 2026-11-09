@@ -30,8 +30,11 @@ src/exoscale_connector/
   resources/
     _base.py     ResourceClient[ModelT] — generic typed CRUD shared by all asset types
     <asset>.py   One module per asset type: its model(s) + its ResourceClient subclass
+    _reverse_dns.py  Reverse-DNS mixin (instances, elastic IPs)
+    _reset_field.py  ResetFieldMixin — reset_field(id, field) → DELETE /{type}/{id}/{field}
   cli/
     _base.py     run_resource_cli() — shared argparse harness
+    main.py      `exoscale-connector` umbrella — COMMANDS maps asset name → CLI module
     <asset>.py   One thin CLI per asset type (wired to a console_script)
     skill.py     `exoscale-connector skill` — installs the bundled advisor skill
 ```
@@ -187,6 +190,9 @@ template. Steps:
    exoscale-elastic-ip = "exoscale_connector.cli.elastic_ip:main"
    ```
 
+   …and add the asset to `COMMANDS` in `src/exoscale_connector/cli/main.py` so
+   `exoscale-connector <asset>` dispatches to it (nothing checks the two agree).
+
 4. **Write unit tests** `tests/unit/test_<asset>.py` mirroring
    `tests/unit/test_security_group.py` — list/get/find/create(operation)/delete,
    all with mocked HTTP via `responses`. No network.
@@ -205,10 +211,14 @@ template. Steps:
    (`test_llms_txt.py` plus an explicit `--check` step), so commit the
    regenerated files together with the change that caused them.
 
+6. **Update the indexes** — add a row to the table in
+   `docs/asset-types/README.md` and to the coverage table in
+   `docs/user-guide.md`. Nothing in CI enforces either.
+
 ### Finding the right paths and fields
 
 The OpenAPI reference is the *starting* point but not the source of truth —
-live-test runs surfaced **15 spec-vs-reality divergences** (wrong wrapper keys,
+live-test runs have surfaced many spec-vs-reality divergences (wrong wrapper keys,
 wrong HTTP methods, unit mismatches, terminal state names, short/long type
 aliasing, list-only endpoints, …). To avoid re-discovering them the slow way:
 
@@ -233,7 +243,7 @@ auth — not the EXO2-HMAC signer. Its client (`resources/object_storage.py`) wr
 
 ```bash
 pip install -e ".[dev]"
-pytest                                   # unit tests only (mocked, no network)
+pytest tests/unit                        # unit tests (mocked, no network) — as CI runs them
 pytest -m integration                    # opt-in live smoke tests (see below)
 ruff check src tests scripts             # lint
 ruff format --check src tests scripts    # formatting (separate CI gate)
@@ -275,7 +285,9 @@ mypy src                                 # type-check
   GET through a real client on every CI run, catching wire-shape regressions
   that hand-written mocks can't (the mock can use the same wrong key as the
   code, so both agree and both are wrong). Recordings can still contain
-  tenant identifiers — **review each file before committing**.
+  tenant identifiers — **review each file before committing**. The earlier
+  recordings were purged from history for that reason, so no recordings are
+  committed today and the replay test skips until new reviewed ones are added.
 - **Integration tests** (`tests/integration/`) are opt-in and tiered. Enable
   read-only smoke tests with `EXOSCALE_RUN_LIVE_TESTS=1` plus credentials and
   `EXOSCALE_TEST_ZONE`. Mutating tests need `EXOSCALE_ALLOW_MUTATION=1` plus
@@ -288,6 +300,12 @@ mypy src                                 # type-check
   | 2 — cheap, no compute | `EXOSCALE_TEST_TIER_2=1` | < €0.01 |
   | 3 — compute | `EXOSCALE_TEST_TIER_3=1` | < €0.05, ~10–15 min |
   | 4 — LB / DBaaS / SKS | `EXOSCALE_TEST_TIER_4_LB`, `_DBAAS`, `_SKS` | each ~€0.01–0.05, 10–30 min |
+  | KMS (opt-in) | `EXOSCALE_TEST_KMS=1` | key cost; each run leaves a key pending deletion ≥7 days |
+
+  The tier-1 template register/delete sub-test additionally needs
+  `EXOSCALE_TEST_TEMPLATE_URL` and `EXOSCALE_TEST_TEMPLATE_CHECKSUM`, and every
+  created resource is named with the `EXOSCALE_TEST_PREFIX` prefix (default
+  `conn-test`).
 
   The connector ships **no** environment-specific defaults or allowlists —
   configure them for your own setup. See
@@ -303,7 +321,10 @@ watches the official `exoscale` SDK version on PyPI. On change it files an
 summary** that maps the changed spec paths to the connector modules that call
 them (`scripts/drift_operations.py --affected`), a full spec-path →
 module/doc-page mapping legend (`scripts/upstream_drift_map.py`), and an
-evaluation checklist — then refreshes the snapshots. The affected-modules map is
+evaluation checklist. The bot does not refresh the committed snapshots: they
+are advanced inside the reviewed triage PR (see the `exoscale-drift-triage`
+skill), so the baseline moves only after a human accepts the drift. The
+affected-modules map is
 self-enforcing: `tests/unit/test_drift_operations.py` fails if a module calls an
 endpoint outside its collection path that isn't declared in
 `MODULE_SIBLING_OPERATIONS`, so the watcher can't quietly stop attributing a
@@ -332,7 +353,8 @@ It is self-enforcing like the two maps above
   with no 1:1 schema (object storage is S3, not APIv2; `DBaaSService` is a
   flattened union). A new asset type with no mapping fails the test;
 - intentional, live-verified divergences (the documented gotchas — e.g. the
-  flattened load-balancer `healthcheck`, SKS `level`) live in
+  one-time API-key `secret`, `Vpc.default` and `KmsKey.key_spec`, returned live
+  but absent from the schema each model is diffed against) live in
   `ALLOWED_DIVERGENCES` with a reason, and a *stale* allowlist entry that
   suppresses nothing also fails the test.
 
@@ -427,8 +449,10 @@ trusts, so there is no long-lived credential to store or rotate.
 
 That tag push triggers `.github/workflows/release.yml`, which:
 
-- **`build`** — runs the full check suite (ruff, mypy, unit tests), builds the
-  sdist + wheel, and uploads them as an artifact.
+- **`build`** — re-runs CI's checks on the tagged commit (ruff check and
+  format on `src tests scripts`, `mypy src`, the unit tests and the
+  generated-bundle `--check`), builds the sdist + wheel, and uploads them as
+  an artifact.
 - **`publish`** — downloads the artifact and publishes to PyPI via Trusted
   Publishing through the `pypi` GitHub Environment, emitting **PEP 740 build
   attestations** (`attestations: true`) so each artifact is verifiably tied to

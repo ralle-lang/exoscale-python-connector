@@ -22,8 +22,10 @@ returns `None` not `[]` for unconfigured SOS buckets. All pending-live-verificat
 labels cleared from code and docs.
 
 ### ✅ Seed the recorded-fixture archive
-12 JSONL files committed in `eb78136`. Email + API key id scrubbing added to
-the recorder. CI replay active via `test_recorded_replay.py`.
+12 JSONL files were committed on 2026-06-11. Email + API key id scrubbing added
+to the recorder. The recordings were later purged from history (test-tenant
+data), so `test_recorded_replay.py` skips until new reviewed recordings are
+committed.
 
 ### ✅ Merge to main, bump version, tag v0.2.0
 Both branches merged to `main`. `pyproject.toml` + `__version__` bumped to
@@ -34,6 +36,35 @@ Done: the repo + `release.yml` are registered as a trusted publisher for
 `exoscale-connector` on pypi.org, with the `pypi` GitHub environment. Releases
 from `v0.2.0` onward publish over OIDC with no stored token. See the
 [Releasing section](developer-guide.md#releasing) for the current flow.
+
+---
+
+## Milestone: v0.8.0 — DBaaS tier C (issue #136)
+
+The DBaaS remainder of the 2026-08-31 coverage audit plus the DBaaS findings
+of the 2026-11-09 request-level audit, in this order: the migration family,
+the engine-specific endpoints (pg connection pools, upgrade-check,
+allow-replication; mysql `enable/writes`), the Kafka ACLs, and the request
+fields (user `access-control` / `authentication` / `allow-replication` /
+`password`, pg database `lc-collate` / `lc-ctype`, the Valkey user
+access-control update, the per-engine user/role lists). `[BETA]` DBaaS
+operations — integrations, external endpoints, ClickHouse — are excluded.
+
+## Shipped since v0.2.0
+
+See `CHANGELOG.md` for details.
+
+- **0.3.0** (2026-06-11) — AI reference bundle and packaged editor skill.
+- **0.4.0** (2026-06-12) — drift issues name the affected connector modules.
+- **0.5.0** (2026-06-12) — HTTP resilience hardening.
+- **0.6.0** (2026-07-08) — VPC, KMS, deploy targets, events, typed SG rule
+  references, DBaaS `version`, SKS `nvidia-mig-profiles` (#44, #45).
+- **0.6.1** (2026-10-07) / **0.6.2** (2026-10-08) — fixes from the 2026-09-16
+  codebase audit.
+- **0.7.0** (2026-11-02) — coverage-audit tiers A and B (#78); Python floor 3.11.
+- **0.7.1** (2026-11-09) — `VpcClient.attach_subnet(ipv4=)`.
+- **0.7.2** (2026-11-09) — the non-DBaaS request-audit gaps (~40 methods,
+  `reset_field`).
 
 ---
 
@@ -112,13 +143,14 @@ starting point, not the truth).
 **Watch targets** (different granularity each):
 - **APIv2 OpenAPI spec** (`https://openapi-v2.exoscale.com/source.json`) —
   the real drift source for models, paths, and wrapper keys. Diffed in detail.
-- **`python-exoscale` releases** — release-level only; a new release is the
+- **`exoscale` SDK version on PyPI** — release-level only; a new release is the
   cue to re-check that the README's "relationship to the official SDK"
   paragraph still holds.
 
 **Mechanism:**
 - Commit a normalized snapshot (`jq -S`) of the spec under
-  `.github/upstream/`, plus the last-seen SDK release tag.
+  `.github/upstream/`, plus the last-seen SDK version
+  (`python-exoscale-version.txt`).
 - Weekly cron: fetch → normalize → diff with `oasdiff` (spec-aware,
   markdown changelog, ignores cosmetic churn). On change: file the issue
   via `--body-file` (injection hygiene — upstream text never interpolated
@@ -158,25 +190,25 @@ gets implemented together.
 
 | Item | Source | First-pass estimate (impl + full test run) |
 |---|---|---|
-| **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification. Subnet ops now include `PUT /vpc/{}/subnet/{}/attach` + `.../detach` (instance↔subnet membership); `POST .../route` dropped its `name` request property | drift #34, re-confirmed #40, subnet attach/detach + route-`name` drop #43 | ~1 day (new asset type, nested sub-resources, live verify) |
-| **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
-| **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
-| **ClickHouse DBaaS engine** — the new `/dbaas-clickhouse/*` endpoints. Basic lifecycle (create/get/update/delete) and user + password management already work through the engine-generic `DBaaSServiceClient` via `service_type="clickhouse"` (no `_url_type` alias needed). Genuinely unmodelled sub-resources, none engine-specific: `GET /dbaas-settings-clickhouse` (settings discovery), `GET /dbaas-clickhouse/{}/acl-config`, `PUT /dbaas-clickhouse/{}/maintenance/start` — the settings/maintenance-start/acl patterns exist for other engines too and are unmodelled across the board, so promote them as generic DBaaS methods rather than ClickHouse-only. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #43 | ~1–2h |
-| **KMS asset type** — new `/kms-key` client (15 endpoints). Full lifecycle: CRUD, enable/disable, key rotation (`enable-`/`disable-key-rotation`, `rotate`, `list-key-rotations`), crypto ops (`encrypt`, `decrypt`, `re-encrypt`, `generate-data-key`), deletion lifecycle (`schedule-`/`cancel-deletion`), `replicate`. Model + CLI entry point + doc page + live verify. Build to the current spec shape — `POST /kms-key/{id}/schedule-deletion` dropped the required `status` response property in #43. Not in any current module | requested; touched by drift #43 | ~0.5–1 day (crypto ops + live verify) |
-| **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
-| **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
-| **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
-| **VPC subnet `instances` attachment list** — `GET`/`PUT /vpc/{}/subnet/{}` gained an optional `instances` response property: a list of `{id, ipv4}` attachment entries naming the instances bound to the subnet and their leased addresses. Tolerated today by `extra="allow"`, but it is the natural read-side counterpart to the `attach`/`detach` ops the connector already ships, so model it on `VpcSubnet` as a typed list. Affects `src/exoscale_connector/resources/vpc.py`, `docs/asset-types/vpc.md` | drift #57 | ~0.5h |
-| **DBaaS `database` sub-resource** — `POST`/`GET`/`DELETE /dbaas-{pg,mysql}/{service-name}/database[/{database-name}]`. The client creates DBaaS **users** but has no way to create a **database** inside a service, so a provisioned pg/mysql service cannot be finished through the connector alone. Engine-generic in shape (pg + mysql today), so model it like the existing user methods rather than per-engine. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | coverage audit 2026-08-31 | ~3–4h |
-| **DBaaS CA certificate** — `GET /dbaas-ca-certificate`. The CA bundle needed to TLS-verify a connection to a DBaaS service. Direct counterpart to the shipped `get_connection_info()`, which today hands back a host/port the caller has no supported way to verify. Single read endpoint, no live provisioning needed to exercise | coverage audit 2026-08-31 | ~1h |
-| **SKS deprecated-resources pre-upgrade check** — `GET /sks-cluster-deprecated-resources/{id}`: "resources that are scheduled to be removed in future kubernetes releases". The missing safety step next to the already-complete SKS cluster/nodepool lifecycle — read-only, and the natural thing to call before a version upgrade. Affects `src/exoscale_connector/resources/sks.py`, `docs/asset-types/sks.md` | coverage audit 2026-08-31 | ~1h |
-| **DBaaS service logs + metrics** — `POST /dbaas-service-logs/{service-name}` and `POST /dbaas-service-metrics/{service-name}`. Engine-generic observability reads (POST-with-body despite being reads), so one pair of methods serves every engine. Affects `src/exoscale_connector/resources/dbaas.py` | coverage audit 2026-08-31 | ~2h |
-| **IAM organization policy** — `GET`/`PUT /iam-organization-policy` plus `POST /iam-organization-policy:reset`. Org-level policy sitting directly alongside the modelled `/iam-role` and the IAM policy cookbook (the one area the README claims real depth in). **Scope call needed first:** the out-of-scope list excludes `/organization`, which is a *different* path — this family has never actually been ruled on either way. `:reset` is destructive at org scope, so gate it like the other dangerous verbs and keep it off the CLI. Affects `src/exoscale_connector/resources/iam_role.py` or a new module, `docs/iam-policy-cookbook.md` | coverage audit 2026-08-31 | ~2–3h |
-| **Typed-field gaps on shipped models** — response fields present in the spec but absent from the pydantic models, so they are reachable only untyped via `extra="allow"`. The substantive ones: `Instance` (`anti-affinity-groups`, `elastic-ips`, `private-networks`, `ssh-keys`, `user-data`, `public-ip-assignment`, `mac-address`, `disk-encrypted`, `secureboot-enabled`, `tpm-enabled`), `SksCluster` (`oidc`, `feature-gates`, `level`, `enable-kube-proxy`), `InstancePool` (`elastic-ips`, `ssh-keys`, `user-data`, `min-available`), `PrivateNetwork` (`leases`, `options`, `vni`), `LoadBalancerService` (`healthcheck`, `healthcheck-status`). Full list: `python scripts/model_schema_drift.py --summary .github/upstream/openapi-v2.json`. Curate rather than model wholesale — the models are a deliberate subset (see the developer guide) | coverage audit 2026-08-31 | ~3–4h |
-| **DBaaS engine-specific tail** — pg `connection-pool` (`POST`/`GET`/`PUT`/`DELETE /dbaas-postgres/{}/connection-pool[/{name}]`), pg `user/{}/allow-replication`, pg `{service}/upgrade-check`, mysql `enable/writes`. Genuinely per-engine, so these do *not* collapse into generic methods the way settings/acl/maintenance did | coverage audit 2026-08-31 | ~3–4h |
-| **DBaaS Kafka sub-resources** — `topic/acl-config[/{acl-id}]`, `schema-registry/acl-config[/{acl-id}]`, `connect/password/reveal`. Kafka-only; verify the engine is enabled on the test tenant **before** committing to this row (D4 — ClickHouse was retired for exactly this reason) | coverage audit 2026-08-31 | ~3–4h |
-| **DBaaS migration family** — `/dbaas-{pg,mysql,valkey}/{}/migration/stop`, `GET /dbaas-migration-status/{name}`, `GET /dbaas-task-migration-check/{service}`, `GET /dbaas-task/{service}/{id}`. Coherent as one unit; `dbaas-task` is the generic async-task read the others report through | coverage audit 2026-08-31 | ~2–3h |
-| **DBaaS external endpoints + integrations** — ~15 paths: `/dbaas-external-endpoint-{datadog,prometheus,rsyslog,elasticsearch,opensearch}`, `/dbaas-external-endpoint/{}/attach\|detach`, `/dbaas-external-endpoint-types`, `/dbaas-external-endpoints`, `/dbaas-integration[-types,-settings]`, `/dbaas-external-integration*`. Log/metric shipping to third-party observability. Largest single item here and the least core to provisioning — the obvious first thing to descope if 0.7.0 runs long. Needs a scope call under D4: several endpoint types may not be enabled on a default tenant | coverage audit 2026-08-31 | ~8–12h |
+| ✅ 0.6.0 — **VPC asset type** — new `/vpc` client with nested `subnet` and `route` sub-resources (nested-resource shape like `sks.py` nodepools); model, CLI entry point, doc page, live verification. Subnet ops now include `PUT /vpc/{}/subnet/{}/attach` + `.../detach` (instance↔subnet membership); `POST .../route` dropped its `name` request property | drift #34, re-confirmed #40, subnet attach/detach + route-`name` drop #43 | ~1 day (new asset type, nested sub-resources, live verify) |
+| ✅ 0.6.0 — **DBaaS MySQL + Valkey `version`** — expose the new optional request property on `PUT /dbaas-valkey/{name}` and `PUT /dbaas-mysql/{name}` (update) as a first-class param | drift #34 (Valkey), #40 (MySQL) | ~2h |
+| ✅ 0.6.0 — **SKS nodepool `nvidia-mig-profiles`** — expose the new optional request property on nodepool create + update; add the response field to the model | drift #34, re-confirmed #40 | ~1–2h |
+| Retired 2026-08-01 (D4; the generic settings/acl/maintenance methods shipped in 0.6.0) — **ClickHouse DBaaS engine** — the new `/dbaas-clickhouse/*` endpoints. Basic lifecycle (create/get/update/delete) and user + password management already work through the engine-generic `DBaaSServiceClient` via `service_type="clickhouse"` (no `_url_type` alias needed). Genuinely unmodelled sub-resources, none engine-specific: `GET /dbaas-settings-clickhouse` (settings discovery), `GET /dbaas-clickhouse/{}/acl-config`, `PUT /dbaas-clickhouse/{}/maintenance/start` — the settings/maintenance-start/acl patterns exist for other engines too and are unmodelled across the board, so promote them as generic DBaaS methods rather than ClickHouse-only. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | drift #43 | ~1–2h |
+| ✅ 0.6.0 — **KMS asset type** — new `/kms-key` client (15 endpoints). Full lifecycle: CRUD, enable/disable, key rotation (`enable-`/`disable-key-rotation`, `rotate`, `list-key-rotations`), crypto ops (`encrypt`, `decrypt`, `re-encrypt`, `generate-data-key`), deletion lifecycle (`schedule-`/`cancel-deletion`), `replicate`. Model + CLI entry point + doc page + live verify. Build to the current spec shape — `POST /kms-key/{id}/schedule-deletion` dropped the required `status` response property in #43. Not in any current module | requested; touched by drift #43 | ~0.5–1 day (crypto ops + live verify) |
+| ✅ 0.6.0 — **Deploy targets** — read-only `/deploy-target` (list) + `/deploy-target/{id}` (get); `type` is `edge`/`dedicated` (placement targets for instance deploys). Small read client; also wire the already-unmodelled `deploy-target` reference into `InstanceClient.create` so an instance can be pinned to a target. Affects `src/exoscale_connector/resources/instance.py` + new module | requested | ~2–3h |
+| ✅ 0.6.0 — **Events / audit log** — read-only `/event` client (`GET /event`) returning the audit event stream, so an automated run can be followed by a "what changed / who did it" check. Model + read method + doc page | requested | ~2h |
+| ✅ 0.6.0 — **Full security-group rule reference typing (private + public)** — today `SecurityGroupRule.security_group` is a bare `Reference` (id-only), which covers private peers but cannot express an Exoscale-managed **public** SG source/dest (needs `visibility: "public"`). Replace it with a dedicated `security-group-resource` model (`id`, `name`, `visibility`) so both private (`{id}`) and public (`{id, visibility}`) references are typed on request and round-tripped on response. Add a live test for a peer-SG-by-id rule — tier-1 currently only exercises a CIDR `network` rule. Affects `src/exoscale_connector/resources/security_group.py`, `models.py`, `docs/asset-types/security-group.md` | requested | ~2–3h |
+| ✅ 0.7.0 — **VPC subnet `instances` attachment list** — `GET`/`PUT /vpc/{}/subnet/{}` gained an optional `instances` response property: a list of `{id, ipv4}` attachment entries naming the instances bound to the subnet and their leased addresses. Tolerated today by `extra="allow"`, but it is the natural read-side counterpart to the `attach`/`detach` ops the connector already ships, so model it on `VpcSubnet` as a typed list. Affects `src/exoscale_connector/resources/vpc.py`, `docs/asset-types/vpc.md` | drift #57 | ~0.5h |
+| ✅ 0.7.0 — **DBaaS `database` sub-resource** — `POST`/`GET`/`DELETE /dbaas-{pg,mysql}/{service-name}/database[/{database-name}]`. The client creates DBaaS **users** but has no way to create a **database** inside a service, so a provisioned pg/mysql service cannot be finished through the connector alone. Engine-generic in shape (pg + mysql today), so model it like the existing user methods rather than per-engine. Affects `src/exoscale_connector/resources/dbaas.py`, `docs/asset-types/dbaas.md` | coverage audit 2026-08-31 | ~3–4h |
+| ✅ 0.7.0 — **DBaaS CA certificate** — `GET /dbaas-ca-certificate`. The CA bundle needed to TLS-verify a connection to a DBaaS service. Direct counterpart to the shipped `get_connection_info()`, which today hands back a host/port the caller has no supported way to verify. Single read endpoint, no live provisioning needed to exercise | coverage audit 2026-08-31 | ~1h |
+| ✅ 0.7.0 — **SKS deprecated-resources pre-upgrade check** — `GET /sks-cluster-deprecated-resources/{id}`: "resources that are scheduled to be removed in future kubernetes releases". The missing safety step next to the already-complete SKS cluster/nodepool lifecycle — read-only, and the natural thing to call before a version upgrade. Affects `src/exoscale_connector/resources/sks.py`, `docs/asset-types/sks.md` | coverage audit 2026-08-31 | ~1h |
+| ✅ 0.7.0 — **DBaaS service logs + metrics** — `POST /dbaas-service-logs/{service-name}` and `POST /dbaas-service-metrics/{service-name}`. Engine-generic observability reads (POST-with-body despite being reads), so one pair of methods serves every engine. Affects `src/exoscale_connector/resources/dbaas.py` | coverage audit 2026-08-31 | ~2h |
+| ✅ 0.7.0 — **IAM organization policy** — `GET`/`PUT /iam-organization-policy` plus `POST /iam-organization-policy:reset`. Org-level policy sitting directly alongside the modelled `/iam-role` and the IAM policy cookbook (the one area the README claims real depth in). **Scope call needed first:** the out-of-scope list excludes `/organization`, which is a *different* path — this family has never actually been ruled on either way. `:reset` is destructive at org scope, so gate it like the other dangerous verbs and keep it off the CLI. Affects `src/exoscale_connector/resources/iam_role.py` or a new module, `docs/iam-policy-cookbook.md` | coverage audit 2026-08-31 | ~2–3h |
+| ✅ 0.7.0 — **Typed-field gaps on shipped models** — response fields present in the spec but absent from the pydantic models, so they are reachable only untyped via `extra="allow"`. The substantive ones: `Instance` (`anti-affinity-groups`, `elastic-ips`, `private-networks`, `ssh-keys`, `user-data`, `public-ip-assignment`, `mac-address`, `disk-encrypted`, `secureboot-enabled`, `tpm-enabled`), `SksCluster` (`oidc`, `feature-gates`, `level`, `enable-kube-proxy`), `InstancePool` (`elastic-ips`, `ssh-keys`, `user-data`, `min-available`), `PrivateNetwork` (`leases`, `options`, `vni`), `LoadBalancerService` (`healthcheck`, `healthcheck-status`). Full list: `python scripts/model_schema_drift.py --summary .github/upstream/openapi-v2.json`. Curate rather than model wholesale — the models are a deliberate subset (see the developer guide) | coverage audit 2026-08-31 | ~3–4h |
+| → #136 (0.8.0) — **DBaaS engine-specific tail** — pg `connection-pool` (`POST`/`GET`/`PUT`/`DELETE /dbaas-postgres/{}/connection-pool[/{name}]`), pg `user/{}/allow-replication`, pg `{service}/upgrade-check`, mysql `enable/writes`. Genuinely per-engine, so these do *not* collapse into generic methods the way settings/acl/maintenance did | coverage audit 2026-08-31 | ~3–4h |
+| → #136 (0.8.0) — **DBaaS Kafka sub-resources** — `topic/acl-config[/{acl-id}]`, `schema-registry/acl-config[/{acl-id}]`, `connect/password/reveal`. Kafka-only; verify the engine is enabled on the test tenant **before** committing to this row (D4 — ClickHouse was retired for exactly this reason) | coverage audit 2026-08-31 | ~3–4h |
+| → #136 (0.8.0) — **DBaaS migration family** — `/dbaas-{pg,mysql,valkey}/{}/migration/stop`, `GET /dbaas-migration-status/{name}`, `GET /dbaas-task-migration-check/{service}`, `GET /dbaas-task/{service}/{id}`. Coherent as one unit; `dbaas-task` is the generic async-task read the others report through | coverage audit 2026-08-31 | ~2–3h |
+| Deferred (D4) — **DBaaS external endpoints + integrations** — ~15 paths: `/dbaas-external-endpoint-{datadog,prometheus,rsyslog,elasticsearch,opensearch}`, `/dbaas-external-endpoint/{}/attach\|detach`, `/dbaas-external-endpoint-types`, `/dbaas-external-endpoints`, `/dbaas-integration[-types,-settings]`, `/dbaas-external-integration*`. Log/metric shipping to third-party observability. Largest single item here and the least core to provisioning — deferred past 0.7.0 (D4 tenant-enablement probe first). Needs a scope call under D4: several endpoint types may not be enabled on a default tenant | coverage audit 2026-08-31 | ~8–12h |
 
 _Running total: ~3 days (~25h) — past the ~8–16h graduation window.
 **Graduated into milestone 0.6.0 as two issues:** KMS as its own issue (large,
@@ -189,8 +221,8 @@ _**Batched issue (#45) implemented** on `feat/additive-apiv2-batch`: VPC
 (+subnets/routes/attach-detach), full SG rule-reference typing, deploy targets
 (+instance wiring), events, generic DBaaS settings/acl/maintenance, first-class
 DBaaS `version`, and SKS `nvidia-mig-profiles` — unit-tested, `ruff`/`mypy`/llms
-`--check` green; live verification per docs/live-test-plan.md and merge pending.
-KMS (#44) still open._
+`--check` green. **#45 and KMS (#44) shipped in 0.6.0** (2026-07-08); VPC and
+KMS were fully live-verified in 0.7.0 (2026-11-02)._
 
 _Post-graduation running total: **~29–38h (~4–5 days)** — well past the ~8–16h
 graduation window. **Graduated into milestone 0.7.0 as one batched issue**, per
@@ -323,7 +355,12 @@ should **not** keep re-adding them to the backlog:
   matching enum value on request and response). Revisit once it stabilises.
   The #71 response-side enum addition is the only warning-level change oasdiff
   has raised here so far; it is harmless because `/ai/*` is unmodelled, and the
-  D3 `Literal`-pin edge case still only applies to `iam_role.py`.
+  D3 `Literal`-pin edge case does not apply to any current model.
+- **`[BETA]` operations** — not shipped without the maintainer's explicit OK
+  (e.g. `POST /iam-role/{id}/assume`, dropped from 0.7.2). The VPC API is the
+  sole already-shipped exception. Record a dropped op in `KNOWN_UNCALLED`
+  (`scripts/request_field_audit.py`) with the reason, so the request audit stays
+  clean.
 
 ---
 
@@ -346,18 +383,18 @@ AI-flavored beyond generated docs lives outside this repo.
 Every `upstream-drift` issue is evaluated with Claude Code when it lands, and
 each change is sorted into one of three buckets:
 
-- **Breaking → fix now, own PR.** Renamed/removed/retyped/newly-required request
-  fields (turns `test_model_schema_drift.py` red). Edge case: a new enum value on
-  a field pinned with `Literal` is also breaking — `iam_role.py` is the only such
-  model today, so plain-`str` enum additions elsewhere are tolerated/additive.
+- **Breaking → fix now, own PR.** Renamed/removed/retyped/newly-required fields
+  on a modelled schema (turns `test_model_schema_drift.py` red). Edge case: a new
+  enum value on a field pinned with `Literal` would also be breaking — no model
+  pins one today (enum fields are plain `str`), so enum additions are additive.
 - **Doc-gotcha invalidation → fix now, trivial.** A drift that makes a documented
   gotcha wrong (changed default, an "always null" field that starts returning
   data) without breaking a model. Correcting misinformation is cheaper than
   carrying it; it does not wait in the backlog.
 - **Additive → backlog above, batched.** New optional first-class params, new
   endpoints, new asset types. Harvested into the backlog table before the drift
-  issue is closed (the snapshot refreshes on every run, so unharvested additive
-  content is lost otherwise).
+  issue is closed (the triage PR advances the committed snapshot, so additive
+  content not harvested before then is lost from the next diff).
 
 **Graduation is effort-based, not count- or time-based.** Each additive item gets
 a rough impl + full-test-run estimate during evaluation. When the accumulated
@@ -426,7 +463,7 @@ offline work — no network, no tenant, no cost:
   engines are never spelled literally — `dbaas.py` interpolates
   `f"dbaas-{self._url_type(service_type)}/…"`, so `/dbaas-mysql`, `/dbaas-kafka`
   and friends look unmodelled while being fully covered. Same for the mixins
-  (`_reverse_dns.py`) and the SKS sub-resource endpoints. Resolve how a path is
+  (`_reverse_dns.py`, `_reset_field.py`) and the SKS sub-resource endpoints. Resolve how a path is
   *constructed* before calling it a gap.
 - **Field-level.** `python scripts/model_schema_drift.py --summary
   .github/upstream/openapi-v2.json` already prints unmodelled optional fields per

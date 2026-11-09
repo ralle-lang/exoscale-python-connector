@@ -108,8 +108,8 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
     * ``id_field`` and ``name_field`` are both ``"name"`` — the service name
       is the unique identifier.
-    * :meth:`get` uses the generic ``dbaas-service/{name}`` endpoint, which
-      works across all service types.
+    * :meth:`get` lists ``dbaas-service`` to find the service's type, then
+      fetches ``dbaas-{type}/{name}`` (``GET dbaas-service/{name}`` 404s).
     * :meth:`create` requires an explicit ``service_type`` because the create
       endpoint is type-specific (``POST dbaas-{type}/{name}``).  After the
       create call returns the client re-fetches the service by name.

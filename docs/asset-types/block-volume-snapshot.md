@@ -11,7 +11,7 @@ class BlockVolumeSnapshot(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
     size: Optional[int]                   # GiB (matches the source volume size at snapshot time)
-    state: Optional[str]                  # "snapshotting" -> "created"
+    state: Optional[str]                  # "creating" -> "created"
     created_at: Optional[str]
     labels: Optional[Dict[str, str]]
 ```
@@ -45,6 +45,8 @@ snapshots = BlockVolumeSnapshotClient(client)
 # Create via the parent volume
 op = volumes.create_snapshot(volume_id)
 snap_id = op.reference_id
+# ...or from the snapshot client (returns the BlockVolumeSnapshot)
+snap = snapshots.create_from_volume(volume_id)
 
 # Read
 snap = snapshots.get(snap_id)
@@ -54,8 +56,9 @@ all_snaps = snapshots.list()
 snapshots.update(snap_id, {"labels": {"keep": "yes"}})
 snapshots.delete(snap_id)
 
-# Create a NEW volume from this snapshot (use BlockVolumeSnapshotClient.create_from_volume
-# on the snapshot client to restore — see the connector source for the exact payload)
+# Restore: create a NEW volume from this snapshot (size defaults to the source
+# volume's, may be larger). Follows the spec; not live-verified.
+volumes.create({"name": "restored", "block-storage-snapshot": {"id": snap_id}})
 ```
 
 ## Gotchas

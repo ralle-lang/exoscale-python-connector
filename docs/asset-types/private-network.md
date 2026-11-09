@@ -94,8 +94,10 @@ pn.detach_instance(network.id, instance_id)
 - **Creation can be disabled per tenant.** On 2026-11-09 the test tenant
   answered `403 Operation 'create-private-network' not enabled` while listing
   still worked. That is a product gate on the account, not an IAM-role
-  refusal. `update_instance_ip` and `reset_field` are therefore unit-tested
-  only for now.
+  refusal. CRUD was live-verified on 2026-06-01; `attach_instance` /
+  `detach_instance`, the `ip=` static lease, `update_instance_ip` and
+  `reset_field` are not live-verified (unit-tested only) until creation is
+  possible again.
 
 ## End-to-end example
 

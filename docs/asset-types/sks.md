@@ -7,6 +7,12 @@ instances spun up by Exoscale's control plane.
 ## Model
 
 ```python
+class SksKubeletImageGc(ExoscaleModel):
+    high_threshold: Optional[int]                # disk-usage % that triggers image GC
+    low_threshold: Optional[int]                 # GC frees down to this %
+    min_age: Optional[str]                       # e.g. "2m"
+
+
 class SksNodepoolTaint(ExoscaleModel):
     value: Optional[str]
     effect: Optional[str]                        # "NoExecute" | "NoSchedule" | "PreferNoSchedule"
@@ -62,6 +68,14 @@ class SksOidc(ExoscaleModel):
     groups_claim: Optional[str]
     groups_prefix: Optional[str]
     required_claim: Optional[Dict[str, str]]
+
+
+class SksDeprecatedResource(ExoscaleModel):     # list_deprecated_resources() item
+    group: Optional[str]
+    version: Optional[str]
+    resource: Optional[str]
+    subresource: Optional[str]
+    removed_release: Optional[str]
 ```
 
 ## Addons
@@ -84,7 +98,7 @@ for block-volume-backed PersistentVolumeClaims.
 ```bash
 exoscale-sks list-clusters
 exoscale-sks get-cluster --id <uuid>
-exoscale-sks create-cluster --json '{"name":"prod-k8s","level":"starter","cni":"calico","version":"1.30"}'
+exoscale-sks create-cluster --json '{"name":"prod-k8s","level":"starter","cni":"calico","version":"<from list_versions()>"}'
 exoscale-sks delete-cluster --id <uuid>
 
 exoscale-sks list-nodepools --cluster-id <uuid>
@@ -128,6 +142,8 @@ op = sks.create_nodepool(cluster.id, SksNodepool(
     disk_size=20,
 ))
 np_id = op.reference_id
+np = sks.get_nodepool(cluster.id, np_id)
+sks.update_nodepool(cluster.id, np_id, {"description": "general workers"})
 
 # Scale, or remove specific nodes (member ids from the nodepool's instance pool)
 sks.scale_nodepool(cluster.id, np_id, 3)
@@ -189,11 +205,10 @@ sks.delete(cluster.id)
   `sks-cluster/<id>/...`.
 - **`create_nodepool` returns an `Operation`, not the nodepool.** This
   breaks the otherwise-uniform "create returns the resource" contract,
-  but it is deliberate: the API has no standalone nodepool list/get
-  endpoint — nodepools are only visible embedded in the cluster's detail
-  response. Use `op.reference_id` and then read the nodepool out of the
-  cluster's `nodepools` array (or `list_nodepools(cluster_id)` which
-  does exactly that).
+  but it is deliberate: there is no nodepool list endpoint, and the create
+  operation carries only the id. Use `op.reference_id`, then
+  `get_nodepool(cluster_id, np_id)` or `list_nodepools(cluster_id)` (which
+  reads the cluster's embedded `nodepools`).
 - **`upgrade` moves the control plane only.** `PUT sks-cluster/{id}/upgrade`
   takes a version from `list_versions()`; check `list_deprecated_resources`
   first. Existing nodes keep their version until they are replaced.
@@ -212,6 +227,10 @@ sks.delete(cluster.id)
   with it fails with `403 A PRO cluster is required`. Upgrade with
   `upgrade_service_level`, then add it through `update` (`addons` is
   updatable).
+- **`rotate_operators_ca` needs the operators CA enabled.** The live test sets
+  `"enable-operators-ca": true` through `update` (on the pro cluster) before
+  rotating it. The field is not typed on `SksCluster`; send it in a dict
+  payload.
 
 ## End-to-end example
 
@@ -219,55 +238,73 @@ Distilled from
 [`tests/integration/test_tier_4.py::test_sks_lifecycle`](../../tests/integration/test_tier_4.py):
 
 ```python
-import time
 from exoscale_connector import ExoscaleClient
-from exoscale_connector.resources.sks import SksClusterClient, SksNodepool
+from exoscale_connector.resources.instance_pool import InstancePoolClient
+from exoscale_connector.resources.sks import (
+    SksClusterClient, SksKubeletImageGc, SksNodepool,
+)
 from tests.integration._fixtures import (
     resolve_instance_type, resolve_sks_version, wait_for_state,
 )
 
 client = ExoscaleClient.from_env(zone="de-fra-1")
 sks = SksClusterClient(client)
+running = lambda: wait_for_state(lambda: sks.get(cluster.id), "running", timeout=1200, interval=15)
 
-# 1. Cluster (cheapest service level + smallest version)
+# 1. Starter cluster (lowest version) with the addons credential rotation needs
+version = resolve_sks_version(client)
 cluster = sks.create({
     "name": "demo-cluster",
-    "version": resolve_sks_version(client),
+    "version": version,
     "cni": "calico",
     "level": "starter",
+    "addons": ["exoscale-cloud-controller", "exoscale-container-storage-interface"],
 })
-wait_for_state(lambda: sks.get(cluster.id), "running", timeout=1200, interval=15)
+running()
 
-# 2. Kubeconfig — never print the contents in real code
-kubeconfig = sks.generate_kubeconfig(cluster.id, {
-    "user": "demo-admin",
-    "groups": ["system:masters"],
-})
-assert kubeconfig  # contains a base64 kubeconfig blob
+# 2. Kubeconfig, CA certs, inspection, rotation — never print the contents
+kubeconfig = sks.generate_kubeconfig(cluster.id, {"user": "demo-admin", "groups": ["system:masters"]})
+for authority in ("control-plane", "aggregation", "kubelet"):
+    assert sks.get_authority_cert(cluster.id, authority)
+sks.get_inspection(cluster.id)          # None on a fresh cluster
+sks.rotate_ccm_credentials(cluster.id); running()
+sks.rotate_csi_credentials(cluster.id); running()
 
-# 3. Nodepool (size=1, standard.small)
-np_op = sks.create_nodepool(cluster.id, SksNodepool(
+# 3. Nodepool (size=1, standard.small) with kubelet image GC
+np_id = sks.create_nodepool(cluster.id, SksNodepool(
     name="workers",
     size=1,
     instance_type={"id": resolve_instance_type(client, "standard.small")},
     disk_size=20,
-))
-np_id = np_op.reference_id
+    kubelet_image_gc=SksKubeletImageGc(high_threshold=85, low_threshold=80, min_age="2m"),
+)).reference_id
+# ...poll sks.get(cluster.id).nodepools until this one is "running"
 
-# Poll the cluster's embedded nodepool list until the node is running
-deadline = time.time() + 1200
-while time.time() < deadline:
-    c = sks.get(cluster.id)
-    np = next((n for n in (c.nodepools or []) if n.id == np_id), None)
-    if np and (np.state or "").lower() == "running":
-        break
-    time.sleep(15)
+# 4. Scale 1 -> 2, then evict one named member (back to 1)
+sks.scale_nodepool(cluster.id, np_id, 2)
+# ...poll until size == 2 and state == "running"
+pool_id = sks.get_nodepool(cluster.id, np_id).instance_pool.id
+victim = InstancePoolClient(client).get(pool_id).instances[0].id
+sks.evict_nodepool_members(cluster.id, np_id, [victim])
 
-# 4. Scale 1 -> 2 -> 1
-sks.update_nodepool(cluster.id, np_id, {"size": 2})
-sks.update_nodepool(cluster.id, np_id, {"size": 1})
+# 5. Control-plane upgrade to the next version, then starter -> pro (billed)
+newer = [v for v in sks.list_versions() if v != version]   # the test picks the next one up
+if newer:
+    sks.upgrade(cluster.id, newer[-1]); running()
+sks.upgrade_service_level(cluster.id); running()
 
-# 5. Cleanup (nodepool first)
+# 6. Pro-only: Karpenter addon + operators CA
+sks.update(cluster.id, {
+    "addons": ["exoscale-cloud-controller", "exoscale-container-storage-interface", "karpenter"],
+    "enable-operators-ca": True,
+})
+running()
+sks.rotate_karpenter_credentials(cluster.id); running()
+sks.rotate_operators_ca(cluster.id); running()
+nodeclass = sks.generate_karpenter_nodeclass(cluster.id)
+karpenter_np = sks.generate_karpenter_nodepool(cluster.id)
+
+# 7. Cleanup (nodepool first)
 sks.delete_nodepool(cluster.id, np_id)
 sks.delete(cluster.id)
 ```

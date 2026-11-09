@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ElasticIPClient.find_by_name`, `ensure()` and `exoscale-elastic-ip find`
+  now match on `description`. Elastic IPs have no `name`, so they never
+  found anything before, although the docs said they matched on description.
+- The release workflow re-runs CI's full check suite (ruff format, `scripts`,
+  generated-bundle check) before building, instead of a subset.
+
+### Documentation
+
+- Swept every guide, README and asset page against the code and tests: CLI
+  subcommand names, model blocks, missing methods, live-verification status,
+  the roadmap's shipped/pending state, and the live-test plan's sequences.
+
 ## [0.7.2] - 2026-11-09
 
 Closes every non-DBaaS gap found by the new request-level coverage audit

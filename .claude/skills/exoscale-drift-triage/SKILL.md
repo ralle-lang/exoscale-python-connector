@@ -93,8 +93,8 @@ for the ground-truth checks (step 3).
      change can invalidate a documented gotcha.
 
 4. **Classify each change** per D3:
-   - **Breaking** (red CI: rename/removal/retype/newly-required request field,
-     or an invalidated gotcha) → fix now.
+   - **Breaking** (red CI: rename/removal/retype/newly-required field on a
+     modelled schema, or an invalidated gotcha) → fix now.
    - **Breaking but CI-invisible** — a **path or path-parameter** change
      (renamed/retyped path segment) on an endpoint the connector calls. Models
      are unaffected, so `test_model_schema_drift.py` stays green and
@@ -109,6 +109,10 @@ for the ground-truth checks (step 3).
      area already on the roadmap's out-of-scope list (`/organization`,
      `/ai/*`, billing/usage reporting, `/console`, ClickHouse). Record it on
      that list if it is new, and harvest nothing.
+   - **`[BETA]` operations** — not shipped without the user's explicit OK; the
+     VPC API is the sole already-shipped exception. Ask before harvesting one,
+     and record a dropped op in `KNOWN_UNCALLED`
+     (`scripts/request_field_audit.py`) with the reason.
 
 5. **Act — breaking (fix now):**
    - Branch: `git switch -c fix/drift-<short-topic>`.
@@ -178,7 +182,7 @@ subtract what the connector actually reaches.
 > `f"dbaas-{self._url_type(service_type)}/…"` — so `/dbaas-mysql`,
 > `/dbaas-postgres`, `/dbaas-kafka` and the rest look unmodelled while being
 > fully covered by the engine-generic client. The same applies to the mixins
-> (`_reverse_dns.py`) and the SKS sub-resource endpoints. A first pass this way
+> (`_reverse_dns.py`, `_reset_field.py`) and the SKS sub-resource endpoints. A first pass this way
 > reported ~55 "missing" families; the real figure was a fraction of that.
 > **Resolve how each path is *constructed* before calling it a gap** — read the
 > client's URL construction, not just its literals. Then subtract the roadmap's
@@ -191,9 +195,10 @@ python scripts/model_schema_drift.py --summary .github/upstream/openapi-v2.json
 ```
 
 Unmodelled optional fields are informational (`extra="allow"` tolerates them),
-but the list mixes incidental fields with substantive ones — e.g. `Instance` has
-no typed `ssh-keys`, `elastic-ips` or `private-networks`. **Curate, do not model
-wholesale**; the models are a deliberate subset.
+but the list mixes incidental fields with substantive ones — e.g. 0.7.0 typed
+`Instance` `ssh-keys` / `elastic-ips` / `private-networks` but deliberately left
+snapshot-consistency flags, `InstancePool.manager` and `SksCluster.audit`
+untyped. **Curate, do not model wholesale**; the models are a deliberate subset.
 
 **Request-level.** Also tooled, and the check the other two cannot replace:
 

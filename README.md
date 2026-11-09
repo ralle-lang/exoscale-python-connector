@@ -80,6 +80,32 @@ exoscale-security-group delete --id <uuid>
 > any injector works (HashiCorp Vault, Infisical, Doppler, …), e.g.
 > `<vault-cli> run -- exoscale-security-group list`.
 
+## User guide
+
+The [user / operator guide](docs/user-guide.md) covers authentication, zones,
+the shared CLI verbs and library usage; the
+[asset type reference](docs/asset-types/README.md) has one page per asset type.
+
+## Admin guide
+
+- **Configuration** is environment-only: `EXOSCALE_API_KEY`,
+  `EXOSCALE_API_SECRET`, `EXOSCALE_ZONE`, `EXOSCALE_API_ENDPOINT`,
+  `EXOSCALE_TIMEOUT`, `EXOSCALE_VERIFY_TLS` (see the
+  [user guide](docs/user-guide.md#authentication)).
+- **Secrets** are injected at startup by any vault CLI
+  (`<vault-cli> run -- …`); nothing is read from files.
+- **Timeouts, retries and backoff** defaults are documented in the
+  [developer guide](docs/developer-guide.md#resilience-timeouts--retries).
+- **Releases** are tag-driven via PyPI Trusted Publishing — see
+  [Releasing](docs/developer-guide.md#releasing).
+
+## Developer guide
+
+The [developer guide](docs/developer-guide.md) covers the architecture, adding
+an asset type, testing (`ruff check src tests scripts`,
+`ruff format --check src tests scripts`, `mypy src`, `pytest tests/unit`), the
+upstream drift watch and the coverage audits.
+
 ## Relationship to the official Exoscale SDK
 
 Exoscale publishes an official, actively maintained Python SDK,
@@ -93,8 +119,8 @@ grew up around the now-retired APIv1 and a lower-level, OpenAPI-generated
 `exoscale.api.v2.Client`. This project instead gives every asset type the same
 uniform, pydantic-typed client plus a matching per-asset CLI. It talks only to
 APIv2, reads credentials only from the environment, polls async operations to
-completion, and backs every asset type with a live test that has run end-to-end
-against a real account. It depends on just `requests` and `pydantic`, and can be
+completion, and backs every asset type with a live test that has run against a
+real account (read-only for a few). It depends on just `requests` and `pydantic`, and can be
 vendored by copying one folder.
 
 ## Documentation
@@ -129,8 +155,9 @@ vendored by copying one folder.
   surfaced and how they were fixed.
 
 Every asset type the connector supports has a live test that has actually run
-end-to-end against a real account; the gotchas in the asset-type pages are
-empirical, not theoretical.
+against a real account (read-only for a few; methods not yet live-verified are
+noted in `CHANGELOG.md` and their docstrings); the gotchas in the asset-type
+pages are empirical, not theoretical.
 
 ## Maintenance & support
 

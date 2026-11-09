@@ -26,7 +26,7 @@ class Event(ExoscaleModel):
 ## CLI
 
 ```bash
-exoscale-event list
+exoscale-event list-events
 ```
 
 ## Library

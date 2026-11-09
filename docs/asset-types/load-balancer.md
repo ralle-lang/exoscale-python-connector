@@ -55,8 +55,9 @@ exoscale-load-balancer create --json '{"name": "web-lb", "description": "public 
 exoscale-load-balancer delete --id <uuid>
 ```
 
-> Service management is exposed via the library client (`add_service` /
-> `update_service` / `delete_service`).
+> Service management and field resets are library-only (`add_service` /
+> `get_service` / `update_service` / `reset_service_field` / `delete_service`,
+> plus `reset_field`).
 
 ## Library
 
@@ -69,9 +70,8 @@ lbs = LoadBalancerClient(ExoscaleClient.from_env(zone="de-fra-1"))
 # Create the LB
 lb = lbs.create({"name": "web-lb", "description": "public web LB"})
 
-# Add a service pointing at a pool. Use a dict payload — the model currently
-# flattens healthcheck fields and lacks instance-pool, so dicts are the more
-# faithful API exercise.
+# Add a service pointing at a pool (a dict or a LoadBalancerService model;
+# both serialise to the same wire shape).
 lbs.add_service(lb.id, {
     "name": "http",
     "protocol": "tcp",
@@ -167,6 +167,12 @@ svc = next(s for s in lbs.get(lb.id).services if s.name == "http")
 lbs.update_service(lb.id, svc.id, {**svc_payload,
     "healthcheck": {**svc_payload["healthcheck"], "interval": 20},
 })
+
+# 4b. Single-service read and field resets; let the service settle before delete
+assert lbs.get_service(lb.id, svc.id).id == svc.id
+lbs.reset_service_field(lb.id, svc.id, "description")
+lbs.reset_field(lb.id, "description")
+wait_for_state(lambda: lbs.get_service(lb.id, svc.id), "running", timeout=300)
 
 # 5. Cleanup in order: service -> LB -> pool
 lbs.delete_service(lb.id, svc.id)

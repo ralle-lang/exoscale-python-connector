@@ -296,10 +296,9 @@ def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> Non
     assert with_policy.policy is not None
     assert "compute" in (with_policy.policy.services or {})
 
-    # assume-role-policy: earlier runs saw no echo on GET, but they sent the old
-    # IAMPolicy shape, which the API may have ignored. Until a run with the spec
-    # {rules: [...]} shape settles it, only verify the call is accepted —
-    # set_assume_role_policy raises on an API/operation failure.
+    # assume-role-policy is accepted but not echoed by GET, even in the spec
+    # {rules: [...]} shape (confirmed live 2026-11-09), so only verify the call
+    # is accepted — set_assume_role_policy raises on an API/operation failure.
     roles.set_assume_role_policy(
         role_id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true"))
     )

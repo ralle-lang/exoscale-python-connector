@@ -1505,10 +1505,11 @@ Inherits the common operations (see above) plus the methods below, if any.
 
 ### Asset type reference
 
-One page per asset type the connector supports. Every page has the same six
-sections — **Overview**, **Model**, **CLI**, **Library**, **Gotchas**,
-**End-to-end example** — and is backed by a passing
-[live test](../live-test-plan.md).
+One page per asset type the connector supports. Every page follows the same
+layout: an overview paragraph, then **Model**, **CLI**, **Library**,
+**Gotchas** and **End-to-end example** (read-only catalogues such as zone or
+instance-type skip the example). The matrix below says how far each type is
+backed by the [live tests](../live-test-plan.md).
 
 If something on a page contradicts the live behaviour, the live test is the
 source of truth — open an issue and the page will be corrected.
@@ -1518,7 +1519,7 @@ source of truth — open an issue and the page will be corrected.
 | Asset type | CLI binary | Live-tested | Tier |
 |---|---|---|---|
 | [security-group (+rules)](security-group.md) | `exoscale-security-group` | ✅ | 1 |
-| [private-network](private-network.md) | `exoscale-private-network` | ✅ | 1 |
+| [private-network](private-network.md) | `exoscale-private-network` | ✅ CRUD (2026-06-01); attach/detach, `update_instance_ip` and `reset_field` not live-verified (create answers 403 "not enabled" on the test tenant since 2026-11-09) | 1/3 |
 | [anti-affinity-group](anti-affinity-group.md) | `exoscale-anti-affinity-group` | ✅ | 1 |
 | [ssh-key](ssh-key.md) | `exoscale-ssh-key` | ✅ | 1 |
 | [iam-role](iam-role.md) | `exoscale-iam-role` | ✅ | 1 |
@@ -1531,16 +1532,20 @@ source of truth — open an issue and the page will be corrected.
 | [block-volume-snapshot](block-volume-snapshot.md) | `exoscale-block-volume-snapshot` | ✅ | 2 |
 | [instance (+lifecycle)](instance.md) | `exoscale-instance` | ✅ | 3 |
 | [instance-pool (+scale)](instance-pool.md) | `exoscale-instance-pool` | ✅ | 3 |
-| [snapshot (compute)](snapshot.md) | `exoscale-snapshot` | ✅ create/list/get/export/delete | 3 |
+| [snapshot (compute)](snapshot.md) | `exoscale-snapshot` | ✅ create/list/get/export/revert/promote/delete | 3 |
 | [load-balancer (+services)](load-balancer.md) | `exoscale-load-balancer` | ✅ | 4 |
 | [dbaas](dbaas.md) | `exoscale-dbaas` | ✅ | 4 |
 | [sks (cluster + nodepool)](sks.md) | `exoscale-sks` | ✅ | 4 |
-| [zone](zone.md) | `exoscale-zone` | ✅ read-only (list/get) | 0 |
-| [template](template.md) | `exoscale-template` | ✅ | 0/1 |
+| [zone](zone.md) | `exoscale-zone` | ✅ read-only (list) | 0 |
+| [template](template.md) | `exoscale-template` | ✅ list/find (0), register/delete (1), copy (3) | 0/1/3 |
 | [instance-type](instance-type.md) | `exoscale-instance-type` | ✅ read-only (list/find-slug) | 0 |
+| [deploy-target](deploy-target.md) | `exoscale-deploy-target` | ✅ read-only (list/get) | 0 |
+| [event](event.md) | `exoscale-event` | ✅ read-only (list) | 0 |
+| [vpc (+subnets, routes)](vpc.md) | `exoscale-vpc` | ✅ all endpoints (2026-11-02); subnet `ipv4` pin 2026-11-09 | 1/3 |
+| [kms (key + crypto)](kms.md) | `exoscale-kms` | ✅ all endpoints (2026-11-02) | KMS opt-in |
 
-Instance scale, reverse DNS, SOS objects, DBaaS users/update, and `ensure()`
-were all live-verified in the 2026-06-10 extensions validation run (see
+Instance scale, elastic-IP reverse DNS, SOS objects, DBaaS users/update, and
+`ensure()` were all live-verified in the 2026-06-10 extensions validation run (see
 [live-test-results.md](../live-test-results.md)). Three spec-vs-reality
 divergences were found and fixed during that run.
 
@@ -1568,7 +1573,7 @@ The full lifecycle distilled from the corresponding live test.
   `EXOSCALE_API_SECRET` / `EXOSCALE_ZONE`. Inject with your secret manager
   (HashiCorp Vault, Infisical, Doppler, …); the connector reads only env vars.
 - **JSON output** from CLIs goes to stdout; errors to stderr; exit 0 on
-  success, 1 on API/connector error, 2 on argparse error.
+  success, 1 on API/connector error, 2 on argparse error, 130 on Ctrl-C.
 - **All resources** are pydantic v2 models with snake_case attributes that
   auto-map to the API's kebab-case JSON keys (e.g. `flow_direction` ↔
   `flow-direction`). Unknown server fields pass through (`extra="allow"`),
@@ -1618,12 +1623,13 @@ aag.delete(group.id)
 
 #### Gotchas
 
-- **No `update` endpoint.** The API does not support modifying an AAG in
-  place — `update()` is intentionally not exposed on this client. To change
-  anything, delete and recreate.
+- **No `update` endpoint.** The API has no `PUT /anti-affinity-group/{id}`;
+  the inherited `update()` fails server-side. To change anything, delete and
+  recreate.
 - **Members are read-only here.** Instances are assigned via the
-  *instance* create/update endpoint by including the AAG id in the
-  instance's `anti-affinity-groups` array.
+  *instance* create payload by including the AAG id in the instance's
+  `anti-affinity-groups` array (it cannot be changed on an existing
+  instance).
 
 #### End-to-end example
 
@@ -1699,13 +1705,17 @@ keys.delete(key_id)
   your one chance to capture it).
 - **`id_field = "key"`** — the path token is the `key` field, not a uuid in
   `id`. `keys.get("EXO...")` calls `GET /api-key/EXO...`.
-- **`update` not exposed.** The API does not allow rotating a key in place —
-  delete and create a new one.
+- **No update endpoint.** `update()` is inherited from the shared client but
+  the API has no update for keys (and the CLI has no `update` verb); to rotate
+  a key, delete it and create a new one.
 - **Tier 1 live test for create is gated separately** (off by default) so
   the standard Tier 1 run never produces a stray secret-bearing response.
   Enable with `EXOSCALE_TEST_TIER_1_API_KEY=1`.
 
 #### End-to-end example
+
+Distilled from
+[`tests/integration/test_tier_1.py::test_api_key_lifecycle`](../../tests/integration/test_tier_1.py):
 
 ```python
 from exoscale_connector import ExoscaleClient
@@ -1744,7 +1754,7 @@ class BlockVolumeSnapshot(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
     size: Optional[int]                   # GiB (matches the source volume size at snapshot time)
-    state: Optional[str]                  # "snapshotting" -> "created"
+    state: Optional[str]                  # "creating" -> "created"
     created_at: Optional[str]
     labels: Optional[Dict[str, str]]
 ```
@@ -1778,6 +1788,8 @@ snapshots = BlockVolumeSnapshotClient(client)
 # Create via the parent volume
 op = volumes.create_snapshot(volume_id)
 snap_id = op.reference_id
+# ...or from the snapshot client (returns the BlockVolumeSnapshot)
+snap = snapshots.create_from_volume(volume_id)
 
 # Read
 snap = snapshots.get(snap_id)
@@ -1787,8 +1799,9 @@ all_snaps = snapshots.list()
 snapshots.update(snap_id, {"labels": {"keep": "yes"}})
 snapshots.delete(snap_id)
 
-# Create a NEW volume from this snapshot (use BlockVolumeSnapshotClient.create_from_volume
-# on the snapshot client to restore — see the connector source for the exact payload)
+# Restore: create a NEW volume from this snapshot (size defaults to the source
+# volume's, may be larger). Follows the spec; not live-verified.
+volumes.create({"name": "restored", "block-storage-snapshot": {"id": snap_id}})
 ```
 
 #### Gotchas
@@ -1846,7 +1859,6 @@ class BlockVolumeSnapshotRef(ExoscaleModel):
 class BlockVolume(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
-    description: Optional[str]
     size: Optional[int]                          # GiB (on get); see resize gotcha
     state: Optional[str]                         # "detached" | "attached"
     created_at: Optional[str]
@@ -1880,10 +1892,11 @@ volumes = BlockVolumeClient(ExoscaleClient.from_env(zone="de-fra-1"))
 # Create (size in GiB)
 vol = volumes.create({"name": "data", "size": 10})
 
+op = volumes.create_snapshot(vol.id)   # works detached; snapshot id is op.reference_id
+
 # Online ops — these require the volume to be attached to a running instance
 volumes.attach(vol.id, instance_id)
 volumes.resize(vol.id, 20)       # GiB; see gotcha
-op = volumes.create_snapshot(vol.id)   # snapshot id is op.reference_id
 volumes.detach(vol.id)
 
 volumes.delete(vol.id)
@@ -1908,7 +1921,8 @@ volumes.delete(vol.id)
   the `:resize-volume` 200 response as the volume itself. The connector returns
   a settled `Operation` (`state == "success"`, `reference_id` = the volume id)
   for that shape without polling, and still awaits a real operation envelope.
-  **Not live-verified:** live runs have only seen 400/409 on this endpoint.
+  The endpoint and verb are live-verified (they answer, not 404), but the
+  success body is not: live runs have only seen 400/409 (tenant quota).
 - **Attach requires `standard.small` or larger** — `standard.tiny` is
   rejected with `409: Instance size must be at least small`.
 - **Delete fails (412) if attached**: detach first. The Tier 3 test wraps
@@ -1986,6 +2000,20 @@ class DBaaSService(ExoscaleModel):
     uri_params: Optional[DBaaSConnectionInfo]
     uri: Optional[str]
     connection_info: Optional[DBaaSConnectionInfo]
+    databases: Optional[List[str]]  # pg/mysql: databases inside the service
+
+
+class DBaaSLogEntry(ExoscaleModel):
+    time: Optional[str]
+    node: Optional[str]
+    unit: Optional[str]
+    message: Optional[str]
+
+
+class DBaaSServiceLogs(ExoscaleModel):     # get_logs() page
+    logs: Optional[List[DBaaSLogEntry]]
+    offset: Optional[str]                  # cursor for the next page
+    first_log_offset: Optional[str]
 ```
 
 #### CLI
@@ -2069,7 +2097,8 @@ plans = dbaas.list_service_types()
   larger plans. Use a generous timeout in `wait_for_state`.
 - **Mutations return an operation, awaited by default.** Per the spec,
   create/update, `create_user`/`delete_user`/`reset_user_password`,
-  `start_maintenance` and `delete` all answer with an operation. The
+  `create_database`/`delete_database`, `start_maintenance` and `delete` all
+  answer with an operation. The
   connector awaits it unless `wait=False`; the user/maintenance methods
   return the settled envelope as a dict. A settled operation does **not**
   mean the service is `running` (it passes through `rebuilding`), so
@@ -2124,8 +2153,8 @@ dbaas.delete(name)
 #### Service updates and user management
 
 `update()`, `create_user()` and `delete_user()` are live-verified (extended
-Tier 4 pg lifecycle, 2026-06-10). `reset_user_password()` is the one method
-still implemented from the API reference only — the live test doesn't call
+Tier 4 pg lifecycle, 2026-06-10). `reset_user_password()` is implemented from
+the API reference only — the live test doesn't call
 it (resetting `avnadmin`'s password mid-test would be disruptive for no
 extra wire-shape coverage):
 
@@ -2192,18 +2221,21 @@ metrics = dbaas.get_metrics(name, period="day")
 
 ##### Generic engine sub-resources (settings / ACL / maintenance)
 
-Three read/trigger helpers that generalise across engine types:
+Three read/trigger helpers that generalise across engine types.
+`get_settings` is live-verified (Tier 4 pg lifecycle); `get_acl_config` /
+`start_maintenance` are implemented from the API reference — pending live
+verification:
 
 ```python
 # Discover the settings schema an engine accepts (short type form: "pg", not
 # "postgres"). Response shape is engine-specific -> raw dict.
-schema = dbaas.get_settings("clickhouse")           # GET /dbaas-settings-clickhouse
+schema = dbaas.get_settings("pg")                   # GET /dbaas-settings-pg
 
-# Per-service ACL configuration (clickhouse / kafka / opensearch).
-acls = dbaas.get_acl_config("my-ch-1", service_type="clickhouse")
+# Per-service ACL configuration (kafka / opensearch).
+acls = dbaas.get_acl_config("my-kafka-1", service_type="kafka")
 
 # Run the pending maintenance update now instead of waiting for the window.
-dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
+dbaas.start_maintenance("my-pg-1", service_type="pg")
 ```
 
 - **`get_settings` uses the short type form** (`pg`, `mysql`, `clickhouse`) — the
@@ -2216,9 +2248,9 @@ dbaas.start_maintenance("my-ch-1", service_type="clickhouse")
   Exoscale tenant — every ClickHouse operation returns `403 "... not enabled"`,
   read-only ones included — so nothing about it can be live-verified here.
   `service_type="clickhouse"` is still accepted by the engine-generic methods;
-  it is simply unsupported. The engine-agnostic `get_settings` /
-  `get_acl_config` / `start_maintenance` helpers below are unaffected and work
-  for pg, mysql, valkey and the rest.
+  it is simply unsupported. The `get_settings` / `start_maintenance` helpers
+  above work for every engine; `get_acl_config` applies to kafka and
+  opensearch.
 - **`delete_user` is unverified for ClickHouse.** Upstream moved that engine's
   delete to `DELETE /dbaas-clickhouse/{name}/user/{user-uuid}` — path parameter
   renamed *and* retyped to a UUID, which is consistent with ClickHouse carrying
@@ -2254,8 +2286,8 @@ class DeployTarget(ExoscaleModel):
 #### CLI
 
 ```bash
-exoscale-deploy-target list
-exoscale-deploy-target get --id <uuid>
+exoscale-deploy-target list-deploy-targets
+exoscale-deploy-target get-deploy-target --id <uuid>
 ```
 
 #### Library
@@ -2354,6 +2386,7 @@ record = dns.create_record(zone.id, {
     "name": "www", "type": "A", "content": "192.0.2.1", "ttl": 3600,
 })
 records = dns.list_records(zone.id)
+rec = dns.get_record(zone.id, record.id)
 dns.update_record(zone.id, record.id, {"ttl": 7200})
 dns.delete_record(zone.id, record.id)
 
@@ -2409,7 +2442,10 @@ assert any(r.id == rec.id for r in listed)
 dns.update_record(zone_id, rec.id, {"ttl": 7200})
 assert dns.get_record(zone_id, rec.id).ttl == 7200
 
-# 5. Cleanup (records first, then zone)
+# 5. Export the zone; the record shows up in the BIND file
+assert "192.0.2.1" in dns.get_zone_file(zone_id)
+
+# 6. Cleanup (records first, then zone)
 dns.delete_record(zone_id, rec.id)
 dns.delete(zone_id)
 ```
@@ -2481,8 +2517,6 @@ eips.delete(eip.id)
   some account types. Delete promptly when no longer needed.
 - **Healthcheck is optional** — the EIP itself works as a static address
   without one; configure it when you want EIP-managed failover.
-- **Attach to an instance** is done via the instance's update endpoint
-  (not exposed on this client).
 - **Setting reverse DNS is a POST, not a PUT.** The API reference's path
   symmetry suggests `PUT /reverse-dns/elastic-ip/{id}`, but the live API
   404s on PUT and takes **POST** for create/update (confirmed live
@@ -2553,7 +2587,7 @@ class Event(ExoscaleModel):
 #### CLI
 
 ```bash
-exoscale-event list
+exoscale-event list-events
 ```
 
 #### Library
@@ -2612,6 +2646,10 @@ class IAMPolicy(ExoscaleModel):
     services: Optional[Dict[str, IAMPolicyService]]   # keyed by service name
 
 
+class IAMAssumeRolePolicy(ExoscaleModel):
+    rules: Optional[List[IAMPolicyRule]]       # build with IAMAssumeRolePolicy.with_rules(...)
+
+
 class IAMRole(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]
@@ -2645,7 +2683,9 @@ exoscale-iam-role delete --id <uuid>
 
 ```python
 from exoscale_connector import ExoscaleClient
-from exoscale_connector.resources.iam_role import IAMPolicy, IAMRole, IAMRoleClient
+from exoscale_connector.resources.iam_role import (
+    IAMAssumeRolePolicy, IAMPolicy, IAMPolicyRule, IAMRole, IAMRoleClient,
+)
 
 roles = IAMRoleClient(ExoscaleClient.from_env(zone="de-fra-1"))
 
@@ -2656,6 +2696,11 @@ role = roles.create(IAMRole(
 ))
 
 roles.update(role.id, {"description": "list+get only (updated)"})
+
+# Change the policies of an existing role
+roles.set_policy(role.id, IAMPolicy.allow_services(["compute"]))
+roles.set_assume_role_policy(role.id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true")))
+
 roles.delete(role.id)
 ```
 
@@ -2752,7 +2797,9 @@ Distilled from
 
 ```python
 from exoscale_connector import ExoscaleClient
-from exoscale_connector.resources.iam_role import IAMPolicy, IAMRole, IAMRoleClient
+from exoscale_connector.resources.iam_role import (
+    IAMAssumeRolePolicy, IAMPolicy, IAMPolicyRule, IAMRole, IAMRoleClient,
+)
 
 roles = IAMRoleClient(ExoscaleClient.from_env(zone="de-fra-1"))
 
@@ -2766,6 +2813,13 @@ role = roles.create(IAMRole(
 assert roles.get(role.id).name == "connector-smoke"
 roles.update(role.id, {"description": "updated"})
 assert roles.get(role.id).description == "updated"
+
+# Policy setters: :policy sub-endpoint vs. the generic role PUT
+roles.set_policy(role.id, IAMPolicy.allow_services(["compute"]))
+assert "compute" in roles.get(role.id).policy.services
+roles.set_assume_role_policy(role.id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true")))
+# (not echoed by get() — see Gotchas)
+
 roles.delete(role.id)
 ```
 
@@ -2924,13 +2978,14 @@ pools.delete(pool.id)          # cascade-deletes member instances
   size to stay correct.
 - **Pass `anti-affinity-groups: [{"id": ...}]` at create to spread members
   across distinct physical hosts** — this is the supported way an instance pool
-  guarantees host spread for HA. Like anti-affinity groups generally, it is
-  **create-only**: it can't be changed on an existing pool, so decide up front.
+  guarantees host spread for HA. Unlike on a single instance, the spec lets
+  `update` change a pool's `anti-affinity-groups` (and `reset_field` clear
+  it); this is not live-verified, so decide up front where you can.
 - **Clear an optional field with `reset_field(id, "description")`.** It wraps
   `DELETE /instance-pool/{id}/{field}`. Resettable fields include
   `description`, `labels`, `anti-affinity-groups`, `security-groups`,
-  `elastic-ips`, `private-networks`, `ssh-key`, `user-data` and
-  `deploy-target`. Use it instead of sending an empty value through `update`.
+  `elastic-ips`, `private-networks`, `ssh-key`, `user-data`,
+  `deploy-target` and `ipv6-enabled`. Use it instead of sending an empty value through `update`.
 - **`evict` picks the members, `scale` does not.** `evict(pool_id, ids)`
   (`PUT instance-pool/{id}:evict`) destroys exactly those member instances and
   lowers `size` to match. Scaling down lets the API choose which members go.
@@ -2993,6 +3048,7 @@ as `family.size` (`standard.tiny`); the API addresses them by UUID —
 
 ```bash
 exoscale-instance-type list-instance-types
+exoscale-instance-type get-instance-type --id <uuid>
 exoscale-connector instance-type --output table list-instance-types
 ```
 
@@ -3041,8 +3097,10 @@ class Instance(ExoscaleModel):
     public_ip: Optional[str]
     ipv6_address: Optional[str]
     ssh_key: Optional[SshKeyReference]
+    security_groups: List[Reference]
     labels: Optional[dict]
     manager: Optional[Reference]      # set when the instance is a pool member
+    deploy_target: Optional[Reference]   # pinned placement; set at create (see deploy-target.md)
     created_at: Optional[str]
     # Attachments (read them here; change them via attach/detach endpoints)
     anti_affinity_groups: Optional[List[Reference]]
@@ -3067,7 +3125,10 @@ exoscale-instance create --json '{"name":"web-01","instance-type":{"id":"<type-i
 exoscale-instance delete --id <uuid>
 ```
 
-> `start` / `stop` / `reboot` are exposed via the library client.
+> Lifecycle and maintenance actions (`start`/`stop`/`reboot`, `scale`,
+> `resize_disk`, `reset`, `revert_to_snapshot`, protection, password,
+> `enable_tpm`, `reset_field`, reverse DNS) are library-only; the CLI has
+> list/get/find/create/delete.
 
 #### Library
 
@@ -3313,6 +3374,9 @@ dk16 = kms.generate_data_key(key.id, bytes_count=16)
 kms.schedule_deletion(key.id, delay_days=7)   # 7–30 days -> {"delete-at": ...}
 kms.cancel_deletion(key.id)                    # abort while pending; key is now disabled
 kms.enable(key.id)                             # ...so re-enable it
+
+# Replication (multi-zone keys only; async — answers "target-registered")
+kms.replicate(key.id, "at-vie-1")
 ```
 
 #### Gotchas
@@ -3329,7 +3393,7 @@ kms.enable(key.id)                             # ...so re-enable it
 - **`encryption_context` must match.** If you pass one to `encrypt`, you must
   pass the identical context to `decrypt`.
 - **Replication needs a multi-zone key.** Create with `"multi-zone": true`, then
-  `replicate(key_id, to_zone)`; `replicas` lists where it currently lives. The
+  `replicate(key_id, zone_target)`; `replicas` lists where it currently lives. The
   first call answers `{"status": "target-registered"}` and completes in the
   background: the replica is briefly not found in the target zone. It then
   mirrors the origin key's status with a short lag. Operations issued against
@@ -3354,6 +3418,57 @@ kms.enable(key.id)                             # ...so re-enable it
   alongside the documented `ciphertext`/`plaintext`.
 - **Synchronous, so `wait=` is irrelevant** — every call returns its result
   immediately, unlike the async asset types.
+
+#### End-to-end example
+
+Distilled from
+[`tests/integration/test_kms.py::test_kms_key_lifecycle`](../../tests/integration/test_kms.py)
+(`replicate` is left out so a run creates no cross-zone replica):
+
+```python
+import base64
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.kms import KmsKeyClient
+
+kms = KmsKeyClient(ExoscaleClient.from_env(zone="de-fra-1"))
+plaintext_b64 = base64.b64encode(b"hello").decode()
+context = base64.b64encode(b"tenant=demo").decode()
+
+key_id = kms.create({"name": "demo-kms", "usage": "encrypt-decrypt"}).id
+assert kms.get(key_id).status == "enabled"
+
+# Disabled keys refuse to encrypt
+kms.disable(key_id)
+kms.enable(key_id)
+
+# Rotation: on by default (365 days); disable before changing the period
+assert kms.get(key_id).rotation.automatic
+kms.disable_rotation(key_id)
+kms.enable_rotation(key_id, rotation_period=90)
+kms.rotate(key_id)
+kms.list_rotations(key_id)
+
+# Envelope crypto with an encryption context, then re-encrypt without it
+enc = kms.encrypt(key_id, plaintext_b64, encryption_context=context)
+assert kms.decrypt(key_id, enc["ciphertext"], encryption_context=context)["plaintext"] == plaintext_b64
+re_enc = kms.re_encrypt(
+    key_id,
+    source={"key": key_id, "ciphertext": enc["ciphertext"], "encryption-context": context},
+    destination={"key": key_id},
+)
+assert kms.decrypt(key_id, re_enc["ciphertext"])["plaintext"] == plaintext_b64
+
+# Data keys: by spec (AES-256, 32 bytes) and by size — never print them
+dk = kms.generate_data_key(key_id)
+dk16 = kms.generate_data_key(key_id, bytes_count=16)
+
+# Deletion lifecycle; cancel leaves the key disabled
+kms.schedule_deletion(key_id, delay_days=7)
+kms.cancel_deletion(key_id)
+assert kms.get(key_id).status == "disabled"
+kms.enable(key_id)
+kms.schedule_deletion(key_id, delay_days=7)   # final: lingers 7 days, then removed
+```
 
 ### load-balancer (+ services)
 
@@ -3412,8 +3527,9 @@ exoscale-load-balancer create --json '{"name": "web-lb", "description": "public 
 exoscale-load-balancer delete --id <uuid>
 ```
 
-> Service management is exposed via the library client (`add_service` /
-> `update_service` / `delete_service`).
+> Service management and field resets are library-only (`add_service` /
+> `get_service` / `update_service` / `reset_service_field` / `delete_service`,
+> plus `reset_field`).
 
 #### Library
 
@@ -3426,9 +3542,8 @@ lbs = LoadBalancerClient(ExoscaleClient.from_env(zone="de-fra-1"))
 # Create the LB
 lb = lbs.create({"name": "web-lb", "description": "public web LB"})
 
-# Add a service pointing at a pool. Use a dict payload — the model currently
-# flattens healthcheck fields and lacks instance-pool, so dicts are the more
-# faithful API exercise.
+# Add a service pointing at a pool (a dict or a LoadBalancerService model;
+# both serialise to the same wire shape).
 lbs.add_service(lb.id, {
     "name": "http",
     "protocol": "tcp",
@@ -3525,6 +3640,12 @@ lbs.update_service(lb.id, svc.id, {**svc_payload,
     "healthcheck": {**svc_payload["healthcheck"], "interval": 20},
 })
 
+# 4b. Single-service read and field resets; let the service settle before delete
+assert lbs.get_service(lb.id, svc.id).id == svc.id
+lbs.reset_service_field(lb.id, svc.id, "description")
+lbs.reset_field(lb.id, "description")
+wait_for_state(lambda: lbs.get_service(lb.id, svc.id), "running", timeout=300)
+
 # 5. Cleanup in order: service -> LB -> pool
 lbs.delete_service(lb.id, svc.id)
 lbs.delete(lb.id)
@@ -3557,6 +3678,14 @@ connector works without it installed.
 class Bucket(ExoscaleModel):
     name: Optional[str]            # globally unique across all of S3
     creation_date: Optional[str]
+
+
+class S3Object(ExoscaleModel):     # list_objects() item
+    key: Optional[str]
+    size: Optional[int]
+    etag: Optional[str]
+    storage_class: Optional[str]
+    last_modified: Optional[str]
 ```
 
 #### CLI
@@ -3644,7 +3773,7 @@ assert not buckets.exists(name)
 
 #### Object-level operations
 
-Added on the extensions branch; live-verified in Tier 2
+Live-verified in Tier 2
 (`test_bucket_object_roundtrip`, 2026-06-10):
 
 ```bash
@@ -3661,8 +3790,12 @@ buckets.list_objects("backups", prefix="logs/", limit=100)   # paginates interna
 buckets.get_object("backups", "a.txt")                        # bytes, in memory
 buckets.upload_file("backups", "big.bin", "/path/big.bin")    # multipart-capable
 buckets.download_file("backups", "big.bin", "/path/big.bin")
+buckets.delete_object("backups", "a.txt")
 buckets.presign_get("backups", "a.txt", expires_in=600)       # bearer capability!
+buckets.presign_put("backups", "a.txt", expires_in=600)       # bearer capability!
 buckets.set_lifecycle("backups", [{"ID": "expire", "Status": "Enabled", ...}])
+buckets.get_lifecycle("backups")                               # None when unset
+buckets.set_cors("backups", [{"AllowedMethods": ["GET"], "AllowedOrigins": ["*"]}])
 buckets.get_cors("backups")                                    # None when unset
 ```
 
@@ -3765,8 +3898,10 @@ pn.detach_instance(network.id, instance_id)
 - **Creation can be disabled per tenant.** On 2026-11-09 the test tenant
   answered `403 Operation 'create-private-network' not enabled` while listing
   still worked. That is a product gate on the account, not an IAM-role
-  refusal. `update_instance_ip` and `reset_field` are therefore unit-tested
-  only for now.
+  refusal. CRUD was live-verified on 2026-06-01; `attach_instance` /
+  `detach_instance`, the `ip=` static lease, `update_instance_ip` and
+  `reset_field` are not live-verified (unit-tested only) until creation is
+  possible again.
 
 #### End-to-end example
 
@@ -3822,7 +3957,7 @@ class SecurityGroup(ExoscaleModel):
     name: Optional[str]             # the human-readable identifier
     description: Optional[str]
     rules: List[SecurityGroupRule]  # embedded on every detail response
-    external_sources: Optional[List[str]]  # IP set names (Exoscale-managed allow/deny lists)
+    external_sources: Optional[List[str]]  # CIDRs counted as members (add_/remove_external_source)
 ```
 
 #### CLI
@@ -3945,6 +4080,12 @@ instances spun up by Exoscale's control plane.
 #### Model
 
 ```python
+class SksKubeletImageGc(ExoscaleModel):
+    high_threshold: Optional[int]                # disk-usage % that triggers image GC
+    low_threshold: Optional[int]                 # GC frees down to this %
+    min_age: Optional[str]                       # e.g. "2m"
+
+
 class SksNodepoolTaint(ExoscaleModel):
     value: Optional[str]
     effect: Optional[str]                        # "NoExecute" | "NoSchedule" | "PreferNoSchedule"
@@ -4000,6 +4141,14 @@ class SksOidc(ExoscaleModel):
     groups_claim: Optional[str]
     groups_prefix: Optional[str]
     required_claim: Optional[Dict[str, str]]
+
+
+class SksDeprecatedResource(ExoscaleModel):     # list_deprecated_resources() item
+    group: Optional[str]
+    version: Optional[str]
+    resource: Optional[str]
+    subresource: Optional[str]
+    removed_release: Optional[str]
 ```
 
 #### Addons
@@ -4022,7 +4171,7 @@ for block-volume-backed PersistentVolumeClaims.
 ```bash
 exoscale-sks list-clusters
 exoscale-sks get-cluster --id <uuid>
-exoscale-sks create-cluster --json '{"name":"prod-k8s","level":"starter","cni":"calico","version":"1.30"}'
+exoscale-sks create-cluster --json '{"name":"prod-k8s","level":"starter","cni":"calico","version":"<from list_versions()>"}'
 exoscale-sks delete-cluster --id <uuid>
 
 exoscale-sks list-nodepools --cluster-id <uuid>
@@ -4066,6 +4215,8 @@ op = sks.create_nodepool(cluster.id, SksNodepool(
     disk_size=20,
 ))
 np_id = op.reference_id
+np = sks.get_nodepool(cluster.id, np_id)
+sks.update_nodepool(cluster.id, np_id, {"description": "general workers"})
 
 # Scale, or remove specific nodes (member ids from the nodepool's instance pool)
 sks.scale_nodepool(cluster.id, np_id, 3)
@@ -4127,11 +4278,10 @@ sks.delete(cluster.id)
   `sks-cluster/<id>/...`.
 - **`create_nodepool` returns an `Operation`, not the nodepool.** This
   breaks the otherwise-uniform "create returns the resource" contract,
-  but it is deliberate: the API has no standalone nodepool list/get
-  endpoint — nodepools are only visible embedded in the cluster's detail
-  response. Use `op.reference_id` and then read the nodepool out of the
-  cluster's `nodepools` array (or `list_nodepools(cluster_id)` which
-  does exactly that).
+  but it is deliberate: there is no nodepool list endpoint, and the create
+  operation carries only the id. Use `op.reference_id`, then
+  `get_nodepool(cluster_id, np_id)` or `list_nodepools(cluster_id)` (which
+  reads the cluster's embedded `nodepools`).
 - **`upgrade` moves the control plane only.** `PUT sks-cluster/{id}/upgrade`
   takes a version from `list_versions()`; check `list_deprecated_resources`
   first. Existing nodes keep their version until they are replaced.
@@ -4150,6 +4300,10 @@ sks.delete(cluster.id)
   with it fails with `403 A PRO cluster is required`. Upgrade with
   `upgrade_service_level`, then add it through `update` (`addons` is
   updatable).
+- **`rotate_operators_ca` needs the operators CA enabled.** The live test sets
+  `"enable-operators-ca": true` through `update` (on the pro cluster) before
+  rotating it. The field is not typed on `SksCluster`; send it in a dict
+  payload.
 
 #### End-to-end example
 
@@ -4157,55 +4311,73 @@ Distilled from
 [`tests/integration/test_tier_4.py::test_sks_lifecycle`](../../tests/integration/test_tier_4.py):
 
 ```python
-import time
 from exoscale_connector import ExoscaleClient
-from exoscale_connector.resources.sks import SksClusterClient, SksNodepool
+from exoscale_connector.resources.instance_pool import InstancePoolClient
+from exoscale_connector.resources.sks import (
+    SksClusterClient, SksKubeletImageGc, SksNodepool,
+)
 from tests.integration._fixtures import (
     resolve_instance_type, resolve_sks_version, wait_for_state,
 )
 
 client = ExoscaleClient.from_env(zone="de-fra-1")
 sks = SksClusterClient(client)
+running = lambda: wait_for_state(lambda: sks.get(cluster.id), "running", timeout=1200, interval=15)
 
-# 1. Cluster (cheapest service level + smallest version)
+# 1. Starter cluster (lowest version) with the addons credential rotation needs
+version = resolve_sks_version(client)
 cluster = sks.create({
     "name": "demo-cluster",
-    "version": resolve_sks_version(client),
+    "version": version,
     "cni": "calico",
     "level": "starter",
+    "addons": ["exoscale-cloud-controller", "exoscale-container-storage-interface"],
 })
-wait_for_state(lambda: sks.get(cluster.id), "running", timeout=1200, interval=15)
+running()
 
-# 2. Kubeconfig — never print the contents in real code
-kubeconfig = sks.generate_kubeconfig(cluster.id, {
-    "user": "demo-admin",
-    "groups": ["system:masters"],
-})
-assert kubeconfig  # contains a base64 kubeconfig blob
+# 2. Kubeconfig, CA certs, inspection, rotation — never print the contents
+kubeconfig = sks.generate_kubeconfig(cluster.id, {"user": "demo-admin", "groups": ["system:masters"]})
+for authority in ("control-plane", "aggregation", "kubelet"):
+    assert sks.get_authority_cert(cluster.id, authority)
+sks.get_inspection(cluster.id)          # None on a fresh cluster
+sks.rotate_ccm_credentials(cluster.id); running()
+sks.rotate_csi_credentials(cluster.id); running()
 
-# 3. Nodepool (size=1, standard.small)
-np_op = sks.create_nodepool(cluster.id, SksNodepool(
+# 3. Nodepool (size=1, standard.small) with kubelet image GC
+np_id = sks.create_nodepool(cluster.id, SksNodepool(
     name="workers",
     size=1,
     instance_type={"id": resolve_instance_type(client, "standard.small")},
     disk_size=20,
-))
-np_id = np_op.reference_id
+    kubelet_image_gc=SksKubeletImageGc(high_threshold=85, low_threshold=80, min_age="2m"),
+)).reference_id
+# ...poll sks.get(cluster.id).nodepools until this one is "running"
 
-# Poll the cluster's embedded nodepool list until the node is running
-deadline = time.time() + 1200
-while time.time() < deadline:
-    c = sks.get(cluster.id)
-    np = next((n for n in (c.nodepools or []) if n.id == np_id), None)
-    if np and (np.state or "").lower() == "running":
-        break
-    time.sleep(15)
+# 4. Scale 1 -> 2, then evict one named member (back to 1)
+sks.scale_nodepool(cluster.id, np_id, 2)
+# ...poll until size == 2 and state == "running"
+pool_id = sks.get_nodepool(cluster.id, np_id).instance_pool.id
+victim = InstancePoolClient(client).get(pool_id).instances[0].id
+sks.evict_nodepool_members(cluster.id, np_id, [victim])
 
-# 4. Scale 1 -> 2 -> 1
-sks.update_nodepool(cluster.id, np_id, {"size": 2})
-sks.update_nodepool(cluster.id, np_id, {"size": 1})
+# 5. Control-plane upgrade to the next version, then starter -> pro (billed)
+newer = [v for v in sks.list_versions() if v != version]   # the test picks the next one up
+if newer:
+    sks.upgrade(cluster.id, newer[-1]); running()
+sks.upgrade_service_level(cluster.id); running()
 
-# 5. Cleanup (nodepool first)
+# 6. Pro-only: Karpenter addon + operators CA
+sks.update(cluster.id, {
+    "addons": ["exoscale-cloud-controller", "exoscale-container-storage-interface", "karpenter"],
+    "enable-operators-ca": True,
+})
+running()
+sks.rotate_karpenter_credentials(cluster.id); running()
+sks.rotate_operators_ca(cluster.id); running()
+nodeclass = sks.generate_karpenter_nodeclass(cluster.id)
+karpenter_np = sks.generate_karpenter_nodepool(cluster.id)
+
+# 7. Cleanup (nodepool first)
 sks.delete_nodepool(cluster.id, np_id)
 sks.delete(cluster.id)
 ```
@@ -4229,7 +4401,7 @@ class SnapshotExport(ExoscaleModel):
 class Snapshot(ExoscaleModel):
     id: Optional[str]
     name: Optional[str]            # auto-generated by Exoscale; not user-set
-    size: Optional[int]            # bytes
+    size: Optional[int]            # GiB
     state: Optional[str]           # "snapshotting" -> "exported" (current Exoscale)
     created_at: Optional[str]
     instance: Optional[Reference]  # parent instance
@@ -4285,8 +4457,9 @@ snapshots.delete(snap.id)
 - **No direct create endpoint.** `POST /snapshot` is not valid; snapshots
   are always created from a specific instance via its action endpoint.
 - **Snapshot of a running instance is allowed** but is not
-  application-consistent — quiesce databases / filesystems first for
-  consistent backups.
+  application-consistent unless the template ships the QEMU guest agent
+  (`Template.application_consistent_snapshot_enabled`) — otherwise quiesce
+  databases / filesystems first for consistent backups.
 - **Snapshot storage is charged per GiB-month** — delete what you no
   longer need.
 - **Promote and revert live elsewhere in the API.** `promote_to_template`
@@ -4377,8 +4550,9 @@ keys.delete("laptop")
 - **Name is the id.** `keys.get("laptop")` calls `GET /ssh-key/laptop`, not
   `GET /ssh-key/<uuid>`. `id_field` / `name_field` are both `"name"` on this
   client.
-- **No `update` endpoint.** Keys are immutable — to rotate, delete and
-  recreate. The connector intentionally exposes no `update`.
+- **No `update` endpoint.** Keys are immutable — the API has no update
+  endpoint, so the inherited `update()` fails server-side. To rotate, delete
+  and recreate.
 - **Public key format.** Send the OpenSSH single-line form
   (`"ssh-ed25519 AAAA... optional comment"`). The API computes the
   fingerprint and returns it on subsequent `get` responses; `public_key`
@@ -4431,6 +4605,8 @@ checksum.
 | `url` / `checksum` | str | registration source (private templates) |
 | `boot_mode` | str | `legacy` \| `uefi` |
 | `default_user` | str | |
+| `ssh_key_enabled` / `password_enabled` | bool | required on registration (see gotcha) |
+| `created_at` | str | |
 | `maintainer` | str | read-only |
 | `application_consistent_snapshot_enabled` | bool | QEMU guest agent present |
 | `zones` | list[str] | zones the template is available in |
@@ -4440,7 +4616,8 @@ checksum.
 ```bash
 exoscale-template list-templates
 exoscale-template get-template --id <uuid>
-exoscale-template create-template --json '{"name": "...", "url": "...", "checksum": "..."}'
+exoscale-template find-template --name <name>
+exoscale-template create-template --json '{"name": "...", "url": "...", "checksum": "...", "ssh-key-enabled": false, "password-enabled": false}'
 exoscale-template delete-template --id <uuid>
 ```
 
@@ -4489,6 +4666,10 @@ VPC is a per-account product, and API keys need the IAM `networking` service
 to use it. All 16 `/vpc` endpoints were verified live on 2026-11-02; see
 [live test results](../live-test-results.md).
 
+The whole `/vpc` API is marked `[BETA]` in the APIv2 spec. The connector ships
+it deliberately, as the one exception to its rule of not wrapping beta
+endpoints, so expect upstream changes to land here first.
+
 #### Model
 
 ```python
@@ -4528,7 +4709,7 @@ class VpcRoute(ExoscaleModel):
 
 #### CLI
 
-The umbrella CLI exposes VPC list/get/create/delete and subnet
+`exoscale-vpc` (also `exoscale-connector vpc`) exposes VPC list/get/create/delete and subnet
 list/create/delete (`<verb>-vpc` / `<verb>-subnet`). VPC and subnet updates,
 `get_subnet`, routes, and instance attach/detach are library-only.
 
@@ -4626,6 +4807,52 @@ vpc.delete(vpc_id)
   `dhcp-options` (`dns-servers`, `ntp-servers`, `domain-search` lists). It is
   not in the spec, no request can set it, and a fresh VPC returns only empty
   lists, so the element types are unverified and it stays untyped (`vpc.model_extra["dhcp-options"]`).
+
+#### End-to-end example
+
+Distilled from
+[`tests/integration/test_tier_1.py::test_vpc_lifecycle`](../../tests/integration/test_tier_1.py)
+and
+[`tests/integration/test_tier_3.py::test_vpc_subnet_attach_detach`](../../tests/integration/test_tier_3.py):
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.vpc import VpcClient, VpcRoute, VpcSubnet
+
+vpc = VpcClient(ExoscaleClient.from_env(zone="de-fra-1"))
+
+# 1. VPC CRUD
+vpc_id = vpc.create({"name": "demo-vpc", "description": "demo"}).id
+vpc.update(vpc_id, {"description": "updated", "labels": {"env": "demo"}})
+
+# 2. Subnet (inet4 only)
+subnet_id = vpc.create_subnet(vpc_id, VpcSubnet(
+    name="demo-sub",
+    addressfamily="inet4",
+    address_space="private",
+    ipv4_block="10.0.0.0/24",
+)).reference_id
+vpc.update_subnet(vpc_id, subnet_id, {"description": "updated subnet"})
+
+# 3. Routes: the VPC-wide list holds only the system route
+assert [(r.kind, r.target) for r in vpc.list_routes(vpc_id)] == [("Vpc", "cidr=10.0.0.0/24")]
+route_id = vpc.create_route(
+    vpc_id, subnet_id, VpcRoute(destination="10.1.0.0/24", target="ip=10.0.0.10"),
+).reference_id
+assert any(r.id == route_id for r in vpc.list_subnet_routes(vpc_id, subnet_id))
+
+# 4. Attach a running instance (auto address), detach, re-attach pinned
+vpc.attach_subnet(vpc_id, subnet_id, instance_id)
+assert instance_id in {i.id for i in vpc.get_subnet(vpc_id, subnet_id).instances}
+vpc.detach_subnet(vpc_id, subnet_id, instance_id)
+vpc.attach_subnet(vpc_id, subnet_id, instance_id, ipv4="10.0.0.42")
+vpc.detach_subnet(vpc_id, subnet_id, instance_id)
+
+# 5. Cleanup: route -> subnet -> VPC (all synchronous)
+vpc.delete_route(vpc_id, subnet_id, route_id)
+vpc.delete_subnet(vpc_id, subnet_id)
+vpc.delete(vpc_id)
+```
 
 ### zone
 

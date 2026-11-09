@@ -22,7 +22,7 @@ them or reads them from a file:
 | `EXOSCALE_API_SECRET` | yes | API secret |
 | `EXOSCALE_ZONE` | recommended | Default zone, e.g. `de-fra-1` |
 | `EXOSCALE_API_ENDPOINT` | no | Full endpoint override (private gateway / testing) |
-| `EXOSCALE_TIMEOUT` | no | Request timeout in seconds (default `60`) |
+| `EXOSCALE_TIMEOUT` | no | Per-request timeout in seconds (default and retry policy: see [developer guide → Resilience](developer-guide.md#resilience-timeouts--retries)) |
 | `EXOSCALE_VERIFY_TLS` | no | `false` (or `0`/`no`/`off`) to disable TLS verification for all transports, including SOS (not recommended; the connector emits a `UserWarning` when disabled). Unset or empty keeps verification on; an unrecognised value raises `ConfigError` |
 
 Inject them with your secret-management tooling rather than exporting them by
@@ -44,8 +44,13 @@ IAM and DNS are account-global but are still reached through a zone.
 
 ## Common commands
 
-Every asset type supports the same verbs, callable either via the per-asset
-binary (`exoscale-<asset> …`) or namespaced under the umbrella command:
+Most asset types support the same verbs, callable either via the per-asset
+binary (`exoscale-<asset> …`) or namespaced under the umbrella command. CLIs
+with a child resource (`dns`, `sks`, `vpc`) or a read-only surface (`zone`,
+`event`, `deploy-target`, `instance-type`, `template`) name them
+`<verb>-<noun>` instead (`list-domains`, `list-zones`, …), and `exoscale-dbaas`
+addresses services by `--name`. Run `exoscale-<asset> --help` for the exact
+list.
 
 ```bash
 exoscale-connector <asset> <verb> [...]     # same CLIs, one binary
@@ -67,17 +72,18 @@ table (handy interactively, e.g. `exoscale-connector zone --output table list-zo
 > avoid running it in CI steps whose output is logged.
 
 Mutating commands wait for the asynchronous operation to finish by default; pass
-`--no-wait` to return immediately. All output is JSON, so it composes with `jq`:
+`--no-wait` to return immediately. Default output is JSON, so it composes with `jq`:
 
 ```bash
 exoscale-security-group list | jq -r '.[].name'
 ```
 
-> **CLI vs library coverage.** The CLIs cover the uniform CRUD verbs (list /
-> get / find / create / delete). **Sub-resource and lifecycle operations are
-> currently library-only** — examples: security-group rule
-> add/delete, instance start/stop/reboot, instance-pool scale, block-volume
-> attach/detach/resize, LB service add/update/delete, SKS nodepool CRUD,
+> **CLI vs library coverage.** The CLIs cover the uniform CRUD verbs plus the
+> child-resource, KMS and bucket commands listed below. **Most other
+> sub-resource and lifecycle operations are library-only** — examples:
+> security-group rule add/delete, instance start/stop/reboot, instance-pool
+> scale, block-volume attach/detach/resize, LB service add/update/delete, SKS
+> nodepool update/scale,
 > DBaaS connection-info / password-reveal, compute snapshot
 > create-from-instance/export. The per-asset reference pages (see
 > [asset type reference](asset-types/README.md)) show the library snippet
@@ -145,12 +151,14 @@ except OperationError as e:
 | Network | Elastic IP | `exoscale-elastic-ip` |
 | Network | Private network | `exoscale-private-network` |
 | Network | Load balancer (+ services) | `exoscale-load-balancer` |
+| Network | VPC (+ subnets, routes) | `exoscale-vpc` |
 | Compute | Instance (+ start/stop/reboot/scale, reverse DNS) | `exoscale-instance` |
 | Compute | Instance pool (+ scale) | `exoscale-instance-pool` |
 | Compute | Instance type (read-only) | `exoscale-instance-type` |
 | Compute | Template | `exoscale-template` |
 | Compute | Anti-affinity group | `exoscale-anti-affinity-group` |
 | Compute | Snapshot | `exoscale-snapshot` |
+| Compute | Deploy target (read-only) | `exoscale-deploy-target` |
 | Storage | Block volume (+ attach/detach/resize) | `exoscale-block-volume` |
 | Storage | Block volume snapshot | `exoscale-block-volume-snapshot` |
 | Storage | Object Storage bucket + objects (S3) | `exoscale-bucket` |
@@ -158,15 +166,19 @@ except OperationError as e:
 | IAM | Role | `exoscale-iam-role` |
 | IAM | User / org member | `exoscale-iam-user` |
 | IAM | SSH key | `exoscale-ssh-key` |
+| IAM | KMS key (+ rotation, crypto ops) | `exoscale-kms` |
 | Managed | DNS domain + records | `exoscale-dns` |
 | Managed | DBaaS service (+ users, maintenance) | `exoscale-dbaas` |
 | Managed | SKS cluster (+ nodepools) | `exoscale-sks` |
 | Platform | Zone (read-only) | `exoscale-zone` |
+| Platform | Event / audit log (read-only) | `exoscale-event` |
 
-The behaviour above (verbs, auth, zones, output) is identical across every type.
-The `dns`, `dbaas`, `sks`, `load-balancer` and `security-group` clients add a few
-type-specific commands for their sub-resources (records, nodepools, services,
-rules) and lifecycle actions; run `exoscale-<type> --help` for the full list.
+Auth, zones and output behave identically across every type. The `dns`
+(records), `sks` (nodepools) and `vpc` (subnets) CLIs add
+`list-/create-/delete-<child>` commands; `exoscale-kms` adds key lifecycle
+commands (enable, disable, rotate, schedule-deletion, replicate, …) and
+`exoscale-bucket` adds object commands (list-objects, upload, download,
+presign, …). Run `exoscale-<type> --help` for the full list.
 
 > **Object Storage note:** buckets are S3-compatible, not part of the APIv2.
 > `exoscale-bucket` uses `boto3` (the `[sos]` extra) and the SOS endpoint, but

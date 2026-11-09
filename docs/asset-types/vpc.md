@@ -8,6 +8,10 @@ VPC is a per-account product, and API keys need the IAM `networking` service
 to use it. All 16 `/vpc` endpoints were verified live on 2026-11-02; see
 [live test results](../live-test-results.md).
 
+The whole `/vpc` API is marked `[BETA]` in the APIv2 spec. The connector ships
+it deliberately, as the one exception to its rule of not wrapping beta
+endpoints, so expect upstream changes to land here first.
+
 ## Model
 
 ```python
@@ -47,7 +51,7 @@ class VpcRoute(ExoscaleModel):
 
 ## CLI
 
-The umbrella CLI exposes VPC list/get/create/delete and subnet
+`exoscale-vpc` (also `exoscale-connector vpc`) exposes VPC list/get/create/delete and subnet
 list/create/delete (`<verb>-vpc` / `<verb>-subnet`). VPC and subnet updates,
 `get_subnet`, routes, and instance attach/detach are library-only.
 
@@ -145,3 +149,49 @@ vpc.delete(vpc_id)
   `dhcp-options` (`dns-servers`, `ntp-servers`, `domain-search` lists). It is
   not in the spec, no request can set it, and a fresh VPC returns only empty
   lists, so the element types are unverified and it stays untyped (`vpc.model_extra["dhcp-options"]`).
+
+## End-to-end example
+
+Distilled from
+[`tests/integration/test_tier_1.py::test_vpc_lifecycle`](../../tests/integration/test_tier_1.py)
+and
+[`tests/integration/test_tier_3.py::test_vpc_subnet_attach_detach`](../../tests/integration/test_tier_3.py):
+
+```python
+from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.vpc import VpcClient, VpcRoute, VpcSubnet
+
+vpc = VpcClient(ExoscaleClient.from_env(zone="de-fra-1"))
+
+# 1. VPC CRUD
+vpc_id = vpc.create({"name": "demo-vpc", "description": "demo"}).id
+vpc.update(vpc_id, {"description": "updated", "labels": {"env": "demo"}})
+
+# 2. Subnet (inet4 only)
+subnet_id = vpc.create_subnet(vpc_id, VpcSubnet(
+    name="demo-sub",
+    addressfamily="inet4",
+    address_space="private",
+    ipv4_block="10.0.0.0/24",
+)).reference_id
+vpc.update_subnet(vpc_id, subnet_id, {"description": "updated subnet"})
+
+# 3. Routes: the VPC-wide list holds only the system route
+assert [(r.kind, r.target) for r in vpc.list_routes(vpc_id)] == [("Vpc", "cidr=10.0.0.0/24")]
+route_id = vpc.create_route(
+    vpc_id, subnet_id, VpcRoute(destination="10.1.0.0/24", target="ip=10.0.0.10"),
+).reference_id
+assert any(r.id == route_id for r in vpc.list_subnet_routes(vpc_id, subnet_id))
+
+# 4. Attach a running instance (auto address), detach, re-attach pinned
+vpc.attach_subnet(vpc_id, subnet_id, instance_id)
+assert instance_id in {i.id for i in vpc.get_subnet(vpc_id, subnet_id).instances}
+vpc.detach_subnet(vpc_id, subnet_id, instance_id)
+vpc.attach_subnet(vpc_id, subnet_id, instance_id, ipv4="10.0.0.42")
+vpc.detach_subnet(vpc_id, subnet_id, instance_id)
+
+# 5. Cleanup: route -> subnet -> VPC (all synchronous)
+vpc.delete_route(vpc_id, subnet_id, route_id)
+vpc.delete_subnet(vpc_id, subnet_id)
+vpc.delete(vpc_id)
+```
