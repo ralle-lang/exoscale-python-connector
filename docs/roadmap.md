@@ -229,6 +229,17 @@ migration family, engine-specific endpoints and Kafka rows moved to #136 on
 milestone 0.8.0, in that order; external endpoints + integrations stay here in
 the backlog per the D4 deferral._
 
+_**Request-level audit, 2026-11-09.** `scripts/request_field_audit.py` found
+the operations and request fields that the path-level audit had missed.
+0.7.1 shipped the VPC subnet `ipv4` pin alone, because a user was waiting on
+it. 0.7.2 closes every non-DBaaS finding: the instance, network, pool, SKS,
+template, snapshot, IAM and DNS actions and the `reset_field` family. The DBaaS
+findings fold into #136: user `access-control` / `authentication` /
+`allow-replication` / `password` fields, pg database `lc-collate` /
+`lc-ctype`, the Valkey user access-control update, pg connection pools,
+upgrade-check and allow-replication, the Kafka ACLs and the per-engine
+user/role lists._
+
 _**Where the tier A/B/C rows came from — and the process gap they expose (D5).**
 Not from drift. The backlog above them is drift-fed, and the weekly watch only
 ever reports what *changed* since the accepted snapshot; APIv2 surface that has
