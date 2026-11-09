@@ -681,14 +681,30 @@ API collection: `instance`; resource model: `Instance`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `add_protection(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Turn on destruction protection (``PUT instance/{id}:add-protection``).
 - `delete_reverse_dns(resource_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove the PTR record (``DELETE /reverse-dns/{kind}/{id}``).
+- `enable_tpm(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Add a virtual TPM to the instance (``POST instance/{id}:enable-tpm``).
 - `get_reverse_dns(resource_id: str, *, zone: str | None = None) -> str | None`
   Return the PTR domain name for the resource, or ``None`` if unset.
 - `reboot(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Reboot a running instance (``PUT instance/{id}:reboot``).
+- `remove_protection(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Turn off destruction protection (``PUT instance/{id}:remove-protection``).
+- `reset(instance_id: str, *, template_id: str | None = None, disk_size: int | None = None, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Re-install the instance from its template, **wiping the disk**.
 - `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
+- `reset_password(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Generate a new password for the template's default user.
+- `resize_disk(instance_id: str, disk_size: int, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Grow the instance's root disk to ``disk_size`` GiB.
+- `reveal_password(instance_id: str, *, zone: str | None = None) -> str | None`
+  Return the instance's current password (``GET instance/{id}:password``).
+- `revert_to_snapshot(instance_id: str, snapshot_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Roll the instance's disk back to one of its snapshots.
 - `scale(instance_id: str, instance_type_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Change the instance's compute offering (``PUT instance/{id}:scale``).
 - `set_reverse_dns(resource_id: str, domain_name: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
@@ -2994,6 +3010,16 @@ instances.reboot(instance.id)
 # Boot a stopped instance into Rescue Mode ("netboot-efi" for UEFI templates)
 instances.start(instance.id, rescue_profile="netboot")
 
+# Protection, password, disk
+instances.add_protection(instance.id)          # delete now fails until removed
+instances.remove_protection(instance.id)
+instances.reset_password(instance.id)
+password = instances.reveal_password(instance.id)   # a credential: never log it
+instances.resize_disk(instance.id, 20)         # GiB, grow only, instance stopped
+instances.enable_tpm(instance.id)
+instances.revert_to_snapshot(instance.id, snapshot_id)   # instance stopped
+instances.reset(instance.id)                   # re-install: WIPES the disk
+
 # Update + delete
 instances.update(instance.id, {"labels": {"role": "web"}})
 instances.delete(instance.id)
@@ -3021,6 +3047,15 @@ instances.delete(instance.id)
 - **Clear an optional field with `reset_field(id, "labels")`.** It wraps
   `DELETE /instance/{id}/{field}`; the spec allows `labels`. Use it
   instead of sending an empty value through `update`.
+- **`reset()` wipes the disk.** It re-installs from the instance's template
+  (or `template_id=`) and can change `disk_size=` at the same time. It is
+  library-only, like the other destructive actions.
+- **Disks only grow.** `resize_disk(id, size)` rejects a smaller size;
+  `revert_to_snapshot(id, snapshot_id)` needs the instance stopped and a
+  snapshot of that same instance.
+- **`reveal_password()` returns a credential.** It reads
+  `GET instance/{id}:password`; treat the value like any secret and never log
+  it. `reset_password()` generates a new one first.
 
 #### End-to-end example
 

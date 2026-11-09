@@ -95,7 +95,8 @@ def _instance_payload(
 
 
 def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
-    """Instance: create + get + find + update labels + stop/start/reboot + rescue start + delete."""
+    """Instance: CRUD, labels + reset, stop/start/reboot, rescue start, protection,
+    password reset/reveal, disk resize, TPM, re-install, delete."""
     sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
     tiny_id = resolve_instance_type(tier_3_client, "standard.tiny")
     template_id = resolve_linux_template(tier_3_client)
@@ -134,6 +135,29 @@ def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> N
     wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
     assert instances.start(inst_id, rescue_profile=profile).state == "success"
     wait_for_state(lambda: instances.get(inst_id), "running", timeout=300)
+
+    # Destruction protection blocks delete until removed.
+    instances.add_protection(inst_id)
+    with pytest.raises(APIError):
+        instances.delete(inst_id)
+    instances.remove_protection(inst_id)
+
+    # Password reset + reveal. The value is a credential: never print it.
+    instances.reset_password(inst_id)
+    revealed = instances.reveal_password(inst_id)
+    assert revealed is None or isinstance(revealed, str)
+
+    # Offline disk operations: grow the disk, add a TPM, then re-install.
+    instances.stop(inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
+    instances.resize_disk(inst_id, 20)
+    assert instances.get(inst_id).disk_size == 20
+    instances.enable_tpm(inst_id)
+    assert instances.get(inst_id).tpm_enabled is True
+    instances.start(inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "running", timeout=300)
+    instances.reset(inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "running", timeout=600)
 
     assert_safe_name(payload["name"])
     instances.delete(inst_id)

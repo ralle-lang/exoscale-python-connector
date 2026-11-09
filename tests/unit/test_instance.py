@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 import responses
 
 from exoscale_connector.resources.instance import InstanceClient
@@ -202,3 +203,35 @@ def test_instance_without_new_fields_serialises_without_them() -> None:
 
     payload = Instance(name="web").to_api_payload()
     assert "elastic-ips" not in payload and "ssh-keys" not in payload
+
+
+@pytest.mark.parametrize(
+    ("call", "verb", "action", "body"),
+    [
+        (lambda c: c.resize_disk("i-1", 20), "PUT", "resize-disk", {"disk-size": 20}),
+        (lambda c: c.reset("i-1"), "PUT", "reset", {}),
+        (
+            lambda c: c.reset("i-1", template_id="t-1", disk_size=30),
+            "PUT",
+            "reset",
+            {"template": {"id": "t-1"}, "disk-size": 30},
+        ),
+        (lambda c: c.revert_to_snapshot("i-1", "s-1"), "POST", "revert-snapshot", {"id": "s-1"}),
+        (lambda c: c.add_protection("i-1"), "PUT", "add-protection", None),
+        (lambda c: c.remove_protection("i-1"), "PUT", "remove-protection", None),
+        (lambda c: c.reset_password("i-1"), "PUT", "reset-password", None),
+        (lambda c: c.enable_tpm("i-1"), "POST", "enable-tpm", None),
+    ],
+)
+@responses.activate
+def test_instance_actions(client, base_url, call, verb, action, body) -> None:
+    responses.add(verb, f"{base_url}/instance/i-1:{action}", json={"id": "op", "state": "success"})
+    assert call(InstanceClient(client)).state == "success"
+    sent = responses.calls[0].request.body
+    assert (json.loads(sent) if sent else None) == body
+
+
+@responses.activate
+def test_reveal_password(client, base_url) -> None:
+    responses.add(responses.GET, f"{base_url}/instance/i-1:password", json={"password": "pw"})
+    assert InstanceClient(client).reveal_password("i-1") == "pw"
