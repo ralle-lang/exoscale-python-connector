@@ -31,6 +31,9 @@ from __future__ import annotations
 
 import argparse
 import ast
+import importlib
+import inspect
+import pkgutil
 import re
 import sys
 from dataclasses import dataclass, field
@@ -183,32 +186,58 @@ class _MethodCalls(ast.NodeVisitor):
             )
 
 
-def calls_in_source(source: str, module: str, collection_path: str = "") -> list[ClientCall]:
-    """Every client call in ``source``, with ``self.collection_path`` resolved."""
+def calls_in_source(
+    source: str, module: str, collection_path: str = "", class_name: str | None = None
+) -> list[ClientCall]:
+    """Every client call in ``source`` (or in one class of it), with
+    ``self.collection_path`` resolved to ``collection_path``."""
+    tree: ast.AST = ast.parse(source)
+    if class_name is not None:
+        tree = next(
+            n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == class_name
+        )
     visitor = _MethodCalls(module, collection_path)
-    visitor.visit(ast.parse(source))
+    visitor.visit(tree)
     return visitor.calls
 
 
 def discovered_calls() -> list[ClientCall]:
-    """Client calls across all resource modules, base-class verbs included.
+    """Client calls across all resource modules, inherited ones included.
 
-    ``_base.py`` is rendered once per concrete client so the generic
-    ``create``/``update``/``delete`` count for every collection path; mixins
-    (``_reverse_dns.py``) are scanned with their own literal paths.
+    A module's own code is scanned once. Code a client *inherits* from the
+    private modules (``ResourceClient`` in ``_base.py``, mixins such as
+    ``_reverse_dns.py`` / ``_reset_field.py``) is rendered per inheriting client
+    with that client's ``collection_path``, so a mixin only covers the clients
+    that actually use it.
     """
-    collection_paths = ops._module_collection_paths()
     calls: list[ClientCall] = []
-    base_source = (ops.RESOURCES_DIR / "_base.py").read_text(encoding="utf-8")
-    for path in sorted(ops.RESOURCES_DIR.glob("*.py")):
-        stem = path.stem
-        if stem in {"__init__", "_base"}:
+    private_sources: dict[str, str] = {}
+    for info in sorted(pkgutil.iter_modules(ops.resources_pkg.__path__), key=lambda m: m.name):
+        if info.name.startswith("_"):
             continue
-        source = path.read_text(encoding="utf-8")
-        own = collection_paths.get(stem, [""])
-        calls += calls_in_source(source, stem, own[0])
-        for cp in collection_paths.get(stem, []):
-            calls += calls_in_source(base_source, stem, cp)
+        mod = importlib.import_module(f"exoscale_connector.resources.{info.name}")
+        clients = [
+            obj
+            for obj in vars(mod).values()
+            if inspect.isclass(obj)
+            and issubclass(obj, ops.ResourceClient)
+            and obj is not ops.ResourceClient
+            and obj.__module__ == mod.__name__
+        ]
+        own_cp = next((c.collection_path for c in clients), "")
+        source = (ops.RESOURCES_DIR / f"{info.name}.py").read_text(encoding="utf-8")
+        calls += calls_in_source(source, info.name, own_cp)
+        for client in clients:
+            for base in client.__mro__[1:]:
+                base_mod = base.__module__
+                if not base_mod.startswith("exoscale_connector.resources._"):
+                    continue
+                if base_mod not in private_sources:
+                    path = ops.RESOURCES_DIR / f"{base_mod.rsplit('.', 1)[-1]}.py"
+                    private_sources[base_mod] = path.read_text(encoding="utf-8")
+                calls += calls_in_source(
+                    private_sources[base_mod], info.name, client.collection_path, base.__name__
+                )
     return calls
 
 

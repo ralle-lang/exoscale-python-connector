@@ -89,6 +89,9 @@ lbs.update_service(lb.id, service_id, {
     "healthcheck": {"mode": "tcp", "port": 80, "interval": 20, "timeout": 5, "retries": 2},
 })
 
+svc = lbs.get_service(lb.id, service_id)       # one service, typed
+lbs.reset_service_field(lb.id, service_id, "description")
+
 lbs.delete_service(lb.id, service_id)
 lbs.delete(lb.id)
 ```
@@ -111,6 +114,11 @@ lbs.delete(lb.id)
   `LoadBalancerService(...)` models now serialise to the same shape.
 - **Delete the LB before deleting the backing pool** — the API rejects
   deleting a pool that has an LB pointing at it.
+- **Clear optional fields with `reset_field(lb_id, "labels")`** (LB:
+  `description`, `labels`) and `reset_service_field(lb_id, service_id,
+  "description")` (service: `description`). Read a single service with
+  `get_service(lb_id, service_id)`. These three are unit-tested but not yet
+  live-verified.
 
 ## End-to-end example
 

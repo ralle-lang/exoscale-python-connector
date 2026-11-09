@@ -472,6 +472,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Remove the PTR record (``DELETE /reverse-dns/{kind}/{id}``).
 - `get_reverse_dns(resource_id: str, *, zone: str | None = None) -> str | None`
   Return the PTR domain name for the resource, or ``None`` if unset.
+- `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
 - `set_reverse_dns(resource_id: str, domain_name: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Set the PTR record (``POST /reverse-dns/{kind}/{id}``).
 
@@ -685,6 +687,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Return the PTR domain name for the resource, or ``None`` if unset.
 - `reboot(instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Reboot a running instance (``PUT instance/{id}:reboot``).
+- `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
 - `scale(instance_id: str, instance_type_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Change the instance's compute offering (``PUT instance/{id}:scale``).
 - `set_reverse_dns(resource_id: str, domain_name: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
@@ -736,6 +740,8 @@ API collection: `instance-pool`; resource model: `InstancePool`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
 - `scale(pool_id: str, size: int, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Resize an instance pool to the given number of instances.
 
@@ -915,6 +921,12 @@ Inherits the common operations (see above) plus the methods below, if any.
   Add a service to a load balancer.
 - `delete_service(lb_id: str, service_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Remove a service from a load balancer by service id.
+- `get_service(lb_id: str, service_id: str, *, zone: str | None = None) -> LoadBalancerService`
+  Read one service (``GET load-balancer/{lb_id}/service/{service_id}``).
+- `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
+- `reset_service_field(lb_id: str, service_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset an optional service field (e.g. ``"description"``) to its default.
 - `update_service(lb_id: str, service_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Update an existing service on a load balancer (HTTP PUT).
 
@@ -1034,6 +1046,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Attach a compute instance to this private network.
 - `detach_instance(network_id: str, instance_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Detach a compute instance from this private network.
+- `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
 
 ### `exoscale_connector.resources.security_group`
 
@@ -2386,6 +2400,9 @@ eips.delete(eip.id)
   symmetry suggests `PUT /reverse-dns/elastic-ip/{id}`, but the live API
   404s on PUT and takes **POST** for create/update (confirmed live
   2026-06-10). `set_reverse_dns()` does the right thing.
+- **Clear an optional field with `reset_field(id, "description")`.** It wraps
+  `DELETE /elastic-ip/{id}/{field}`; the spec allows `description`. Use it
+  instead of sending an empty value through `update`.
 
 #### End-to-end example
 
@@ -2811,6 +2828,11 @@ pools.delete(pool.id)          # cascade-deletes member instances
   across distinct physical hosts** — this is the supported way an instance pool
   guarantees host spread for HA. Like anti-affinity groups generally, it is
   **create-only**: it can't be changed on an existing pool, so decide up front.
+- **Clear an optional field with `reset_field(id, "description")`.** It wraps
+  `DELETE /instance-pool/{id}/{field}`. Resettable fields include
+  `description`, `labels`, `anti-affinity-groups`, `security-groups`,
+  `elastic-ips`, `private-networks`, `ssh-key`, `user-data` and
+  `deploy-target`. Use it instead of sending an empty value through `update`.
 
 #### End-to-end example
 
@@ -2996,6 +3018,9 @@ instances.delete(instance.id)
   `netboot` and `netboot-efi`; pick the one matching the template's
   `boot_mode` (`legacy` → `netboot`, `uefi` → `netboot-efi`). The instance must
   be stopped first.
+- **Clear an optional field with `reset_field(id, "labels")`.** It wraps
+  `DELETE /instance/{id}/{field}`; the spec allows `labels`. Use it
+  instead of sending an empty value through `update`.
 
 #### End-to-end example
 
@@ -3295,6 +3320,9 @@ lbs.update_service(lb.id, service_id, {
     "healthcheck": {"mode": "tcp", "port": 80, "interval": 20, "timeout": 5, "retries": 2},
 })
 
+svc = lbs.get_service(lb.id, service_id)       # one service, typed
+lbs.reset_service_field(lb.id, service_id, "description")
+
 lbs.delete_service(lb.id, service_id)
 lbs.delete(lb.id)
 ```
@@ -3317,6 +3345,11 @@ lbs.delete(lb.id)
   `LoadBalancerService(...)` models now serialise to the same shape.
 - **Delete the LB before deleting the backing pool** — the API rejects
   deleting a pool that has an LB pointing at it.
+- **Clear optional fields with `reset_field(lb_id, "labels")`** (LB:
+  `description`, `labels`) and `reset_service_field(lb_id, service_id,
+  "description")` (service: `description`). Read a single service with
+  `get_service(lb_id, service_id)`. These three are unit-tested but not yet
+  live-verified.
 
 #### End-to-end example
 
@@ -3592,6 +3625,9 @@ pn.detach_instance(network.id, instance_id)
   for DHCP, and it has no effect on an unmanaged (shared-L2) network.
 - **Managed networks need all three of `start-ip`, `end-ip`, `netmask`**;
   unmanaged networks need none.
+- **Clear an optional field with `reset_field(id, "labels")`.** It wraps
+  `DELETE /private-network/{id}/{field}`; the spec allows `labels`. Use it
+  instead of sending an empty value through `update`.
 
 #### End-to-end example
 

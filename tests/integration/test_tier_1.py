@@ -110,7 +110,7 @@ def test_security_group_lifecycle(live_client, run_id, tracker, tier_1_enabled) 
 
 
 def test_private_network_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
-    """Private network: create + update + delete."""
+    """Private network: create + update + reset labels + delete."""
     pn = PrivateNetworkClient(live_client)
     name = make_name(run_id, "pn")
     created = pn.create({"name": name, "description": "connector tier-1 smoke"})
@@ -122,9 +122,13 @@ def test_private_network_lifecycle(live_client, run_id, tracker, tier_1_enabled)
     found = pn.find_by_name(name)
     assert found is not None and found.id == pn_id
 
-    pn.update(pn_id, {"description": "updated by tier-1 smoke"})
+    pn.update(pn_id, {"description": "updated by tier-1 smoke", "labels": {"connector": "t1"}})
     after = pn.get(pn_id)
     assert after.description == "updated by tier-1 smoke"
+    assert (after.labels or {}).get("connector") == "t1"
+
+    pn.reset_field(pn_id, "labels")
+    assert not pn.get(pn_id).labels
 
     assert_safe_name(name)
     pn.delete(pn_id)

@@ -9,6 +9,7 @@ from typing import Any
 
 from ..models import ExoscaleModel, Operation
 from ._base import ResourceClient
+from ._reset_field import ResetFieldMixin
 
 
 class PrivateNetworkLease(ExoscaleModel):
@@ -44,7 +45,7 @@ class PrivateNetwork(ExoscaleModel):
     vni: int | None = None
 
 
-class PrivateNetworkClient(ResourceClient[PrivateNetwork]):
+class PrivateNetworkClient(ResetFieldMixin, ResourceClient[PrivateNetwork]):
     """Manage Exoscale Private Networks."""
 
     collection_path = "private-network"

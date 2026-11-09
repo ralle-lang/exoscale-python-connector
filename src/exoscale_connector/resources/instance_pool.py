@@ -9,6 +9,7 @@ from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
+from ._reset_field import ResetFieldMixin
 from .instance import SshKeyReference
 
 
@@ -43,7 +44,7 @@ class InstancePool(ExoscaleModel):
     min_available: int | None = None
 
 
-class InstancePoolClient(ResourceClient[InstancePool]):
+class InstancePoolClient(ResetFieldMixin, ResourceClient[InstancePool]):
     """Manage instance pools."""
 
     collection_path = "instance-pool"

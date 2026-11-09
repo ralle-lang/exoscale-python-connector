@@ -116,6 +116,8 @@ def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> N
     instances.update(inst_id, {"labels": {"connector": "tier-3"}})
     after = instances.get(inst_id)
     assert (after.labels or {}).get("connector") == "tier-3"
+    instances.reset_field(inst_id, "labels")
+    assert not instances.get(inst_id).labels
 
     instances.stop(inst_id)
     wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
