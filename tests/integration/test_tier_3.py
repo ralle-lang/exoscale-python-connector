@@ -440,6 +440,13 @@ def test_vpc_subnet_attach_detach(tier_3_client, run_id, tracker, tier_3_enabled
     after = vpcs.get_subnet(vpc_id, subnet_id).instances or []
     assert all(i.id != inst.id for i in after)
 
+    # Re-attach with a pinned address; the subnet must report exactly that lease.
+    pinned = "10.0.0.42"
+    assert vpcs.attach_subnet(vpc_id, subnet_id, inst.id, ipv4=pinned).state == "success"
+    attached = {i.id: i.ipv4 for i in vpcs.get_subnet(vpc_id, subnet_id).instances or []}
+    assert attached.get(inst.id) == pinned
+    assert vpcs.detach_subnet(vpc_id, subnet_id, inst.id).state == "success"
+
     assert_safe_name(inst_name)
     instances.delete(inst.id)
     tracker.unregister(inst.id)

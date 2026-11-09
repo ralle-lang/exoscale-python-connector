@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `VpcClient.attach_subnet(..., ipv4=...)` pins the instance's address in the
+  subnet instead of letting the API pick one.
+
 ## [0.7.0] - 2026-11-02
 
 Feature release closing the core and typed-field gaps found by the 2026-08-31

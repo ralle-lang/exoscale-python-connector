@@ -104,6 +104,19 @@ def test_attach_subnet_sends_instance_ref(client, base_url) -> None:
 
 
 @responses.activate
+def test_attach_subnet_pins_ipv4(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/vpc/v1/subnet/s1/attach",
+        json={"id": "op3", "state": "success"},
+        status=200,
+    )
+    VpcClient(client).attach_subnet("v1", "s1", "i-123", ipv4="10.0.0.42")
+    sent = json.loads(responses.calls[0].request.body)
+    assert sent == {"instance": {"id": "i-123"}, "ipv4": "10.0.0.42"}
+
+
+@responses.activate
 def test_create_route_omits_name(client, base_url) -> None:
     responses.add(
         responses.POST,

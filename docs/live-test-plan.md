@@ -101,8 +101,8 @@ flag gate. Decide one row at a time — anything you say no to, I skip.
   `ip=10.0.0.10`, **no `name`**) → assert it is in the subnet list and not the
   VPC-wide one → delete route → delete subnet → delete VPC.
 - **Cost**: €0. **Risk**: none — VPC/subnet/route are free metadata.
-- **Note**: instance ↔ subnet `attach_subnet`/`detach_subnet` needs a running
-  instance; covered by `test_tier_3.py::test_vpc_subnet_attach_detach`.
+- **Note**: instance ↔ subnet `attach_subnet`/`detach_subnet` (auto and pinned
+  `ipv4`) needs a running instance; covered by `test_tier_3.py::test_vpc_subnet_attach_detach`.
 - **Access**: VPC is a per-account product, and the key's IAM role needs the
   `networking` service. Without either, the API returns 403 (`... not enabled`
   or `Forbidden by role policy for networking`); the smoke, Tier-1 and Tier-3
