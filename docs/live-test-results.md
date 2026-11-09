@@ -484,7 +484,8 @@ real control-plane upgrade to the next version and the move to `pro`).
 
 21. **`POST /iam-role/{id}/assume` answers 404** for an existing role, with the
     assume-role policy set inline or via update, and also as `:assume`. Not an
-    IAM refusal (those are 403); `assume()` stays unverified.
+    IAM refusal (those are 403). The endpoint is `[BETA]`, so `assume()` was
+    dropped from 0.7.2 (the connector does not ship beta endpoints).
 22. **`max-session-ttl` and `assume-role-policy` are not echoed** by
     `GET /iam-role/{id}`, though both are accepted on create and update.
 23. **Private-network creation is disabled on the tenant:**

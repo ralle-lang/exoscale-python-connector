@@ -147,22 +147,17 @@ roles.reset_organization_policy(confirm=True)
   build it with `IAMAssumeRolePolicy.with_rules(IAMPolicyRule.allow(...))`.
   Earlier releases typed it as `IAMPolicy`
   (`default-service-strategy` / `services`), which the API does not define.
-- **Does `get()` echo `assume-role-policy`?** Live runs saw it come back as
-  `None` on ordinary roles, but those runs sent the old `IAMPolicy` shape, so
-  the API may simply have ignored the body. Re-verify with the spec shape
-  before relying on either behaviour. The permission `policy` does round-trip
-  on `get()`.
-- **`assume(role_id, ttl)` is implemented from the spec but returned 404
-  live.** It wraps `POST /iam-role/{id}/assume` and should mint a temporary
-  API key (`IAMAssumedRoleKey`, whose `secret` is hidden from `repr`). On
-  2026-11-09 the test tenant answered `404 not found` for an existing role,
-  with the assume-role policy set inline at create or via `update`, and also
-  for the `:assume` spelling. That is not an IAM-role refusal (those are
-  `403 Forbidden by role policy`), so the endpoint is not served for that
-  account. Treat it as unverified.
-- **`max-session-ttl` and `assume-role-policy` are write-only in practice.**
-  Both are accepted on create and `update`, but `get()` returned neither on
-  2026-11-09, so `IAMRole.max_session_ttl` reads back as `None`.
+- **`get()` does not echo `assume-role-policy`.** It came back as `None` even
+  after setting a policy in the spec's `{"rules": [...]}` shape (live,
+  2026-11-09), so treat the field as write-only. The permission `policy` does
+  round-trip on `get()`.
+- **Role assumption (`POST /iam-role/{id}/assume`) is not wrapped.** The spec
+  marks it `[BETA]`, and the connector does not ship beta endpoints. It also
+  answered `404 not found` live (2026-11-09), even for a role whose
+  assume-role policy allowed every caller; an empty body got
+  `400 missing keys 'ttl'`, so the route exists but is not served for that
+  account. `max-session-ttl` (the assume TTL ceiling) is left untyped for the
+  same reason; pass it in a dict payload if you need it.
 
 ## End-to-end example
 
