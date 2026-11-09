@@ -134,6 +134,19 @@ def test_load_balancer_lifecycle(tier_3_client, run_id, tracker, tier_4_lb_enabl
         },
     )
 
+    # 4b. Single-service read, then reset optional fields on the service and LB.
+    svc = lbs.get_service(lb_id, svc_id)
+    assert svc.id == svc_id
+    assert svc.description == "tier-4 LB service (updated)"
+    lbs.reset_service_field(lb_id, svc_id, "description", wait=True)
+    assert not lbs.get_service(lb_id, svc_id).description
+    lbs.reset_field(lb_id, "description", wait=True)
+    assert not lbs.get(lb_id).description
+
+    # The reset operation succeeds while the service is still "updating"; a
+    # delete in that state is refused with 409, so let it settle first.
+    wait_for_state(lambda: lbs.get_service(lb_id, svc_id), "running", timeout=300)
+
     # 5. Tear down service → LB → pool. Order matters: API forbids deleting a
     #    pool that still has an LB pointing at it.
     lbs.delete_service(lb_id, svc_id)

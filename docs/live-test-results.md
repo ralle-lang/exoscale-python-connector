@@ -479,6 +479,9 @@ tier 3 and tier 4 SKS ran against the test tenant.
 below, with private-network tests and one block-volume resize skipped on
 tenant limits; tier 4 `test_sks_lifecycle` passed (about 5 min, including a
 real control-plane upgrade to the next version and the move to `pro`).
+Follow-up the same day: tier 4 `test_load_balancer_lifecycle` passed (about
+2 min) with `get_service`, `reset_service_field` and the LB `reset_field`
+added; the first attempt hit finding 28.
 
 **Spec-vs-reality findings (documented in the asset-type gotchas):**
 
@@ -501,3 +504,7 @@ real control-plane upgrade to the next version and the move to `pro`).
 26. **`reset-password` and `reset` need a stopped instance** (409 / 400).
 27. **Template copy keeps the template id,** and deleting it in the target
     zone removes it from the source zone too. `zones` came back empty.
+28. **An LB service stays `updating` after a field reset,** although the reset
+    operation already succeeded; `DELETE` on it then answers 409
+    ("Cannot transition service ... from state :updating to :deleting"). The
+    test waits for `running` before deleting.
