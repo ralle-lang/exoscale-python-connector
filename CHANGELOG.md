@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-09
+
+Closes every non-DBaaS gap found by the new request-level coverage audit
+(`scripts/request_field_audit.py`): ~40 APIv2 operations that existed in the
+spec, under path families the connector already covered, but had no client
+method. Live-verified on tier 1, tier 3 and tier 4 SKS, except as noted below.
+
+Not yet live-verified: `IAMRoleClient.assume` (the test tenant answers 404),
+`PrivateNetworkClient.update_instance_ip` and private-network `reset_field`
+(private-network creation is disabled on the test tenant), and the
+load-balancer `get_service` / `reset_service_field`.
+
 ### Fixed
 
 - The snapshot page's export example read the URL from the returned
@@ -352,7 +364,8 @@ upstream-drift triage. Purely additive: no existing behaviour changes.
   models, an umbrella CLI plus thin per-asset CLIs, and IAM policy expression
   helpers.
 
-[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/ralle-lang/exoscale-python-connector/compare/v0.6.1...v0.6.2
