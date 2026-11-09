@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `InstanceClient.start(..., rescue_profile=...)` boots a stopped instance into
   Rescue Mode (`netboot` / `netboot-efi`).
+- `scripts/request_field_audit.py`: a coverage audit that lists APIv2
+  operations no client method can call and request fields a method never sends.
+  It found the gaps closed in this release.
 
 ## [0.7.1] - 2026-11-09
 
