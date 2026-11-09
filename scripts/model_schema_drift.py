@@ -68,6 +68,7 @@ EXEMPT_MODELS: dict[str, str] = {
     ),
     "InstancePrivateNetwork": "inline item schema of instance.private-networks; no named component",
     "VpcSubnetInstance": "inline item schema of subnet.instances; no named component",
+    "IAMAssumedRoleKey": "inline response schema of assume-iam-role; no named component",
     "DBaaSLogEntry": "inline item schema of dbaas-service-logs.logs; no named component",
     "DBaaSConnectionInfo": (
         "connection-info is defined per engine in the spec and its shape varies "

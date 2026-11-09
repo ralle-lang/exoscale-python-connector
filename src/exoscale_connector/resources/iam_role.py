@@ -16,6 +16,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from enum import Enum
 
+from pydantic import Field
+
 from ..models import ExoscaleModel, Operation, to_api_payload
 from ._base import ResourceClient
 
@@ -179,6 +181,20 @@ class IAMRole(ExoscaleModel):
     # Conditions under which this role may be assumed: a flat rule list, not
     # the per-service shape of ``policy``.
     assume_role_policy: IAMAssumeRolePolicy | None = None
+    # Upper bound (seconds) a caller may request in assume(ttl=...).
+    max_session_ttl: int | None = None
+
+
+class IAMAssumedRoleKey(ExoscaleModel):
+    """Temporary API key returned by :meth:`IAMRoleClient.assume`."""
+
+    key: str | None = None
+    # A live credential: excluded from repr so logging never echoes it.
+    secret: str | None = Field(default=None, repr=False)
+    name: str | None = None
+    org_id: str | None = None
+    role_id: str | None = None
+    expires_at: str | None = None
 
 
 class IAMRoleClient(ResourceClient[IAMRole]):
@@ -232,6 +248,18 @@ class IAMRoleClient(ResourceClient[IAMRole]):
         if self._should_wait(wait) and operation.id:
             operation = self.client.wait_operation(operation, zone=zone)
         return operation
+
+    def assume(self, role_id: str, ttl: int, *, zone: str | None = None) -> IAMAssumedRoleKey:
+        """Assume a role and get a temporary API key (``POST /iam-role/{id}/assume``).
+
+        ``ttl`` is the key lifetime in seconds and cannot exceed the role's
+        ``max_session_ttl``. The caller must satisfy the role's
+        ``assume_role_policy``. The returned ``secret`` is a credential.
+        """
+        payload = self.client.post(
+            f"{self.collection_path}/{role_id}/assume", zone=self._zone(zone), json={"ttl": ttl}
+        )
+        return IAMAssumedRoleKey.model_validate(payload)
 
     # ------------------------------------------------------------------ #
     # Organization policy (applies org-wide, on top of every role policy)
