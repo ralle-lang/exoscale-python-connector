@@ -340,6 +340,20 @@ The weekly drift workflow runs the same diff against the *incoming* spec
 (`--summary`) and embeds the result in the evaluation issue, so a model that will
 go red after the snapshot refresh is called out up front.
 
+### Request-body coverage audit
+
+The gate above checks *response* models. `scripts/request_field_audit.py`
+checks the other direction: for every operation on a path the connector
+reaches, it finds the client methods calling that exact verb
+and path (AST-discovered, like the operations map) and reports operations with
+no method and spec request fields a method's fixed body never sends. Methods
+that forward a caller-supplied payload count as sending every field. It is an
+audit, not a gate — run it at release boundaries and route the findings through
+the roadmap (decision D5). Deliberate omissions go in `KNOWN_OMISSIONS` with a
+reason (`KNOWN_UNCALLED` for operations an equivalent
+endpoint already covers); `tests/unit/test_request_field_audit.py` keeps that list pointed at real
+operations.
+
 ## Stability & compatibility
 
 **Versioning.** This project follows [Semantic Versioning](https://semver.org),

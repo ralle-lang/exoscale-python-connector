@@ -421,6 +421,15 @@ offline work — no network, no tenant, no cost:
   .github/upstream/openapi-v2.json` already prints unmodelled optional fields per
   model. They are informational by design (`extra="allow"`), but the list mixes
   incidental fields with substantive ones — curate, do not model wholesale.
+- **Request-level.** `python scripts/request_field_audit.py` lists every
+  in-scope verb + path no client method calls (`no method`) and the top-level
+  body fields a method's fixed body never sends (`missing fields`). The two
+  checks above miss both: path-level marks a family as covered once its base
+  path is, so colon actions under it (`:evict`, `:attach`, `/upgrade`, …) were
+  never counted, and the model gate compares *response* fields only. Added
+  2026-11-09 after a user found `attach_subnet` could not pin `ipv4`; that
+  first run found ~70 uncallable operations (~40 non-DBaaS) in families the
+  path-level audit had marked covered.
 
 The 2026-08-31 audit that produced the tier A/B/C rows found ~29–38h of
 unmodelled surface behind a drift queue that had been quiet since #71.

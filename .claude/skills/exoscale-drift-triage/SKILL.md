@@ -195,6 +195,23 @@ but the list mixes incidental fields with substantive ones — e.g. `Instance` h
 no typed `ssh-keys`, `elastic-ips` or `private-networks`. **Curate, do not model
 wholesale**; the models are a deliberate subset.
 
+**Request-level.** Also tooled, and the check the other two cannot replace:
+
+```bash
+python scripts/request_field_audit.py
+```
+
+It matches every client call by **verb + exact path** (colon actions included)
+and compares the body each method can send with the operation's request
+properties. `no method` = the family is covered but this operation is not
+callable; `missing fields` = a fixed body never sends some spec property. A
+method that forwards a caller payload (`to_api_payload(...)`) counts as sending
+everything. The path-level pass misses both kinds: on 2026-11-09 it had marked
+`/sks-cluster`, `/security-group`, `/elastic-ip` covered while `:upgrade`,
+`:attach`/`:detach` and `:evict` had no method at all. Record deliberate
+omissions in `KNOWN_OMISSIONS` (fields) or `KNOWN_UNCALLED` (operations an
+equivalent endpoint covers) with a reason.
+
 **Route findings exactly like additive drift** — roadmap backlog with an
 estimate, D4 scope call for anything possibly opt-in, graduate at ~8–16h (D3).
 Mark the source as the audit, not a drift issue, so the provenance stays honest.
