@@ -40,16 +40,25 @@ exoscale-snapshot delete --id <uuid>
 
 ```python
 from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.instance import InstanceClient
 from exoscale_connector.resources.snapshot import SnapshotClient
 
-snapshots = SnapshotClient(ExoscaleClient.from_env(zone="de-fra-1"))
+client = ExoscaleClient.from_env(zone="de-fra-1")
+snapshots = SnapshotClient(client)
 
 # Create from an instance
 snap = snapshots.create_from_instance(instance_id)
 
-# Export — returns a pre-signed download URL in the response
-exported = snapshots.export(snap.id)
-print(exported.export.presigned_url)
+# Export — the pre-signed download URL lands on the snapshot afterwards.
+# It grants read access to the image: treat it as a secret.
+snapshots.export(snap.id)
+url = snapshots.get(snap.id).export.presigned_url
+
+# Promote to a private template (new id in op.reference_id)
+op = snapshots.promote_to_template(snap.id, "golden-web", ssh_key_enabled=True)
+
+# Roll the (stopped) instance back to this snapshot
+InstanceClient(client).revert_to_snapshot(instance_id, snap.id)
 
 # Delete
 snapshots.delete(snap.id)
@@ -68,6 +77,11 @@ snapshots.delete(snap.id)
   consistent backups.
 - **Snapshot storage is charged per GiB-month** — delete what you no
   longer need.
+- **Promote and revert live elsewhere in the API.** `promote_to_template`
+  wraps `POST /snapshot/{id}:promote`; revert is an *instance* action
+  (`InstanceClient.revert_to_snapshot`, `POST /instance/{id}:revert-snapshot`)
+  and needs the instance stopped. Delete promoted templates before the
+  snapshot.
 
 ## End-to-end example
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The snapshot page's export example read the URL from the returned
+  operation, which has no `export`; it now re-reads the snapshot.
+
 ### Added
 
 - `InstanceClient.start(..., rescue_profile=...)` boots a stopped instance into
@@ -14,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `InstanceClient`: `resize_disk`, `reset` (re-install), `revert_to_snapshot`,
   `add_protection` / `remove_protection`, `reset_password` / `reveal_password`
   and `enable_tpm`.
+- `SnapshotClient.promote_to_template` and `TemplateClient.copy` (to another
+  zone); `Template` gains `maintainer`,
+  `application_consistent_snapshot_enabled` and `zones`.
 - `reset_field(id, field)` on instances, instance pools, elastic IPs, private
   networks and load balancers clears an optional field
   (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and

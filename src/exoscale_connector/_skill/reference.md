@@ -1270,6 +1270,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Trigger a snapshot of the named instance and return the new snapshot.
 - `export(snapshot_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Export a snapshot to object storage (async).
+- `promote_to_template(snapshot_id: str, name: str, *, description: str | None = None, default_user: str | None = None, ssh_key_enabled: bool | None = None, password_enabled: bool | None = None, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Turn a snapshot into a private template (``POST snapshot/{id}:promote``).
 
 ### `exoscale_connector.resources.ssh_key`
 
@@ -1319,6 +1321,9 @@ A compute template (boot image).
 | `password_enabled` | `password-enabled` | bool \| None |
 | `build` | `build` | str \| None |
 | `created_at` | `created-at` | str \| None |
+| `maintainer` | `maintainer` | str \| None |
+| `application_consistent_snapshot_enabled` | `application-consistent-snapshot-enabled` | bool \| None |
+| `zones` | `zones` | list[str] \| None |
 
 #### client `TemplateClient`
 
@@ -1328,6 +1333,8 @@ API collection: `template`; resource model: `Template`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `copy(template_id: str, target_zone: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Copy a private template to another zone (``POST template/{id}``).
 - `find_linux(*, zone: str | None = None) -> Template | None`
   Return the smallest public Linux template in the zone, or ``None``.
 - `list(*, zone: str | None = None, labels: dict | None = None, visibility: str | None = None) -> builtins.list[Template]`
@@ -4100,16 +4107,25 @@ exoscale-snapshot delete --id <uuid>
 
 ```python
 from exoscale_connector import ExoscaleClient
+from exoscale_connector.resources.instance import InstanceClient
 from exoscale_connector.resources.snapshot import SnapshotClient
 
-snapshots = SnapshotClient(ExoscaleClient.from_env(zone="de-fra-1"))
+client = ExoscaleClient.from_env(zone="de-fra-1")
+snapshots = SnapshotClient(client)
 
 # Create from an instance
 snap = snapshots.create_from_instance(instance_id)
 
-# Export — returns a pre-signed download URL in the response
-exported = snapshots.export(snap.id)
-print(exported.export.presigned_url)
+# Export — the pre-signed download URL lands on the snapshot afterwards.
+# It grants read access to the image: treat it as a secret.
+snapshots.export(snap.id)
+url = snapshots.get(snap.id).export.presigned_url
+
+# Promote to a private template (new id in op.reference_id)
+op = snapshots.promote_to_template(snap.id, "golden-web", ssh_key_enabled=True)
+
+# Roll the (stopped) instance back to this snapshot
+InstanceClient(client).revert_to_snapshot(instance_id, snap.id)
 
 # Delete
 snapshots.delete(snap.id)
@@ -4128,6 +4144,11 @@ snapshots.delete(snap.id)
   consistent backups.
 - **Snapshot storage is charged per GiB-month** — delete what you no
   longer need.
+- **Promote and revert live elsewhere in the API.** `promote_to_template`
+  wraps `POST /snapshot/{id}:promote`; revert is an *instance* action
+  (`InstanceClient.revert_to_snapshot`, `POST /instance/{id}:revert-snapshot`)
+  and needs the instance stopped. Delete promoted templates before the
+  snapshot.
 
 #### End-to-end example
 
@@ -4265,6 +4286,9 @@ checksum.
 | `url` / `checksum` | str | registration source (private templates) |
 | `boot_mode` | str | `legacy` \| `uefi` |
 | `default_user` | str | |
+| `maintainer` | str | read-only |
+| `application_consistent_snapshot_enabled` | bool | QEMU guest agent present |
+| `zones` | list[str] | zones the template is available in |
 
 #### CLI
 
@@ -4284,6 +4308,10 @@ templates = TemplateClient(client)
 public = templates.list()                      # API default: public
 mine = templates.list(visibility="private")
 smallest_linux = templates.find_linux()        # smallest public Linux image
+
+# Copy a private template to another zone; the copy has a new id there
+op = templates.copy(template_id, "ch-gva-2")
+copy = TemplateClient(client, zone="ch-gva-2").get(op.reference_id)
 ```
 
 #### Gotchas
@@ -4299,6 +4327,9 @@ smallest_linux = templates.find_linux()        # smallest public Linux image
   stays ~200 KB even at 10 GB virtual size.
 - **register/delete live-verified 2026-06-11** via `test_template_register_delete`
   (Tier 1, gated on `EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM`).
+- **`copy(id, target_zone)` is `POST /template/{id}`** with
+  `{"target-zone": {"name": ...}}`. The copy is a separate template with its
+  own id, which you delete in the target zone.
 
 ### vpc (+ subnets, routes)
 

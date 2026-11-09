@@ -7,6 +7,8 @@ the snapshot-specific create_from_instance and export helpers.
 
 from __future__ import annotations
 
+import json
+
 import responses
 
 from exoscale_connector.resources.snapshot import Snapshot, SnapshotClient
@@ -151,3 +153,18 @@ def test_export_no_wait_returns_pending(client, base_url) -> None:
     assert op.state == "pending"
     # No poll call should have been made.
     assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_promote_to_template_sends_only_given_fields(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/snapshot/s-1:promote",
+        json={"id": "op", "state": "success", "reference": {"id": "t-new"}},
+    )
+    op = SnapshotClient(client).promote_to_template("s-1", "golden", ssh_key_enabled=True)
+    assert op.reference_id == "t-new"
+    assert json.loads(responses.calls[0].request.body) == {
+        "name": "golden",
+        "ssh-key-enabled": True,
+    }

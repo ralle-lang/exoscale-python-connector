@@ -12,6 +12,8 @@ API reference: https://openapi-v2.exoscale.com/ (compute snapshot group)
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..models import ExoscaleModel, Operation, Reference
 from ._base import ResourceClient
 
@@ -69,6 +71,40 @@ class SnapshotClient(ResourceClient[Snapshot]):
             zone=zone,
         )
         return self._resolve_mutation(response, zone=zone, wait=wait)
+
+    def promote_to_template(
+        self,
+        snapshot_id: str,
+        name: str,
+        *,
+        description: str | None = None,
+        default_user: str | None = None,
+        ssh_key_enabled: bool | None = None,
+        password_enabled: bool | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Turn a snapshot into a private template (``POST snapshot/{id}:promote``).
+
+        The new template's id is ``operation.reference_id`` once it settles.
+        """
+        body: dict[str, Any] = {"name": name}
+        if description is not None:
+            body["description"] = description
+        if default_user is not None:
+            body["default-user"] = default_user
+        if ssh_key_enabled is not None:
+            body["ssh-key-enabled"] = ssh_key_enabled
+        if password_enabled is not None:
+            body["password-enabled"] = password_enabled
+        zone = self._zone(zone)
+        response = self.client.post(
+            f"{self.collection_path}/{snapshot_id}:promote", zone=zone, json=body
+        )
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation
 
     def export(
         self,
