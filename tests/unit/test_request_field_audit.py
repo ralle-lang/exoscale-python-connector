@@ -96,6 +96,24 @@ def test_audit_reports_missing_fields_and_missing_methods():
     assert "`ipv4`" in render_markdown(list(findings.values()))
 
 
+def test_beta_operations_are_reported_apart_from_gaps():
+    spec = _spec(
+        {
+            "/vpc/{id}/subnet/{sid}/detach": {"put": {"operationId": "d", **_body("instance")}},
+            "/vpc/{id}/thing": {
+                "put": {"operationId": "b", "summary": "[BETA] Do a thing", **_body("x")}
+            },
+        }
+    )
+    findings = {f.operation_id: f for f in audit(spec, [])}
+    assert findings["b"].beta and not findings["d"].beta
+    report = render_markdown(list(findings.values()))
+    gaps, _, beta = report.partition("### [BETA]")
+    assert "(d)" in gaps and "(b)" not in gaps
+    assert "(b)" in beta
+    assert render_markdown([findings["b"]]).startswith("_No request-body gaps")
+
+
 def test_known_omissions_target_real_operations():
     """A stale omission entry would silently hide nothing; keep the list honest."""
     spec = json.loads(DEFAULT_SPEC.read_text(encoding="utf-8"))

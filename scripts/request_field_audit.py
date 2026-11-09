@@ -47,7 +47,14 @@ DEFAULT_SPEC = ops.REPO_ROOT / ".github" / "upstream" / "openapi-v2.json"
 VERBS = {"get", "post", "put", "delete"}
 
 # (METHOD, normalised spec path) -> {field: reason}. Fields deliberately not sent.
-KNOWN_OMISSIONS: dict[tuple[str, str], dict[str, str]] = {}
+KNOWN_OMISSIONS: dict[tuple[str, str], dict[str, str]] = {
+    **{
+        ("POST", f"dbaas-kafka/{{}}/{acl}/acl-config"): {
+            "id": "server-assigned; the spec reuses the entry schema for the create body"
+        }
+        for acl in ("topic", "schema-registry")
+    },
+}
 
 # (METHOD, normalised spec path) -> reason. Operations deliberately left without
 # a method, usually because an equivalent endpoint already does the job.
@@ -93,6 +100,15 @@ class Finding:
     kind: str  # "no-method" | "missing"
     missing: list[str] = field(default_factory=list)
     callers: list[str] = field(default_factory=list)
+    # The spec marks the operation [BETA]. Beta ops are not shipped without
+    # the maintainer's explicit OK (the VPC API is the standing exception), so
+    # they are reported apart from the real gaps.
+    beta: bool = False
+
+
+def _is_beta(operation: dict) -> bool:
+    text = f"{operation.get('summary') or ''} {operation.get('description') or ''}"
+    return "[BETA]" in text.upper()
 
 
 # --------------------------------------------------------------------------- #
@@ -298,9 +314,10 @@ def audit(spec: dict, calls: list[ClientCall] | None = None) -> list[Finding]:
             verb_u = verb.upper()
             hits = [c for c in calls if c.verb == verb_u and endpoint_matches(c.endpoint, path)]
             op_id = operation.get("operationId", "")
+            beta = _is_beta(operation)
             if not hits:
                 if (verb_u, path) not in KNOWN_UNCALLED:
-                    findings.append(Finding(verb_u, path, op_id, "no-method"))
+                    findings.append(Finding(verb_u, path, op_id, "no-method", beta=beta))
                 continue
             if props is None:
                 continue
@@ -311,13 +328,13 @@ def audit(spec: dict, calls: list[ClientCall] | None = None) -> list[Finding]:
             missing = sorted(k for k in props if k not in sent and k not in omitted)
             if missing:
                 callers = sorted({f"{c.module}.{c.method}" for c in hits})
-                findings.append(Finding(verb_u, path, op_id, "missing", missing, callers))
+                findings.append(
+                    Finding(verb_u, path, op_id, "missing", missing, callers, beta=beta)
+                )
     return findings
 
 
-def render_markdown(findings: list[Finding]) -> str:
-    if not findings:
-        return "_No request-body gaps: every in-scope operation can send all its fields._\n"
+def _table(findings: list[Finding]) -> list[str]:
     lines = ["| Operation | Gap | Detail |", "|---|---|---|"]
     for f in findings:
         op = f"`{f.verb} /{f.path}` ({f.operation_id})"
@@ -326,6 +343,25 @@ def render_markdown(findings: list[Finding]) -> str:
         else:
             detail = f"{', '.join(f'`{m}`' for m in f.missing)} — via {', '.join(f.callers)}"
             lines.append(f"| {op} | missing fields | {detail} |")
+    return lines
+
+
+def render_markdown(findings: list[Finding]) -> str:
+    gaps = [f for f in findings if not f.beta]
+    beta = [f for f in findings if f.beta]
+    if gaps:
+        lines = _table(gaps)
+    else:
+        lines = ["_No request-body gaps: every in-scope operation can send all its fields._"]
+    if beta:
+        lines += [
+            "",
+            f"### [BETA] operations not covered ({len(beta)})",
+            "",
+            "Not gaps: beta operations ship only with the maintainer's explicit OK.",
+            "",
+            *_table(beta),
+        ]
     return "\n".join(lines) + "\n"
 
 
