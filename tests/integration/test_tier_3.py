@@ -40,6 +40,7 @@ from exoscale_connector.resources.vpc import VpcClient
 
 from ._fixtures import (
     assert_safe_name,
+    create_private_network_or_skip,
     make_name,
     resolve_instance_type,
     resolve_linux_template,
@@ -143,21 +144,20 @@ def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> N
         instances.delete(inst_id)
     instances.remove_protection(inst_id)
 
-    # Password reset + reveal. The value is a credential: never print it.
+    # Offline operations: password reset (409 unless stopped), disk grow, TPM,
+    # then re-install. The password is a credential: never print it.
+    instances.stop(inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
     instances.reset_password(inst_id)
     revealed = instances.reveal_password(inst_id)
     assert revealed is None or isinstance(revealed, str)
-
-    # Offline disk operations: grow the disk, add a TPM, then re-install.
-    instances.stop(inst_id)
-    wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
     instances.resize_disk(inst_id, 20)
     assert instances.get(inst_id).disk_size == 20
     instances.enable_tpm(inst_id)
     assert instances.get(inst_id).tpm_enabled is True
-    instances.start(inst_id)
-    wait_for_state(lambda: instances.get(inst_id), "running", timeout=300)
+    # Re-install also needs the instance stopped (400 otherwise).
     instances.reset(inst_id)
+    instances.start(inst_id)
     wait_for_state(lambda: instances.get(inst_id), "running", timeout=600)
 
     assert_safe_name(payload["name"])
@@ -283,16 +283,16 @@ def test_compute_snapshot_lifecycle(tier_3_client, run_id, tracker, tier_3_enabl
 
     source_zone = tier_3_client.config.zone
     target_zone = "ch-gva-2" if source_zone != "ch-gva-2" else "at-vie-1"
+    # The copy keeps the template id; one delete removes it in every zone
+    # (observed 2026-11-09).
     copy_id = templates.copy(tmpl_id, target_zone).reference_id
-    assert copy_id, "template copy returned no id"
+    assert copy_id == tmpl_id, "template copy is expected to keep the template id"
     target_templates = TemplateClient(tier_3_client, zone=target_zone)
-    tracker.register("template", lambda: target_templates.delete(copy_id), copy_id)
-    assert target_templates.get(copy_id).name == tmpl_name
+    assert target_templates.get(tmpl_id).name == tmpl_name
 
-    target_templates.delete(copy_id)
-    tracker.unregister(copy_id)
-    templates.delete(tmpl_id)
+    target_templates.delete(tmpl_id)
     tracker.unregister(tmpl_id)
+    assert templates.get_or_none(tmpl_id) is None
 
     snapshots.delete(snap_id)
     tracker.unregister(snap_id)
@@ -395,7 +395,9 @@ def test_private_network_instance_attach_detach(
 
     # Unmanaged (shared-L2) private network — no DHCP range required.
     net_name = make_name(run_id, "pnet")
-    net = nets.create({"name": net_name, "description": "tier-3 attach/detach"})
+    net = create_private_network_or_skip(
+        nets, {"name": net_name, "description": "tier-3 attach/detach"}
+    )
     net_id = net.id
     assert net_id, "private-network create returned no id"
     tracker.register("private-network", lambda: nets.delete(net_id), net_id)
@@ -439,13 +441,12 @@ def test_private_network_instance_attach_detach(
 
 
 def test_instance_network_attachments(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
-    """Security-group, elastic-IP and managed-network membership driven from the
-    group/address/network side, plus a static lease change and an EIP reset."""
+    """Security-group and elastic-IP membership driven from the group/address
+    side, plus an EIP description reset."""
     sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
     instances = InstanceClient(tier_3_client)
     sgs = SecurityGroupClient(tier_3_client)
     eips = ElasticIPClient(tier_3_client)
-    nets = PrivateNetworkClient(tier_3_client)
 
     payload = _instance_payload(
         run_id,
@@ -483,18 +484,48 @@ def test_instance_network_attachments(tier_3_client, run_id, tracker, tier_3_ena
     eips.reset_field(eip_id, "description")
     assert not eips.get(eip_id).description
 
-    # Managed private network: pinned lease, then move it.
+    assert_safe_name(payload["name"])
+    instances.delete(inst_id)
+    tracker.unregister(inst_id)
+    eips.delete(eip_id)
+    tracker.unregister(eip_id)
+    assert_safe_name(extra_name)
+    sgs.delete(extra_id)
+    tracker.unregister(extra_id)
+
+
+def test_private_network_static_lease(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
+    """Managed private network: attach with a pinned lease, then move it."""
+    sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
+    instances = InstanceClient(tier_3_client)
+    nets = PrivateNetworkClient(tier_3_client)
+
     net_name = make_name(run_id, "mpnet")
-    net_id = nets.create(
+    net_id = create_private_network_or_skip(
+        nets,
         {
             "name": net_name,
             "start-ip": "10.42.0.10",
             "end-ip": "10.42.0.50",
             "netmask": "255.255.255.0",
-        }
+        },
     ).id
     assert net_id
     tracker.register("private-network", lambda: nets.delete(net_id), net_id)
+
+    payload = _instance_payload(
+        run_id,
+        "lease-inst",
+        resolve_instance_type(tier_3_client, "standard.tiny"),
+        resolve_linux_template(tier_3_client),
+        sg_id,
+        key_name,
+    )
+    inst_id = instances.create(payload).id
+    assert inst_id
+    tracker.register("instance", lambda: instances.delete(inst_id), inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "running", timeout=600)
+
     nets.attach_instance(net_id, inst_id, ip="10.42.0.20")
     nets.update_instance_ip(net_id, inst_id, "10.42.0.30")
     leases = {lease.instance_id: lease.ip for lease in nets.get(net_id).leases or []}
@@ -504,14 +535,9 @@ def test_instance_network_attachments(tier_3_client, run_id, tracker, tier_3_ena
     assert_safe_name(payload["name"])
     instances.delete(inst_id)
     tracker.unregister(inst_id)
-    eips.delete(eip_id)
-    tracker.unregister(eip_id)
     assert_safe_name(net_name)
     nets.delete(net_id)
     tracker.unregister(net_id)
-    assert_safe_name(extra_name)
-    sgs.delete(extra_id)
-    tracker.unregister(extra_id)
 
 
 def test_instance_scale(tier_3_client, run_id, tracker, tier_3_enabled) -> None:

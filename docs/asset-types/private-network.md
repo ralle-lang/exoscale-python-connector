@@ -91,6 +91,11 @@ pn.detach_instance(network.id, instance_id)
   private-network/{id}:update-ip`). Managed networks only, and the new address
   must sit inside `start-ip`..`end-ip`. The network's `leases` list shows the
   result.
+- **Creation can be disabled per tenant.** On 2026-11-09 the test tenant
+  answered `403 Operation 'create-private-network' not enabled` while listing
+  still worked. That is a product gate on the account, not an IAM-role
+  refusal. `update_instance_ip` and `reset_field` are therefore unit-tested
+  only for now.
 
 ## End-to-end example
 

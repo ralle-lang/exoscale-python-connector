@@ -41,9 +41,9 @@ public = templates.list()                      # API default: public
 mine = templates.list(visibility="private")
 smallest_linux = templates.find_linux()        # smallest public Linux image
 
-# Copy a private template to another zone; the copy has a new id there
-op = templates.copy(template_id, "ch-gva-2")
-copy = TemplateClient(client, zone="ch-gva-2").get(op.reference_id)
+# Copy a private template to another zone; it keeps the same id there
+templates.copy(template_id, "ch-gva-2")
+copy = TemplateClient(client, zone="ch-gva-2").get(template_id)
 ```
 
 ## Gotchas
@@ -59,6 +59,9 @@ copy = TemplateClient(client, zone="ch-gva-2").get(op.reference_id)
   stays ~200 KB even at 10 GB virtual size.
 - **register/delete live-verified 2026-06-11** via `test_template_register_delete`
   (Tier 1, gated on `EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM`).
-- **`copy(id, target_zone)` is `POST /template/{id}`** with
-  `{"target-zone": {"name": ...}}`. The copy is a separate template with its
-  own id, which you delete in the target zone.
+- **`copy(id, target_zone)` keeps the template id.** It is `POST
+  /template/{id}` with `{"target-zone": {"name": ...}}`, and
+  `operation.reference_id` is the *same* id. One template then exists in
+  several zones, and **deleting it in any zone removes it everywhere**
+  (observed 2026-11-09: after a delete in the target zone the source zone
+  returned 404). `Template.zones` was empty on the read.

@@ -271,6 +271,10 @@ def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> No
         # API field is "level" (not "service-level"); allowed values are
         # "starter" (free control plane) and "pro".
         "level": "starter",
+        # Credential rotation needs the matching addon (405 "Cluster without
+        # <addon> addon enabled" otherwise). Karpenter needs a pro cluster, so
+        # it is added after the service-level upgrade below.
+        "addons": ["exoscale-cloud-controller", "exoscale-container-storage-interface"],
     }
     cluster = sks.create(cluster_payload)
     cluster_id = cluster.id
@@ -296,17 +300,12 @@ def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> No
     # 2b. Cluster reads and credential rotation (outputs are never printed).
     for authority in ("control-plane", "aggregation", "kubelet"):
         assert sks.get_authority_cert(cluster_id, authority), f"no {authority} CA cert"
-    assert isinstance(sks.get_inspection(cluster_id), dict)
-    for rotate in (
-        sks.rotate_ccm_credentials,
-        sks.rotate_csi_credentials,
-        sks.rotate_karpenter_credentials,
-        sks.rotate_operators_ca,
-    ):
+    # A fresh cluster has no inspection yet (404 -> None).
+    inspection = sks.get_inspection(cluster_id)
+    assert inspection is None or isinstance(inspection, dict)
+    for rotate in (sks.rotate_ccm_credentials, sks.rotate_csi_credentials):
         assert rotate(cluster_id).state == "success", rotate.__name__
         wait_for_state(lambda: sks.get(cluster_id), "running", timeout=900, interval=15)
-    assert sks.generate_karpenter_nodeclass(cluster_id)
-    assert sks.generate_karpenter_nodepool(cluster_id)
 
     # 3. Nodepool.
     nodepool_name = make_name(run_id, "np")[:32]
@@ -372,6 +371,25 @@ def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> No
     assert sks.upgrade_service_level(cluster_id).state == "success"
     pro = wait_for_state(lambda: sks.get(cluster_id), "running", timeout=900, interval=15)
     assert pro.service_level == "pro"
+
+    # 4c. Pro-only surface: Karpenter addon + operators CA, then their calls.
+    sks.update(
+        cluster_id,
+        {
+            "addons": [
+                "exoscale-cloud-controller",
+                "exoscale-container-storage-interface",
+                "karpenter",
+            ],
+            "enable-operators-ca": True,
+        },
+    )
+    wait_for_state(lambda: sks.get(cluster_id), "running", timeout=900, interval=15)
+    for rotate in (sks.rotate_karpenter_credentials, sks.rotate_operators_ca):
+        assert rotate(cluster_id).state == "success", rotate.__name__
+        wait_for_state(lambda: sks.get(cluster_id), "running", timeout=900, interval=15)
+    assert sks.generate_karpenter_nodeclass(cluster_id)
+    assert sks.generate_karpenter_nodepool(cluster_id)
 
     # 5. Tear down nodepool then cluster.
     sks.delete_nodepool(cluster_id, np_id)

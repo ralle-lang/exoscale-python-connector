@@ -82,12 +82,12 @@ instances.start(instance.id, rescue_profile="netboot")
 # Protection, password, disk
 instances.add_protection(instance.id)          # delete now fails until removed
 instances.remove_protection(instance.id)
-instances.reset_password(instance.id)
+instances.reset_password(instance.id)          # instance stopped
 password = instances.reveal_password(instance.id)   # a credential: never log it
 instances.resize_disk(instance.id, 20)         # GiB, grow only, instance stopped
 instances.enable_tpm(instance.id)
 instances.revert_to_snapshot(instance.id, snapshot_id)   # instance stopped
-instances.reset(instance.id)                   # re-install: WIPES the disk
+instances.reset(instance.id)                   # re-install: WIPES the disk; stopped
 
 # Update + delete
 instances.update(instance.id, {"labels": {"role": "web"}})
@@ -117,14 +117,20 @@ instances.delete(instance.id)
   `DELETE /instance/{id}/{field}`; the spec allows `labels`. Use it
   instead of sending an empty value through `update`.
 - **`reset()` wipes the disk.** It re-installs from the instance's template
-  (or `template_id=`) and can change `disk_size=` at the same time. It is
+  (or `template_id=`) and can change `disk_size=` at the same time. The
+  instance must be stopped (`400 The instance needs to be stopped`). It is
   library-only, like the other destructive actions.
+- **Stopping a Rescue Mode boot can take minutes.** A netbooted rescue system
+  may ignore the graceful shutdown, so the stop only completes once Exoscale
+  forces it.
 - **Disks only grow.** `resize_disk(id, size)` rejects a smaller size;
   `revert_to_snapshot(id, snapshot_id)` needs the instance stopped and a
   snapshot of that same instance.
 - **`reveal_password()` returns a credential.** It reads
   `GET instance/{id}:password`; treat the value like any secret and never log
-  it. `reset_password()` generates a new one first.
+  it. `reset_password()` generates a new one first and needs the instance
+  stopped (`409 Instance must be stopped prior to the update` otherwise,
+  observed live).
 
 ## End-to-end example
 

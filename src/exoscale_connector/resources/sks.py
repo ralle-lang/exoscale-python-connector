@@ -18,6 +18,7 @@ from typing import Any
 
 from pydantic import Field, SerializerFunctionWrapHandler, model_serializer
 
+from ..errors import NotFoundError
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
 
@@ -331,14 +332,19 @@ class SksClusterClient(ResourceClient[SksCluster]):
         value = payload.get("cacert")
         return value if isinstance(value, str) else None
 
-    def get_inspection(self, cluster_id: str, *, zone: str | None = None) -> dict:
-        """Return the cluster diagnostic report (``GET sks-cluster/{id}/inspection``).
+    def get_inspection(self, cluster_id: str, *, zone: str | None = None) -> dict | None:
+        """Return the last cluster diagnostic report (``GET sks-cluster/{id}/inspection``).
 
         The shape is free-form in the spec, so it is returned as a plain dict.
+        Returns ``None`` when no inspection has run yet: the API answers 404
+        "Couldn't find last inspection" for a fresh cluster (observed live).
         """
-        return self.client.get(
-            f"{self.collection_path}/{cluster_id}/inspection", zone=self._zone(zone)
-        )
+        try:
+            return self.client.get(
+                f"{self.collection_path}/{cluster_id}/inspection", zone=self._zone(zone)
+            )
+        except NotFoundError:
+            return None
 
     def generate_karpenter_nodeclass(
         self, cluster_id: str, *, zone: str | None = None
