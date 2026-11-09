@@ -60,6 +60,9 @@ record = dns.create_record(zone.id, {
 records = dns.list_records(zone.id)
 dns.update_record(zone.id, record.id, {"ttl": 7200})
 dns.delete_record(zone.id, record.id)
+
+# Export the whole domain as a BIND zone file (str)
+zone_file = dns.get_zone_file(zone.id)
 ```
 
 ## Gotchas
@@ -77,6 +80,10 @@ dns.delete_record(zone.id, record.id)
 - **Account DNS quota.** Most accounts have a cap on the number of DNS
   zones you can have at once. A `400: DNS subscription limit reached`
   means you need to free a slot or raise the limit.
+- **Zone-file export is read-only.** `get_zone_file(id)` wraps
+  `GET dns-domain/{id}/zone` and returns the `zone-file` string; there is no
+  matching import endpoint, so restore records one by one with
+  `create_record`.
 
 ## End-to-end example
 
