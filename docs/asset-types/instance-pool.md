@@ -65,6 +65,7 @@ pool = pools.create({
 })
 
 pools.scale(pool.id, 3)        # async — wait until state == "running" and size == 3
+pools.evict(pool.id, ["<member-instance-id>"])   # drop named members; size shrinks
 pools.update(pool.id, {"description": "production web"})
 pools.delete(pool.id)          # cascade-deletes member instances
 ```
@@ -90,6 +91,9 @@ pools.delete(pool.id)          # cascade-deletes member instances
   `description`, `labels`, `anti-affinity-groups`, `security-groups`,
   `elastic-ips`, `private-networks`, `ssh-key`, `user-data` and
   `deploy-target`. Use it instead of sending an empty value through `update`.
+- **`evict` picks the members, `scale` does not.** `evict(pool_id, ids)`
+  (`PUT instance-pool/{id}:evict`) destroys exactly those member instances and
+  lowers `size` to match. Scaling down lets the API choose which members go.
 
 ## End-to-end example
 

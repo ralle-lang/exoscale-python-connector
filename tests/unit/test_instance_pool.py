@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import responses
 
 from exoscale_connector.resources.instance_pool import InstancePoolClient
@@ -144,3 +146,14 @@ def test_instance_pool_parses_keys_eips_and_min_available() -> None:
     assert pool.ssh_keys[0].name == "ops"
     assert pool.user_data == "I2Nsb3VkLWNvbmZpZw=="
     assert pool.min_available == 2
+
+
+@responses.activate
+def test_evict_sends_instance_ids(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/instance-pool/p-1:evict",
+        json={"id": "op", "state": "success"},
+    )
+    InstancePoolClient(client).evict("p-1", ["i-1", "i-2"])
+    assert json.loads(responses.calls[0].request.body) == {"instances": ["i-1", "i-2"]}
