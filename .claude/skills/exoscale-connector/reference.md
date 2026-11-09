@@ -536,6 +536,19 @@ Conditions under which a role may be assumed.
 |---|---|---|
 | `rules` | `rules` | list[IAMPolicyRule] \| None |
 
+#### model `IAMAssumedRoleKey`
+
+Temporary API key returned by :meth:`IAMRoleClient.assume`.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `key` | `key` | str \| None |
+| `secret` | `secret` | str \| None |
+| `name` | `name` | str \| None |
+| `org_id` | `org-id` | str \| None |
+| `role_id` | `role-id` | str \| None |
+| `expires_at` | `expires-at` | str \| None |
+
 #### model `IAMPolicy`
 
 The inline policy attached to an IAM role.
@@ -578,6 +591,7 @@ An Exoscale IAM role.
 | `labels` | `labels` | dict[str, str] \| None |
 | `policy` | `policy` | IAMPolicy \| None |
 | `assume_role_policy` | `assume-role-policy` | IAMAssumeRolePolicy \| None |
+| `max_session_ttl` | `max-session-ttl` | int \| None |
 
 #### client `IAMRoleClient`
 
@@ -587,6 +601,8 @@ API collection: `iam-role`; resource model: `IAMRole`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `assume(role_id: str, ttl: int, *, zone: str | None = None) -> IAMAssumedRoleKey`
+  Assume a role and get a temporary API key (``POST /iam-role/{id}/assume``).
 - `get_organization_policy(*, zone: str | None = None) -> IAMPolicy`
   Return the organization-wide IAM policy (``GET /iam-organization-policy``).
 - `reset_organization_policy(*, confirm: bool = False, zone: str | None = None, wait: bool | None = None) -> Operation`
@@ -2693,6 +2709,12 @@ roles.reset_organization_policy(confirm=True)
   the API may simply have ignored the body. Re-verify with the spec shape
   before relying on either behaviour. The permission `policy` does round-trip
   on `get()`.
+- **`assume(role_id, ttl)` mints a temporary API key** (`POST
+  /iam-role/{id}/assume`). The caller must satisfy the role's assume-role
+  policy, and `ttl` (seconds) may not exceed the role's `max_session_ttl`
+  (set it on create or `update`). The returned `IAMAssumedRoleKey.secret` is a
+  credential and is hidden from `repr`; the key expires on its own at
+  `expires_at`.
 
 #### End-to-end example
 

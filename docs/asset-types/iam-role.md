@@ -152,6 +152,12 @@ roles.reset_organization_policy(confirm=True)
   the API may simply have ignored the body. Re-verify with the spec shape
   before relying on either behaviour. The permission `policy` does round-trip
   on `get()`.
+- **`assume(role_id, ttl)` mints a temporary API key** (`POST
+  /iam-role/{id}/assume`). The caller must satisfy the role's assume-role
+  policy, and `ttl` (seconds) may not exceed the role's `max_session_ttl`
+  (set it on create or `update`). The returned `IAMAssumedRoleKey.secret` is a
+  credential and is hidden from `repr`; the key expires on its own at
+  `expires_at`.
 
 ## End-to-end example
 

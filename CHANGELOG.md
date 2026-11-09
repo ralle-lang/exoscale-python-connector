@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ElasticIPClient.attach_instance` / `detach_instance`;
   `PrivateNetworkClient.update_instance_ip`.
 - `InstancePoolClient.evict` removes named members from a pool.
+- `IAMRoleClient.assume` returns a temporary key (`IAMAssumedRoleKey`, secret
+  hidden from `repr`); `IAMRole` gains `max_session_ttl`.
 - `reset_field(id, field)` on instances, instance pools, elastic IPs, private
   networks and load balancers clears an optional field
   (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and

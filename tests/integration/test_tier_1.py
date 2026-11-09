@@ -266,7 +266,7 @@ def test_ssh_key_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None
 
 
 def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
-    """IAM role: create with a deny-all policy + update + policy setters + delete."""
+    """IAM role: create deny-all, update, policy setters, assume, delete."""
     roles = IAMRoleClient(live_client)
     name = make_name(run_id, "role")
     payload = IAMRole(
@@ -301,6 +301,18 @@ def test_iam_role_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> Non
     roles.set_assume_role_policy(
         role_id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.deny("true"))
     )
+
+    # Assume the role for a short-lived key. The role is switched back to
+    # deny-all first, so the temporary key can do nothing; it expires on its own.
+    roles.set_policy(role_id, IAMPolicy.deny_all())
+    roles.update(role_id, {"max-session-ttl": 900})
+    assert roles.get(role_id).max_session_ttl == 900
+    roles.set_assume_role_policy(
+        role_id, IAMAssumeRolePolicy.with_rules(IAMPolicyRule.allow("true"))
+    )
+    temp = roles.assume(role_id, 300)
+    # Never print the key or secret.
+    assert temp.key and temp.secret and temp.role_id == role_id
 
     assert_safe_name(name)
     roles.delete(role_id)
