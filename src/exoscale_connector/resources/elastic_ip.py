@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from ..models import ExoscaleModel
 from ._base import ResourceClient
+from ._reset_field import ResetFieldMixin
 from ._reverse_dns import ReverseDNSMixin
 
 
@@ -40,7 +41,7 @@ class ElasticIP(ExoscaleModel):
     labels: dict[str, str] | None = None
 
 
-class ElasticIPClient(ReverseDNSMixin, ResourceClient[ElasticIP]):
+class ElasticIPClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[ElasticIP]):
     """Manage Exoscale Elastic IPs, including their reverse-DNS PTR record."""
 
     collection_path = "elastic-ip"

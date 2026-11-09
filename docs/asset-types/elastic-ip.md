@@ -68,6 +68,9 @@ eips.delete(eip.id)
   symmetry suggests `PUT /reverse-dns/elastic-ip/{id}`, but the live API
   404s on PUT and takes **POST** for create/update (confirmed live
   2026-06-10). `set_reverse_dns()` does the right thing.
+- **Clear an optional field with `reset_field(id, "description")`.** It wraps
+  `DELETE /elastic-ip/{id}/{field}`; the spec allows `description`. Use it
+  instead of sending an empty value through `update`.
 
 ## End-to-end example
 

@@ -12,6 +12,7 @@ from scripts.request_field_audit import (
     ClientCall,
     audit,
     calls_in_source,
+    discovered_calls,
     endpoint_matches,
     render_markdown,
 )
@@ -108,3 +109,16 @@ def test_known_omissions_target_real_operations():
 def test_snapshot_audit_runs():
     spec = json.loads(DEFAULT_SPEC.read_text(encoding="utf-8"))
     assert isinstance(render_markdown(audit(spec)), str)
+
+
+def test_inherited_calls_render_per_inheriting_client():
+    """Mixin calls count only for clients that inherit the mixin."""
+    calls = discovered_calls()
+    resets = {(c.module, c.endpoint) for c in calls if c.method == "reset_field"}
+    assert ("instance", "instance/{}/{}") in resets
+    assert ("private_network", "private-network/{}/{}") in resets
+    assert not any(module == "dns" for module, _ in resets)
+    # The generic base verbs are rendered for every client's collection path.
+    assert any(
+        c.module == "dns" and c.method == "create" and c.endpoint == "dns-domain" for c in calls
+    )

@@ -83,6 +83,9 @@ pn.detach_instance(network.id, instance_id)
   for DHCP, and it has no effect on an unmanaged (shared-L2) network.
 - **Managed networks need all three of `start-ip`, `end-ip`, `netmask`**;
   unmanaged networks need none.
+- **Clear an optional field with `reset_field(id, "labels")`.** It wraps
+  `DELETE /private-network/{id}/{field}`; the spec allows `labels`. Use it
+  instead of sending an empty value through `update`.
 
 ## End-to-end example
 

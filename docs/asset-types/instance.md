@@ -103,6 +103,9 @@ instances.delete(instance.id)
   `netboot` and `netboot-efi`; pick the one matching the template's
   `boot_mode` (`legacy` → `netboot`, `uefi` → `netboot-efi`). The instance must
   be stopped first.
+- **Clear an optional field with `reset_field(id, "labels")`.** It wraps
+  `DELETE /instance/{id}/{field}`; the spec allows `labels`. Use it
+  instead of sending an empty value through `update`.
 
 ## End-to-end example
 

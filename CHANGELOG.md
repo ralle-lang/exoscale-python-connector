@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `InstanceClient.start(..., rescue_profile=...)` boots a stopped instance into
   Rescue Mode (`netboot` / `netboot-efi`).
+- `reset_field(id, field)` on instances, instance pools, elastic IPs, private
+  networks and load balancers clears an optional field
+  (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and
+  `get_service` cover a single LB service.
 - `scripts/request_field_audit.py`: a coverage audit that lists APIv2
   operations no client method can call and request fields a method never sends.
   It found the gaps closed in this release.

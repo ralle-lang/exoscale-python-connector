@@ -15,6 +15,7 @@ from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference, to_api_payload
 from ._base import ResourceClient
+from ._reset_field import ResetFieldMixin
 
 
 class LoadBalancerServiceHealthcheck(ExoscaleModel):
@@ -74,7 +75,7 @@ class LoadBalancer(ExoscaleModel):
     services: list[LoadBalancerService] = Field(default_factory=list)
 
 
-class LoadBalancerClient(ResourceClient[LoadBalancer]):
+class LoadBalancerClient(ResetFieldMixin, ResourceClient[LoadBalancer]):
     """Manage Exoscale Network Load Balancers and their services."""
 
     collection_path = "load-balancer"
@@ -146,6 +147,34 @@ class LoadBalancerClient(ResourceClient[LoadBalancer]):
         response = self.client.delete(
             f"{self.collection_path}/{lb_id}/service/{service_id}",
             zone=zone,
+        )
+        return self._wait_operation(response, zone=zone, wait=wait)
+
+    def get_service(
+        self, lb_id: str, service_id: str, *, zone: str | None = None
+    ) -> LoadBalancerService:
+        """Read one service (``GET load-balancer/{lb_id}/service/{service_id}``)."""
+        payload = self.client.get(
+            f"{self.collection_path}/{lb_id}/service/{service_id}", zone=self._zone(zone)
+        )
+        return LoadBalancerService.model_validate(payload)
+
+    def reset_service_field(
+        self,
+        lb_id: str,
+        service_id: str,
+        field: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Reset an optional service field (e.g. ``"description"``) to its default.
+
+        Endpoint: ``DELETE load-balancer/{lb_id}/service/{service_id}/{field}``.
+        """
+        zone = self._zone(zone)
+        response = self.client.delete(
+            f"{self.collection_path}/{lb_id}/service/{service_id}/{field}", zone=zone
         )
         return self._wait_operation(response, zone=zone, wait=wait)
 

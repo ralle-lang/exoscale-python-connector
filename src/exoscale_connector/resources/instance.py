@@ -9,6 +9,7 @@ from pydantic import Field
 
 from ..models import ExoscaleModel, Operation, Reference
 from ._base import ResourceClient
+from ._reset_field import ResetFieldMixin
 from ._reverse_dns import ReverseDNSMixin
 
 
@@ -64,7 +65,7 @@ class Instance(ExoscaleModel):
     tpm_enabled: bool | None = None
 
 
-class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
+class InstanceClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[Instance]):
     """Manage compute instances.
 
     Besides CRUD this client covers lifecycle actions (start/stop/reboot),

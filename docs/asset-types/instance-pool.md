@@ -85,6 +85,11 @@ pools.delete(pool.id)          # cascade-deletes member instances
   across distinct physical hosts** — this is the supported way an instance pool
   guarantees host spread for HA. Like anti-affinity groups generally, it is
   **create-only**: it can't be changed on an existing pool, so decide up front.
+- **Clear an optional field with `reset_field(id, "description")`.** It wraps
+  `DELETE /instance-pool/{id}/{field}`. Resettable fields include
+  `description`, `labels`, `anti-affinity-groups`, `security-groups`,
+  `elastic-ips`, `private-networks`, `ssh-key`, `user-data` and
+  `deploy-target`. Use it instead of sending an empty value through `update`.
 
 ## End-to-end example
 
