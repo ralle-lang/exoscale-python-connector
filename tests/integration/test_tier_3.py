@@ -166,7 +166,7 @@ def test_instance_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> N
 
 
 def test_instance_pool_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
-    """Instance pool: create size=1 -> scale to 2 -> scale to 1 -> delete."""
+    """Instance pool: create, scale 1 -> 2 -> 1, evict a member, reset description, delete."""
     sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
     tiny_id = resolve_instance_type(tier_3_client, "standard.tiny")
     template_id = resolve_linux_template(tier_3_client)
@@ -195,6 +195,20 @@ def test_instance_pool_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled)
     pools.scale(pool_id, 1)
     pool_at_1 = wait_for_state(lambda: pools.get(pool_id), "running", timeout=600)
     assert pool_at_1.size == 1
+
+    # Grow again, then evict one named member instead of scaling down.
+    pools.scale(pool_id, 2)
+    pool_at_2 = wait_for_state(lambda: pools.get(pool_id), "running", timeout=600)
+    victim = pool_at_2.instances[0].id
+    assert victim
+    pools.evict(pool_id, [victim])
+    after_evict = wait_for_state(lambda: pools.get(pool_id), "running", timeout=600)
+    assert after_evict.size == 1
+    assert victim not in {r.id for r in after_evict.instances}
+
+    pools.update(pool_id, {"description": "tier-3 pool"})
+    pools.reset_field(pool_id, "description")
+    assert not pools.get(pool_id).description
 
     assert_safe_name(name)
     pools.delete(pool_id)

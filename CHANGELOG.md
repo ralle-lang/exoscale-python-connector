@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `add_external_source` / `remove_external_source`;
   `ElasticIPClient.attach_instance` / `detach_instance`;
   `PrivateNetworkClient.update_instance_ip`.
+- `InstancePoolClient.evict` removes named members from a pool.
 - `reset_field(id, field)` on instances, instance pools, elastic IPs, private
   networks and load balancers clears an optional field
   (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and

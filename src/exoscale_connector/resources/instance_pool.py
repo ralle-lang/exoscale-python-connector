@@ -74,3 +74,27 @@ class InstancePoolClient(ResetFieldMixin, ResourceClient[InstancePool]):
         if self._should_wait(wait) and operation.id:
             operation = self.client.wait_operation(operation, zone=zone)
         return operation
+
+    def evict(
+        self,
+        pool_id: str,
+        instance_ids: list[str],
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Remove specific members from the pool (``PUT instance-pool/{id}:evict``).
+
+        The evicted instances are destroyed and the pool size shrinks by the
+        same number; use :meth:`scale` instead when any member may go.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{pool_id}:evict",
+            zone=zone,
+            json={"instances": list(instance_ids)},
+        )
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation

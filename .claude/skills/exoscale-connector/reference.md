@@ -760,6 +760,8 @@ API collection: `instance-pool`; resource model: `InstancePool`.
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `evict(pool_id: str, instance_ids: list[str], *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Remove specific members from the pool (``PUT instance-pool/{id}:evict``).
 - `reset_field(: _Client, resource_id: str, field: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Reset ``field`` (wire name, e.g. ``"labels"``) to its default.
 - `scale(pool_id: str, size: int, *, zone: str | None = None, wait: bool | None = None) -> Operation`
@@ -2852,6 +2854,7 @@ pool = pools.create({
 })
 
 pools.scale(pool.id, 3)        # async — wait until state == "running" and size == 3
+pools.evict(pool.id, ["<member-instance-id>"])   # drop named members; size shrinks
 pools.update(pool.id, {"description": "production web"})
 pools.delete(pool.id)          # cascade-deletes member instances
 ```
@@ -2877,6 +2880,9 @@ pools.delete(pool.id)          # cascade-deletes member instances
   `description`, `labels`, `anti-affinity-groups`, `security-groups`,
   `elastic-ips`, `private-networks`, `ssh-key`, `user-data` and
   `deploy-target`. Use it instead of sending an empty value through `update`.
+- **`evict` picks the members, `scale` does not.** `evict(pool_id, ids)`
+  (`PUT instance-pool/{id}:evict`) destroys exactly those member instances and
+  lowers `size` to match. Scaling down lets the API choose which members go.
 
 #### End-to-end example
 
