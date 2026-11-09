@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import builtins
 
-from ..models import ExoscaleModel
+from ..models import ExoscaleModel, Operation
 from ._base import ResourceClient
 
 
@@ -40,6 +40,11 @@ class Template(ExoscaleModel):
     password_enabled: bool | None = None
     build: str | None = None
     created_at: str | None = None
+    maintainer: str | None = None
+    # Template ships the QEMU guest agent, so snapshots can be app-consistent.
+    application_consistent_snapshot_enabled: bool | None = None
+    # Zones the template is available in.
+    zones: list[str] | None = None
 
 
 class TemplateClient(ResourceClient[Template]):
@@ -67,6 +72,30 @@ class TemplateClient(ResourceClient[Template]):
         payload = self.client.get(self.collection_path, zone=self._zone(zone), params=params)
         items = payload.get(self.list_key) or []
         return [self.model.model_validate(item) for item in items if isinstance(item, dict)]
+
+    def copy(
+        self,
+        template_id: str,
+        target_zone: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Copy a private template to another zone (``POST template/{id}``).
+
+        ``zone`` is the zone the template lives in; the copy gets a new id in
+        ``target_zone``, carried by ``operation.reference_id``.
+        """
+        zone = self._zone(zone)
+        response = self.client.post(
+            f"{self.collection_path}/{template_id}",
+            zone=zone,
+            json={"target-zone": {"name": target_zone}},
+        )
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation
 
     def find_linux(self, *, zone: str | None = None) -> Template | None:
         """Return the smallest public Linux template in the zone, or ``None``.

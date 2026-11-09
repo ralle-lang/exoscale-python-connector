@@ -201,7 +201,7 @@ def test_instance_pool_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled)
 
 
 def test_compute_snapshot_lifecycle(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
-    """Compute snapshot: create from instance, list, get, export, delete."""
+    """Compute snapshot: create, list, export, revert, promote, template copy, delete."""
     sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
     tiny_id = resolve_instance_type(tier_3_client, "standard.tiny")
     template_id = resolve_linux_template(tier_3_client)
@@ -247,6 +247,37 @@ def test_compute_snapshot_lifecycle(tier_3_client, run_id, tracker, tier_3_enabl
     assert exported.export is not None and exported.export.presigned_url, (
         "snapshot export produced no presigned URL"
     )
+
+    # Roll the (stopped) instance back to its snapshot.
+    instances.stop(inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "stopped", timeout=300)
+    assert instances.revert_to_snapshot(inst_id, snap_id).state == "success"
+
+    # Promote the snapshot to a private template, then copy it to another zone.
+    templates = TemplateClient(tier_3_client)
+    tmpl_name = make_name(run_id, "promoted")
+    assert_safe_name(tmpl_name)
+    promoted_op = snapshots.promote_to_template(
+        snap_id, tmpl_name, ssh_key_enabled=True, password_enabled=False
+    )
+    tmpl_id = promoted_op.reference_id
+    assert tmpl_id, "promote returned no template id"
+    tracker.register("template", lambda: templates.delete(tmpl_id), tmpl_id)
+    promoted = templates.get(tmpl_id)
+    assert promoted.name == tmpl_name and promoted.visibility == "private"
+
+    source_zone = tier_3_client.config.zone
+    target_zone = "ch-gva-2" if source_zone != "ch-gva-2" else "at-vie-1"
+    copy_id = templates.copy(tmpl_id, target_zone).reference_id
+    assert copy_id, "template copy returned no id"
+    target_templates = TemplateClient(tier_3_client, zone=target_zone)
+    tracker.register("template", lambda: target_templates.delete(copy_id), copy_id)
+    assert target_templates.get(copy_id).name == tmpl_name
+
+    target_templates.delete(copy_id)
+    tracker.unregister(copy_id)
+    templates.delete(tmpl_id)
+    tracker.unregister(tmpl_id)
 
     snapshots.delete(snap_id)
     tracker.unregister(snap_id)

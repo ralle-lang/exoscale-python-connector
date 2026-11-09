@@ -18,6 +18,9 @@ checksum.
 | `url` / `checksum` | str | registration source (private templates) |
 | `boot_mode` | str | `legacy` \| `uefi` |
 | `default_user` | str | |
+| `maintainer` | str | read-only |
+| `application_consistent_snapshot_enabled` | bool | QEMU guest agent present |
+| `zones` | list[str] | zones the template is available in |
 
 ## CLI
 
@@ -37,6 +40,10 @@ templates = TemplateClient(client)
 public = templates.list()                      # API default: public
 mine = templates.list(visibility="private")
 smallest_linux = templates.find_linux()        # smallest public Linux image
+
+# Copy a private template to another zone; the copy has a new id there
+op = templates.copy(template_id, "ch-gva-2")
+copy = TemplateClient(client, zone="ch-gva-2").get(op.reference_id)
 ```
 
 ## Gotchas
@@ -52,3 +59,6 @@ smallest_linux = templates.find_linux()        # smallest public Linux image
   stays ~200 KB even at 10 GB virtual size.
 - **register/delete live-verified 2026-06-11** via `test_template_register_delete`
   (Tier 1, gated on `EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM`).
+- **`copy(id, target_zone)` is `POST /template/{id}`** with
+  `{"target-zone": {"name": ...}}`. The copy is a separate template with its
+  own id, which you delete in the target zone.

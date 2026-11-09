@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
 import responses
 
-from exoscale_connector.resources.template import TemplateClient
+from exoscale_connector.resources.template import Template, TemplateClient
 
 
 @responses.activate
@@ -48,3 +50,27 @@ def test_find_linux_prefers_smallest(client, base_url) -> None:
     )
     found = TemplateClient(client).find_linux()
     assert found is not None and found.id == "t-small"
+
+
+@responses.activate
+def test_copy_posts_target_zone(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/template/t-1",
+        json={"id": "op", "state": "success", "reference": {"id": "t-copy"}},
+    )
+    op = TemplateClient(client).copy("t-1", "ch-gva-2")
+    assert op.reference_id == "t-copy"
+    assert json.loads(responses.calls[0].request.body) == {"target-zone": {"name": "ch-gva-2"}}
+
+
+def test_template_parses_maintainer_and_zones() -> None:
+    t = Template.model_validate(
+        {
+            "maintainer": "Exoscale",
+            "application-consistent-snapshot-enabled": True,
+            "zones": ["at-vie-1"],
+        }
+    )
+    assert t.maintainer == "Exoscale" and t.application_consistent_snapshot_enabled
+    assert t.zones == ["at-vie-1"]
