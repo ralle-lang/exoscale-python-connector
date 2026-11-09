@@ -69,6 +69,9 @@ EXEMPT_MODELS: dict[str, str] = {
     "InstancePrivateNetwork": "inline item schema of instance.private-networks; no named component",
     "VpcSubnetInstance": "inline item schema of subnet.instances; no named component",
     "DBaaSLogEntry": "inline item schema of dbaas-service-logs.logs; no named component",
+    "DBaaSTaskResultCode": "inline item schema of dbaas-task.result-codes; no named component",
+    "DBaaSMigrationDetail": "inline item of dbaas-migration-status.details; no named component",
+    "DBaaSConnectionPool": "inline item of dbaas-service-pg.connection-pools; no named component",
     "DBaaSConnectionInfo": (
         "connection-info is defined per engine in the spec and its shape varies "
         "(e.g. uri is a list for pg, a string for grafana), so there is no single "
@@ -90,6 +93,10 @@ SCHEMA_ALIASES: dict[str, str] = {
     "BlockVolumeSnapshotRef": "block-storage-snapshot-ref",
     "ElasticIPHealthcheck": "elastic-ip-healthcheck",
     "DBaaSServiceLogs": "dbaas-service-logs",
+    "DBaaSTask": "dbaas-task",
+    "DBaaSMigrationStatus": "dbaas-migration-status",
+    "DBaaSValkeyUser": "dbaas-valkey-user",
+    "DBaaSValkeyAccessControl": "dbaas-valkey-user-access-control",
     "SksDeprecatedResource": "sks-cluster-deprecated-resource",
     "SksKubeletImageGc": "kubelet-image-gc",
     "IAMPolicy": "iam-policy",

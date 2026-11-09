@@ -17,7 +17,14 @@ import json
 import pytest
 import responses
 
-from exoscale_connector.resources.dbaas import DBaaSServiceClient
+from exoscale_connector.resources.dbaas import (
+    DBaaSMigrationStatus,
+    DBaaSService,
+    DBaaSServiceClient,
+    DBaaSTask,
+    DBaaSValkeyAccessControl,
+    DBaaSValkeyUser,
+)
 
 # ---------------------------------------------------------------------------
 # list
@@ -653,3 +660,286 @@ def test_get_metrics_posts_period_and_unwraps_metrics(client, base_url) -> None:
     metrics = DBaaSServiceClient(client).get_metrics("pg-prod", period="day")
     assert metrics == {"cpu_usage": {"data": []}}
     assert json.loads(responses.calls[0].request.body) == {"period": "day"}
+
+
+# ---------------------------------------------------------------------------
+# Engine-specific user options
+# ---------------------------------------------------------------------------
+
+OP_OK = {"id": "op-9", "state": "success"}
+
+
+def _sent(i: int = 0) -> dict:
+    body = responses.calls[i].request.body
+    return json.loads(body) if body else {}
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    ("service_type", "url_type", "kwargs", "expected"),
+    [
+        ("pg", "postgres", {"allow_replication": True}, {"allow-replication": True}),
+        (
+            "mysql",
+            "mysql",
+            {"authentication": "caching_sha2_password"},
+            {"authentication": "caching_sha2_password"},
+        ),
+        (
+            "valkey",
+            "valkey",
+            {"access_control": {"categories": ["+@read"], "keys": ["app:*"]}},
+            {"access-control": {"categories": ["+@read"], "keys": ["app:*"]}},
+        ),
+    ],
+)
+def test_create_user_sends_engine_options(
+    client, base_url, service_type, url_type, kwargs, expected
+) -> None:
+    responses.add(responses.POST, f"{base_url}/dbaas-{url_type}/svc/user", json=OP_OK)
+    DBaaSServiceClient(client).create_user("svc", "app", service_type=service_type, **kwargs)
+    assert _sent() == {"username": "app", **expected}
+
+
+@responses.activate
+def test_create_user_serialises_valkey_access_control_model(client, base_url) -> None:
+    responses.add(responses.POST, f"{base_url}/dbaas-valkey/svc/user", json=OP_OK)
+    acl = DBaaSValkeyAccessControl(commands=["+get"], channels=["news.*"])
+    DBaaSServiceClient(client).create_user("svc", "app", service_type="valkey", access_control=acl)
+    assert _sent()["access-control"] == {"commands": ["+get"], "channels": ["news.*"]}
+
+
+@pytest.mark.parametrize(
+    ("service_type", "kwargs"),
+    [
+        ("mysql", {"allow_replication": True}),
+        ("pg", {"authentication": "mysql_native_password"}),
+        ("pg", {"access_control": {"keys": ["*"]}}),
+    ],
+)
+def test_create_user_rejects_options_for_other_engines(client, service_type, kwargs) -> None:
+    with pytest.raises(ValueError, match="services only"):
+        DBaaSServiceClient(client).create_user("svc", "app", service_type=service_type, **kwargs)
+
+
+@responses.activate
+def test_reset_user_password_sends_password_and_mysql_plugin(client, base_url) -> None:
+    responses.add(responses.PUT, f"{base_url}/dbaas-mysql/svc/user/app/password/reset", json=OP_OK)
+    DBaaSServiceClient(client).reset_user_password(
+        "svc", "app", service_type="mysql", password="from-a-vault", authentication="x"
+    )
+    assert _sent() == {"password": "from-a-vault", "authentication": "x"}
+
+
+@responses.activate
+def test_reset_user_password_without_options_sends_no_body(client, base_url) -> None:
+    responses.add(
+        responses.PUT, f"{base_url}/dbaas-postgres/svc/user/app/password/reset", json=OP_OK
+    )
+    DBaaSServiceClient(client).reset_user_password("svc", "app", service_type="pg")
+    assert not responses.calls[0].request.body
+
+
+def test_reset_user_password_rejects_authentication_outside_mysql(client) -> None:
+    with pytest.raises(ValueError, match="mysql services only"):
+        DBaaSServiceClient(client).reset_user_password(
+            "svc", "app", service_type="pg", authentication="x"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Migration and tasks
+# ---------------------------------------------------------------------------
+
+
+@responses.activate
+def test_check_migration_posts_source_and_options(client, base_url) -> None:
+    responses.add(responses.POST, f"{base_url}/dbaas-task-migration-check/svc", json=OP_OK)
+    DBaaSServiceClient(client).check_migration(
+        "svc", "postgres://admin@src.example/db", method="dump", ignore_dbs="a,b"
+    )
+    assert _sent() == {
+        "source-service-uri": "postgres://admin@src.example/db",
+        "method": "dump",
+        "ignore-dbs": "a,b",
+    }
+
+
+@responses.activate
+def test_get_task_parses_result_codes(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-task/svc/t-1",
+        json={
+            "id": "t-1",
+            "task-type": "pg-upgrade-check",
+            "success": False,
+            "result-codes": [{"code": "extension", "dbname": "app"}],
+        },
+    )
+    task = DBaaSServiceClient(client).get_task("svc", "t-1")
+    assert isinstance(task, DBaaSTask)
+    assert task.task_type == "pg-upgrade-check" and task.success is False
+    assert task.result_codes[0].dbname == "app"
+
+
+@responses.activate
+def test_get_migration_status_parses_details(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-migration-status/svc",
+        json={"status": "running", "details": [{"dbname": "app", "status": "syncing"}]},
+    )
+    status = DBaaSServiceClient(client).get_migration_status("svc")
+    assert isinstance(status, DBaaSMigrationStatus)
+    assert status.details[0].status == "syncing"
+
+
+@responses.activate
+@pytest.mark.parametrize(("service_type", "url_type"), [("pg", "postgres"), ("valkey", "valkey")])
+def test_stop_migration_uses_engine_path(client, base_url, service_type, url_type) -> None:
+    responses.add(responses.POST, f"{base_url}/dbaas-{url_type}/svc/migration/stop", json=OP_OK)
+    result = DBaaSServiceClient(client).stop_migration("svc", service_type=service_type)
+    assert result["state"] == "success"
+
+
+def test_stop_migration_rejects_engines_without_migration(client) -> None:
+    with pytest.raises(ValueError, match="no migration"):
+        DBaaSServiceClient(client).stop_migration("svc", service_type="kafka")
+
+
+# ---------------------------------------------------------------------------
+# PostgreSQL extras
+# ---------------------------------------------------------------------------
+
+
+@responses.activate
+def test_connection_pool_create_update_delete(client, base_url) -> None:
+    base = f"{base_url}/dbaas-postgres/svc/connection-pool"
+    responses.add(responses.POST, base, json=OP_OK)
+    responses.add(responses.PUT, f"{base}/pool1", json=OP_OK)
+    responses.add(responses.DELETE, f"{base}/pool1", json=OP_OK)
+    dbaas = DBaaSServiceClient(client)
+    dbaas.create_connection_pool("svc", "pool1", "app", mode="transaction", size=10)
+    dbaas.update_connection_pool("svc", "pool1", size=20)
+    dbaas.delete_connection_pool("svc", "pool1")
+    assert _sent(0) == {"name": "pool1", "database-name": "app", "mode": "transaction", "size": 10}
+    assert _sent(1) == {"size": 20}
+    assert responses.calls[2].request.method == "DELETE"
+
+
+@responses.activate
+def test_set_allow_replication_returns_users(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/dbaas-postgres/svc/user/app/allow-replication",
+        json={"users": [{"username": "app", "allow-replication": True}]},
+    )
+    users = DBaaSServiceClient(client).set_allow_replication("svc", "app", True)
+    assert _sent() == {"allow-replication": True}
+    assert users == [{"username": "app", "allow-replication": True}]
+
+
+@responses.activate
+def test_check_upgrade_returns_task(client, base_url) -> None:
+    responses.add(
+        responses.POST,
+        f"{base_url}/dbaas-postgres/svc/upgrade-check",
+        json={"id": "t-2", "success": True},
+    )
+    task = DBaaSServiceClient(client).check_upgrade("svc", "17")
+    assert _sent() == {"target-version": "17"}
+    assert task.id == "t-2" and task.success is True
+
+
+# ---------------------------------------------------------------------------
+# MySQL, Kafka, OpenSearch, Valkey
+# ---------------------------------------------------------------------------
+
+
+@responses.activate
+def test_enable_writes_puts_mysql_path(client, base_url) -> None:
+    responses.add(responses.PUT, f"{base_url}/dbaas-mysql/svc/enable/writes", json=OP_OK)
+    assert DBaaSServiceClient(client).enable_writes("svc")["state"] == "success"
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    ("add", "delete", "acl", "field", "value"),
+    [
+        ("add_kafka_topic_acl", "delete_kafka_topic_acl", "topic", "topic", "orders"),
+        (
+            "add_kafka_schema_registry_acl",
+            "delete_kafka_schema_registry_acl",
+            "schema-registry",
+            "resource",
+            "Subject:orders",
+        ),
+    ],
+)
+def test_kafka_acl_entries(client, base_url, add, delete, acl, field, value) -> None:
+    base = f"{base_url}/dbaas-kafka/svc/{acl}/acl-config"
+    responses.add(responses.POST, base, json=OP_OK)
+    responses.add(responses.DELETE, f"{base}/acl-1", json=OP_OK)
+    dbaas = DBaaSServiceClient(client)
+    getattr(dbaas, add)("svc", "app", value, "read")
+    getattr(dbaas, delete)("svc", "acl-1")
+    assert _sent(0) == {"username": "app", field: value, "permission": "read"}
+    assert responses.calls[1].request.method == "DELETE"
+
+
+@responses.activate
+def test_reveal_kafka_connect_password(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-kafka/svc/connect/password/reveal",
+        json={"username": "connect", "password": "redacted"},
+    )
+    assert DBaaSServiceClient(client).reveal_kafka_connect_password("svc")["username"] == "connect"
+
+
+@responses.activate
+def test_set_opensearch_acl_config_sends_only_given_fields(client, base_url) -> None:
+    responses.add(responses.PUT, f"{base_url}/dbaas-opensearch/svc/acl-config", json=OP_OK)
+    acls = [{"username": "app", "rules": [{"index": "logs-*", "permission": "read"}]}]
+    DBaaSServiceClient(client).set_opensearch_acl_config("svc", acl_enabled=True, acls=acls)
+    assert _sent() == {"acl-enabled": True, "acls": acls}
+
+
+@responses.activate
+def test_valkey_users_list_and_update(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-valkey/svc/user",
+        json={
+            "users": [{"username": "app", "type": "normal", "access-control": {"keys": ["app:*"]}}]
+        },
+    )
+    responses.add(responses.PUT, f"{base_url}/dbaas-valkey/svc/user/app", json=OP_OK)
+    dbaas = DBaaSServiceClient(client)
+    users = dbaas.list_valkey_users("svc")
+    assert isinstance(users[0], DBaaSValkeyUser)
+    assert users[0].access_control.keys == ["app:*"]
+    dbaas.update_valkey_user_access_control("svc", "app", {"keys": ["other:*"]})
+    assert _sent(1) == {"access-control": {"keys": ["other:*"]}}
+
+
+def test_connection_pools_parse_and_hide_the_uri() -> None:
+    svc = DBaaSService.model_validate(
+        {
+            "name": "svc",
+            "connection-pools": [
+                {
+                    "name": "p",
+                    "database": "app",
+                    "mode": "session",
+                    "size": 5,
+                    "connection-uri": "postgres://u:s3cret@host/app",
+                }
+            ],
+        }
+    )
+    pool = svc.connection_pools[0]
+    assert (pool.name, pool.database, pool.mode, pool.size) == ("p", "app", "session", 5)
+    assert pool.connection_uri.endswith("/app")
+    assert "s3cret" not in repr(pool)

@@ -269,6 +269,19 @@ Connection parameters embedded in a service detail response.
 | `ca` | `ca` | str \| None |
 | `uri` | `uri` | str \| list[str] \| None |
 
+#### model `DBaaSConnectionPool`
+
+A PostgreSQL PgBouncer connection pool, as listed on the service detail.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `name` | `name` | str \| None |
+| `database` | `database` | str \| None |
+| `username` | `username` | str \| None |
+| `mode` | `mode` | str \| None |
+| `size` | `size` | int \| None |
+| `connection_uri` | `connection-uri` | str \| None |
+
 #### model `DBaaSLogEntry`
 
 One service log line.
@@ -279,6 +292,28 @@ One service log line.
 | `node` | `node` | str \| None |
 | `unit` | `unit` | str \| None |
 | `message` | `message` | str \| None |
+
+#### model `DBaaSMigrationDetail`
+
+Migration progress for one database.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `dbname` | `dbname` | str \| None |
+| `method` | `method` | str \| None |
+| `status` | `status` | str \| None |
+| `error` | `error` | str \| None |
+
+#### model `DBaaSMigrationStatus`
+
+Status of a service's migration from an external source database.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `status` | `status` | str \| None |
+| `method` | `method` | str \| None |
+| `error` | `error` | str \| None |
+| `details` | `details` | list[DBaaSMigrationDetail] \| None |
 
 #### model `DBaaSService`
 
@@ -299,6 +334,7 @@ An Exoscale managed database service.
 | `uri` | `uri` | str \| None |
 | `connection_info` | `connection-info` | DBaaSConnectionInfo \| None |
 | `databases` | `databases` | list[str] \| None |
+| `connection_pools` | `connection-pools` | list[DBaaSConnectionPool] \| None |
 
 #### model `DBaaSServiceLogs`
 
@@ -310,6 +346,49 @@ A page of service logs; pass :attr:`offset` back to fetch the next one.
 | `offset` | `offset` | str \| None |
 | `first_log_offset` | `first-log-offset` | str \| None |
 
+#### model `DBaaSTask`
+
+A background check run by DBaaS (pg upgrade check, migration check).
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `id` | `id` | str \| None |
+| `task_type` | `task-type` | str \| None |
+| `success` | `success` | bool \| None |
+| `result` | `result` | str \| None |
+| `result_codes` | `result-codes` | list[DBaaSTaskResultCode] \| None |
+| `create_time` | `create-time` | str \| None |
+
+#### model `DBaaSTaskResultCode`
+
+One per-database result code of a :class:`DBaaSTask`.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `code` | `code` | str \| None |
+| `dbname` | `dbname` | str \| None |
+
+#### model `DBaaSValkeyAccessControl`
+
+Valkey ACL for one user: allowed command categories, commands, keys, channels.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `categories` | `categories` | list[str] \| None |
+| `commands` | `commands` | list[str] \| None |
+| `keys` | `keys` | list[str] \| None |
+| `channels` | `channels` | list[str] \| None |
+
+#### model `DBaaSValkeyUser`
+
+A Valkey service user with its access control.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `username` | `username` | str \| None |
+| `type` | `type` | str \| None |
+| `access_control` | `access-control` | DBaaSValkeyAccessControl \| None |
+
 #### client `DBaaSServiceClient`
 
 Manage Exoscale DBaaS (managed database) services.
@@ -318,16 +397,34 @@ API collection: `dbaas-service`; resource model: `DBaaSService`; keyed by `name`
 
 Inherits the common operations (see above) plus the methods below, if any.
 
+- `add_kafka_schema_registry_acl(name: str, username: str, resource: str, permission: str, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Add a Schema Registry ACL entry (``POST dbaas-kafka/{name}/schema-registry/acl-config``).
+- `add_kafka_topic_acl(name: str, username: str, topic: str, permission: str, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Add a topic ACL entry (``POST dbaas-kafka/{name}/topic/acl-config``).
+- `check_migration(name: str, source_service_uri: str, *, method: str | None = None, ignore_dbs: str | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
+  Start a migration pre-check (``POST /dbaas-task-migration-check/{name}``).
+- `check_upgrade(name: str, target_version: str, *, zone: str | None = None) -> DBaaSTask`
+  Check whether a pg service can upgrade to ``target_version``.
 - `create(payload: Any, *, service_type: str, name: str, zone: str | None = None, wait: bool | None = None) -> DBaaSService`
   Create a managed database service and return it.
+- `create_connection_pool(name: str, pool_name: str, database_name: str, *, mode: str | None = None, size: int | None = None, username: str | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
+  Create a PgBouncer connection pool (``POST dbaas-postgres/{name}/connection-pool``).
 - `create_database(name: str, database_name: str, *, service_type: str, lc_collate: str | None = None, lc_ctype: str | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
   Create a database inside a pg or mysql service.
-- `create_user(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
+- `create_user(name: str, username: str, *, service_type: str, allow_replication: bool | None = None, authentication: str | None = None, access_control: DBaaSValkeyAccessControl | dict | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
   Create a database user (``POST dbaas-{type}/{name}/user``).
+- `delete_connection_pool(name: str, pool_name: str, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Delete a connection pool (``DELETE dbaas-postgres/{name}/connection-pool/{pool}``).
 - `delete_database(name: str, database_name: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Delete a database from a pg or mysql service.
+- `delete_kafka_schema_registry_acl(name: str, acl_id: str, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Delete a Schema Registry ACL entry (``DELETE …/schema-registry/acl-config/{acl-id}``).
+- `delete_kafka_topic_acl(name: str, acl_id: str, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Delete a topic ACL entry (``DELETE dbaas-kafka/{name}/topic/acl-config/{acl-id}``).
 - `delete_user(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Delete a database user (``DELETE dbaas-{type}/{name}/user/{username}``).
+- `enable_writes(name: str, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Temporarily re-enable writes on a read-only mysql service.
 - `ensure(payload: Any, **kwargs: Any) -> DBaaSService`
   Not supported: DBaaS ``create`` needs ``service_type``/``name`` kwargs.
 - `get(resource_id: str, *, zone: str | None = None) -> DBaaSService`
@@ -342,18 +439,36 @@ Inherits the common operations (see above) plus the methods below, if any.
   Fetch a page of service logs (``POST /dbaas-service-logs/{name}``).
 - `get_metrics(name: str, *, period: str | None = None, zone: str | None = None) -> dict`
   Fetch service metrics (``POST /dbaas-service-metrics/{name}``).
+- `get_migration_status(name: str, *, zone: str | None = None) -> DBaaSMigrationStatus`
+  Return the service's migration status (``GET /dbaas-migration-status/{name}``).
 - `get_settings(service_type: str, *, zone: str | None = None) -> dict`
   Return the configurable settings schema for an engine type.
+- `get_task(name: str, task_id: str, *, zone: str | None = None) -> DBaaSTask`
+  Read a DBaaS background task (``GET /dbaas-task/{name}/{id}``).
 - `list_service_types(*, zone: str | None = None) -> list[dict]`
   Return available DBaaS service types from the ``dbaas-service-type`` endpoint.
-- `reset_user_password(name: str, username: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
+- `list_valkey_users(name: str, *, zone: str | None = None) -> list[DBaaSValkeyUser]`
+  List a Valkey service's users with their ACLs (``GET dbaas-valkey/{name}/user``).
+- `reset_user_password(name: str, username: str, *, service_type: str, password: str | None = None, authentication: str | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
   Reset a user's password (``PUT .../user/{username}/password/reset``).
+- `reveal_kafka_connect_password(name: str, *, zone: str | None = None) -> dict`
+  Return the Kafka Connect credentials.
 - `reveal_user_password(name: str, username: str, *, service_type: str, zone: str | None = None) -> dict`
   Return the revealed credentials for a service user.
+- `set_allow_replication(name: str, username: str, allow: bool, *, zone: str | None = None) -> list[dict]`
+  Grant or revoke a pg user's replication privilege.
+- `set_opensearch_acl_config(name: str, *, acl_enabled: bool | None = None, extended_acl_enabled: bool | None = None, acls: list[dict] | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
+  Replace the OpenSearch ACL config (``PUT dbaas-opensearch/{name}/acl-config``).
 - `start_maintenance(name: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
   Trigger the service's pending maintenance update immediately.
+- `stop_migration(name: str, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> dict`
+  Stop a running migration (``POST dbaas-{type}/{name}/migration/stop``).
 - `update(name: str, payload: Any, *, service_type: str, zone: str | None = None, wait: bool | None = None) -> DBaaSService`
   Update a service (``PUT dbaas-{type}/{name}``) and return its new state.
+- `update_connection_pool(name: str, pool_name: str, *, database_name: str | None = None, mode: str | None = None, size: int | None = None, username: str | None = None, zone: str | None = None, wait: bool | None = None) -> dict`
+  Update a connection pool (``PUT dbaas-postgres/{name}/connection-pool/{pool}``).
+- `update_valkey_user_access_control(name: str, username: str, access_control: DBaaSValkeyAccessControl | dict, *, zone: str | None = None, wait: bool | None = None) -> dict`
+  Replace a Valkey user's ACL (``PUT dbaas-valkey/{name}/user/{username}``).
 
 ### `exoscale_connector.resources.deploy_target`
 
@@ -2001,6 +2116,7 @@ class DBaaSService(ExoscaleModel):
     uri: Optional[str]
     connection_info: Optional[DBaaSConnectionInfo]
     databases: Optional[List[str]]  # pg/mysql: databases inside the service
+    connection_pools: Optional[List[DBaaSConnectionPool]]  # pg: name, database, username, mode, size, connection_uri (hidden from repr)
 
 
 class DBaaSLogEntry(ExoscaleModel):
@@ -2014,6 +2130,28 @@ class DBaaSServiceLogs(ExoscaleModel):     # get_logs() page
     logs: Optional[List[DBaaSLogEntry]]
     offset: Optional[str]                  # cursor for the next page
     first_log_offset: Optional[str]
+
+
+class DBaaSTask(ExoscaleModel):            # get_task() / check_upgrade()
+    id: Optional[str]
+    task_type: Optional[str]
+    success: Optional[bool]
+    result: Optional[str]
+    result_codes: Optional[List[DBaaSTaskResultCode]]   # code + dbname
+    create_time: Optional[str]
+
+
+class DBaaSMigrationStatus(ExoscaleModel): # get_migration_status()
+    status: Optional[str]
+    method: Optional[str]
+    error: Optional[str]
+    details: Optional[List[DBaaSMigrationDetail]]       # per database: dbname, method, status, error
+
+
+class DBaaSValkeyUser(ExoscaleModel):      # list_valkey_users() item
+    username: Optional[str]
+    type: Optional[str]
+    access_control: Optional[DBaaSValkeyAccessControl]  # categories, commands, keys, channels
 ```
 
 #### CLI
@@ -2172,7 +2310,20 @@ dbaas.create_user(name, "analyst", service_type="pg")
 dbaas.reset_user_password(name, "analyst", service_type="pg")
 secret = dbaas.reveal_user_password(name, "analyst", service_type="pg")
 dbaas.delete_user(name, "analyst", service_type="pg")
+
+# Engine-specific user options (ValueError on the wrong engine):
+dbaas.create_user(name, "replicator", service_type="pg", allow_replication=True)
+dbaas.create_user("my-mysql-1", "app", service_type="mysql",
+                  authentication="caching_sha2_password")
+dbaas.create_user("my-valkey-1", "app", service_type="valkey",
+                  access_control={"categories": ["+@read"], "keys": ["app:*"]})
+# Set a chosen password (from a secret store, never a literal); omit it to
+# let the API generate one. mysql can switch the auth plugin at the same time.
+dbaas.reset_user_password(name, "analyst", service_type="pg", password=new_password)
 ```
+
+The engine-specific user options and the `password` argument are implemented
+from the API reference — pending live verification.
 
 ##### Databases (pg / mysql)
 
@@ -2262,6 +2413,60 @@ dbaas.start_maintenance("my-pg-1", service_type="pg")
   blocked — ClickHouse is a per-account product and is not enabled on the test
   tenant, so every ClickHouse operation returns `403 "... not enabled"`,
   read-only ones included.
+
+##### Engine-specific operations
+
+Operations that exist for one engine (or a few) only. All are implemented from
+the API reference — pending live verification:
+
+```python
+# Migration from an external pg / mysql / valkey database. The source URI
+# carries admin credentials: read it from a secret store, never a literal.
+op = dbaas.check_migration(name, source_uri, method="dump")
+task = dbaas.get_task(name, op["reference"]["id"])        # DBaaSTask
+status = dbaas.get_migration_status(name)                 # DBaaSMigrationStatus
+dbaas.stop_migration(name, service_type="pg")             # pg / mysql / valkey
+
+# PostgreSQL: PgBouncer connection pools, replication privilege, upgrade check
+dbaas.create_connection_pool(name, "app-pool", "app", mode="transaction", size=20)
+dbaas.get_connection_info(name, service_type="pg").connection_pools  # current pools
+dbaas.update_connection_pool(name, "app-pool", size=40)
+dbaas.delete_connection_pool(name, "app-pool")
+users = dbaas.set_allow_replication(name, "replicator", True)   # the service's users
+check = dbaas.check_upgrade(name, "17")                   # DBaaSTask; changes nothing
+
+# MySQL: lift the read-only mode a full disk triggers, briefly
+dbaas.enable_writes("my-mysql-1")
+
+# Kafka: topic and Schema Registry ACL entries (ids via get_acl_config)
+dbaas.add_kafka_topic_acl("my-kafka-1", "app", "orders-*", "readwrite")
+dbaas.delete_kafka_topic_acl("my-kafka-1", acl_id)
+dbaas.add_kafka_schema_registry_acl("my-kafka-1", "app", "Subject:orders-*",
+                                    "schema_registry_read")
+dbaas.delete_kafka_schema_registry_acl("my-kafka-1", acl_id)
+connect = dbaas.reveal_kafka_connect_password("my-kafka-1")  # a secret: never print
+
+# OpenSearch: replace the ACL config
+dbaas.set_opensearch_acl_config("my-os-1", acl_enabled=True, acls=[
+    {"username": "app", "rules": [{"index": "logs-*", "permission": "read"}]},
+])
+
+# Valkey: users with their ACLs
+for user in dbaas.list_valkey_users("my-valkey-1"):
+    print(user.username, user.access_control)
+dbaas.update_valkey_user_access_control("my-valkey-1", "app", {"keys": ["app:*"]})
+```
+
+- **`check_migration` and `check_upgrade` only check.** Neither starts a
+  migration or an upgrade; the result lands in a `DBaaSTask`. A migration
+  itself starts by creating or updating the service with a `migration` block.
+- **`set_allow_replication` and `check_upgrade` answer directly**, not with an
+  operation, so they take no `wait` argument.
+- **[BETA] DBaaS operations are not wrapped**: integrations between services,
+  external endpoints (Datadog, Prometheus, rsyslog, Elasticsearch, OpenSearch)
+  and everything ClickHouse. The connector ships no `[BETA]` operation without
+  the maintainer's explicit OK; `scripts/request_field_audit.py` lists them
+  separately.
 
 `ensure()` is **not** supported for DBaaS (create needs `service_type`/`name`
 kwargs) — use `get_or_none(name)` + `create(...)` explicitly.

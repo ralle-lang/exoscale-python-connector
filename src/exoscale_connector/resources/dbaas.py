@@ -20,8 +20,10 @@ import random
 import time
 from typing import Any
 
+from pydantic import Field
+
 from ..errors import NotFoundError
-from ..models import ExoscaleModel, Operation
+from ..models import ExoscaleModel, Operation, to_api_payload
 from ._base import ResourceClient, _looks_like_operation
 
 
@@ -43,6 +45,18 @@ class DBaaSConnectionInfo(ExoscaleModel):
     # (primary + read replicas — verified against the live API) and the other
     # data engines, but a single string for Grafana.
     uri: str | list[str] | None = None
+
+
+class DBaaSConnectionPool(ExoscaleModel):
+    """A PostgreSQL PgBouncer connection pool, as listed on the service detail."""
+
+    name: str | None = None
+    database: str | None = None
+    username: str | None = None
+    mode: str | None = None  # "transaction" | "statement" | "session"
+    size: int | None = None
+    # Carries credentials: excluded from repr so logging never echoes it.
+    connection_uri: str | None = Field(default=None, repr=False)
 
 
 class DBaaSService(ExoscaleModel):
@@ -82,6 +96,8 @@ class DBaaSService(ExoscaleModel):
     connection_info: DBaaSConnectionInfo | None = None
     # Database names inside the service (pg and mysql, type-specific GET only).
     databases: list[str] | None = None
+    # PgBouncer pools (pg only, type-specific GET only).
+    connection_pools: list[DBaaSConnectionPool] | None = None
 
 
 class DBaaSLogEntry(ExoscaleModel):
@@ -99,6 +115,59 @@ class DBaaSServiceLogs(ExoscaleModel):
     logs: list[DBaaSLogEntry] | None = None
     offset: str | None = None
     first_log_offset: str | None = None
+
+
+class DBaaSTaskResultCode(ExoscaleModel):
+    """One per-database result code of a :class:`DBaaSTask`."""
+
+    code: str | None = None
+    dbname: str | None = None
+
+
+class DBaaSTask(ExoscaleModel):
+    """A background check run by DBaaS (pg upgrade check, migration check)."""
+
+    id: str | None = None
+    task_type: str | None = None
+    success: bool | None = None
+    result: str | None = None
+    result_codes: list[DBaaSTaskResultCode] | None = None
+    create_time: str | None = None
+
+
+class DBaaSMigrationDetail(ExoscaleModel):
+    """Migration progress for one database."""
+
+    dbname: str | None = None
+    method: str | None = None
+    status: str | None = None  # "running" | "syncing" | "failed" | "done"
+    error: str | None = None
+
+
+class DBaaSMigrationStatus(ExoscaleModel):
+    """Status of a service's migration from an external source database."""
+
+    status: str | None = None
+    method: str | None = None
+    error: str | None = None
+    details: list[DBaaSMigrationDetail] | None = None
+
+
+class DBaaSValkeyAccessControl(ExoscaleModel):
+    """Valkey ACL for one user: allowed command categories, commands, keys, channels."""
+
+    categories: list[str] | None = None
+    commands: list[str] | None = None
+    keys: list[str] | None = None
+    channels: list[str] | None = None
+
+
+class DBaaSValkeyUser(ExoscaleModel):
+    """A Valkey service user with its access control."""
+
+    username: str | None = None
+    type: str | None = None
+    access_control: DBaaSValkeyAccessControl | None = None
 
 
 class DBaaSServiceClient(ResourceClient[DBaaSService]):
@@ -301,28 +370,53 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     # Service users
     # ------------------------------------------------------------------ #
 
+    def _require_engine(self, service_type: str, engine: str, what: str) -> None:
+        if self._url_type(service_type) != engine:
+            raise ValueError(f"{what} applies to {engine} services only")
+
     def create_user(
         self,
         name: str,
         username: str,
         *,
         service_type: str,
+        allow_replication: bool | None = None,
+        authentication: str | None = None,
+        access_control: DBaaSValkeyAccessControl | dict | None = None,
         zone: str | None = None,
         wait: bool | None = None,
     ) -> dict:
         """Create a database user (``POST dbaas-{type}/{name}/user``).
 
+        Engine-specific options, each rejected with ``ValueError`` on the
+        wrong engine:
+
+        * ``allow_replication`` (pg) — grant the replication privilege.
+        * ``authentication`` (mysql) — ``"caching_sha2_password"`` or
+          ``"mysql_native_password"``.
+        * ``access_control`` (valkey) — the user's ACL
+          (:class:`DBaaSValkeyAccessControl` or its wire dict).
+
         Returns the settled operation envelope as a dict. Retrieve the
         password afterwards with :meth:`reveal_user_password` — and treat it
         as the secret it is.
 
-        Live-verified 2026-06-10 (tier-4 pg lifecycle).
+        Live-verified 2026-06-10 (tier-4 pg lifecycle, username only); the
+        engine-specific options are implemented from the API reference.
         """
+        body: dict[str, Any] = {"username": username}
+        if allow_replication is not None:
+            self._require_engine(service_type, "postgres", "allow_replication")
+            body["allow-replication"] = allow_replication
+        if authentication is not None:
+            self._require_engine(service_type, "mysql", "authentication")
+            body["authentication"] = authentication
+        if access_control is not None:
+            self._require_engine(service_type, "valkey", "access_control")
+            body["access-control"] = to_api_payload(access_control)
         zone = self._zone(zone)
         response = self.client.post(
-            f"dbaas-{self._url_type(service_type)}/{name}/user",
-            zone=zone,
-            json={"username": username},
+            f"dbaas-{self._url_type(service_type)}/{name}/user", zone=zone, json=body
         )
         return self._settle(response, zone=zone, wait=wait)
 
@@ -369,21 +463,33 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         username: str,
         *,
         service_type: str,
+        password: str | None = None,
+        authentication: str | None = None,
         zone: str | None = None,
         wait: bool | None = None,
     ) -> dict:
         """Reset a user's password (``PUT .../user/{username}/password/reset``).
 
-        The new password is *not* returned here — fetch it afterwards with
-        :meth:`reveal_user_password`.
+        Without ``password`` the API generates one. ``authentication`` (mysql
+        only) switches the authentication plugin at the same time. The new
+        password is *not* returned here — fetch it afterwards with
+        :meth:`reveal_user_password`. Pass ``password`` from a secret store,
+        never a literal.
 
         .. warning::
            Implemented from the API reference — pending live verification.
         """
+        body: dict[str, Any] = {}
+        if password is not None:
+            body["password"] = password
+        if authentication is not None:
+            self._require_engine(service_type, "mysql", "authentication")
+            body["authentication"] = authentication
         zone = self._zone(zone)
         response = self.client.put(
             f"dbaas-{self._url_type(service_type)}/{name}/user/{username}/password/reset",
             zone=zone,
+            json=body or None,
         )
         return self._settle(response, zone=zone, wait=wait)
 
@@ -475,11 +581,12 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """
         url_type = self._database_engine(service_type)
         body: dict[str, Any] = {"database-name": database_name}
-        locale = {"lc-collate": lc_collate, "lc-ctype": lc_ctype}
-        if any(v is not None for v in locale.values()):
-            if url_type != "postgres":
-                raise ValueError("lc_collate / lc_ctype apply to pg services only")
-            body.update({k: v for k, v in locale.items() if v is not None})
+        if (lc_collate is not None or lc_ctype is not None) and url_type != "postgres":
+            raise ValueError("lc_collate / lc_ctype apply to pg services only")
+        if lc_collate is not None:
+            body["lc-collate"] = lc_collate
+        if lc_ctype is not None:
+            body["lc-ctype"] = lc_ctype
         zone = self._zone(zone)
         response = self.client.post(f"dbaas-{url_type}/{name}/database", zone=zone, json=body)
         return self._settle(response, zone=zone, wait=wait)
@@ -627,3 +734,395 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         payload = self.client.get("dbaas-service-type", zone=self._zone(zone))
         items = payload.get("dbaas-service-types") or []
         return [i for i in items if isinstance(i, dict)]
+
+    # ------------------------------------------------------------------ #
+    # Migration from an external database (pg / mysql / valkey) and tasks
+    # ------------------------------------------------------------------ #
+
+    _MIGRATION_ENGINES = ("postgres", "mysql", "valkey")
+
+    def check_migration(
+        self,
+        name: str,
+        source_service_uri: str,
+        *,
+        method: str | None = None,
+        ignore_dbs: str | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Start a migration pre-check (``POST /dbaas-task-migration-check/{name}``).
+
+        ``source_service_uri`` is the source database's URI **with admin
+        credentials** — read it from a secret store, never a literal.
+        ``method`` is ``"dump"`` or ``"replication"``; ``ignore_dbs`` is a
+        comma-separated list (mysql only). Returns the settled operation
+        envelope; its ``reference.id`` is the task to read with
+        :meth:`get_task`.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        body: dict[str, Any] = {"source-service-uri": source_service_uri}
+        if method is not None:
+            body["method"] = method
+        if ignore_dbs is not None:
+            body["ignore-dbs"] = ignore_dbs
+        zone = self._zone(zone)
+        response = self.client.post(f"dbaas-task-migration-check/{name}", zone=zone, json=body)
+        return self._settle(response, zone=zone, wait=wait)
+
+    def get_task(self, name: str, task_id: str, *, zone: str | None = None) -> DBaaSTask:
+        """Read a DBaaS background task (``GET /dbaas-task/{name}/{id}``).
+
+        Covers the migration check and the pg upgrade check.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.get(f"dbaas-task/{name}/{task_id}", zone=self._zone(zone))
+        return DBaaSTask.model_validate(payload)
+
+    def get_migration_status(self, name: str, *, zone: str | None = None) -> DBaaSMigrationStatus:
+        """Return the service's migration status (``GET /dbaas-migration-status/{name}``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.get(f"dbaas-migration-status/{name}", zone=self._zone(zone))
+        return DBaaSMigrationStatus.model_validate(payload)
+
+    def stop_migration(
+        self,
+        name: str,
+        *,
+        service_type: str,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Stop a running migration (``POST dbaas-{type}/{name}/migration/stop``).
+
+        Available for pg, mysql and valkey; other engines raise ``ValueError``.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        url_type = self._url_type(service_type)
+        if url_type not in self._MIGRATION_ENGINES:
+            raise ValueError(
+                f"service type {service_type!r} has no migration; only pg, mysql and valkey do"
+            )
+        zone = self._zone(zone)
+        response = self.client.post(f"dbaas-{url_type}/{name}/migration/stop", zone=zone)
+        return self._settle(response, zone=zone, wait=wait)
+
+    # ------------------------------------------------------------------ #
+    # PostgreSQL: connection pools, replication privilege, upgrade check
+    # ------------------------------------------------------------------ #
+
+    def create_connection_pool(
+        self,
+        name: str,
+        pool_name: str,
+        database_name: str,
+        *,
+        mode: str | None = None,
+        size: int | None = None,
+        username: str | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Create a PgBouncer connection pool (``POST dbaas-postgres/{name}/connection-pool``).
+
+        ``mode`` is ``"transaction"``, ``"statement"`` or ``"session"``;
+        ``size`` is 1–10000; ``username`` is the pool's database user. List
+        existing pools via :attr:`DBaaSService.connection_pools` on
+        :meth:`get_connection_info`.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        body: dict[str, Any] = {"name": pool_name, "database-name": database_name}
+        if mode is not None:
+            body["mode"] = mode
+        if size is not None:
+            body["size"] = size
+        if username is not None:
+            body["username"] = username
+        zone = self._zone(zone)
+        response = self.client.post(f"dbaas-postgres/{name}/connection-pool", zone=zone, json=body)
+        return self._settle(response, zone=zone, wait=wait)
+
+    def update_connection_pool(
+        self,
+        name: str,
+        pool_name: str,
+        *,
+        database_name: str | None = None,
+        mode: str | None = None,
+        size: int | None = None,
+        username: str | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Update a connection pool (``PUT dbaas-postgres/{name}/connection-pool/{pool}``).
+
+        Only the fields you pass are sent.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        body: dict[str, Any] = {}
+        if database_name is not None:
+            body["database-name"] = database_name
+        if mode is not None:
+            body["mode"] = mode
+        if size is not None:
+            body["size"] = size
+        if username is not None:
+            body["username"] = username
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"dbaas-postgres/{name}/connection-pool/{pool_name}", zone=zone, json=body
+        )
+        return self._settle(response, zone=zone, wait=wait)
+
+    def delete_connection_pool(
+        self, name: str, pool_name: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> dict:
+        """Delete a connection pool (``DELETE dbaas-postgres/{name}/connection-pool/{pool}``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.delete(
+            f"dbaas-postgres/{name}/connection-pool/{pool_name}", zone=zone
+        )
+        return self._settle(response, zone=zone, wait=wait)
+
+    def set_allow_replication(
+        self, name: str, username: str, allow: bool, *, zone: str | None = None
+    ) -> list[dict]:
+        """Grant or revoke a pg user's replication privilege.
+
+        Wraps ``PUT dbaas-postgres/{name}/user/{username}/allow-replication``,
+        which answers with the service's users (``username`` +
+        ``allow-replication``) rather than an operation; that list is returned.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.put(
+            f"dbaas-postgres/{name}/user/{username}/allow-replication",
+            zone=self._zone(zone),
+            json={"allow-replication": allow},
+        )
+        users = payload.get("users") if isinstance(payload, dict) else None
+        return [u for u in users or [] if isinstance(u, dict)]
+
+    def check_upgrade(
+        self, name: str, target_version: str, *, zone: str | None = None
+    ) -> DBaaSTask:
+        """Check whether a pg service can upgrade to ``target_version``.
+
+        Wraps ``POST dbaas-postgres/{name}/upgrade-check``, which answers with
+        the task directly (re-read it with :meth:`get_task` while it runs).
+        Changes nothing on the service.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.post(
+            f"dbaas-postgres/{name}/upgrade-check",
+            zone=self._zone(zone),
+            json={"target-version": target_version},
+        )
+        return DBaaSTask.model_validate(payload)
+
+    # ------------------------------------------------------------------ #
+    # MySQL
+    # ------------------------------------------------------------------ #
+
+    def enable_writes(
+        self, name: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> dict:
+        """Temporarily re-enable writes on a read-only mysql service.
+
+        Wraps ``PUT dbaas-mysql/{name}/enable/writes``.
+
+        MySQL services switch to read-only when their storage fills up; this
+        lifts that for a short window so you can delete data or upgrade the plan.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(f"dbaas-mysql/{name}/enable/writes", zone=zone)
+        return self._settle(response, zone=zone, wait=wait)
+
+    # ------------------------------------------------------------------ #
+    # Kafka: topic / schema-registry ACL entries, Kafka Connect secrets
+    # ------------------------------------------------------------------ #
+
+    def add_kafka_topic_acl(
+        self,
+        name: str,
+        username: str,
+        topic: str,
+        permission: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Add a topic ACL entry (``POST dbaas-kafka/{name}/topic/acl-config``).
+
+        ``permission`` is ``"admin"``, ``"read"``, ``"readwrite"`` or
+        ``"write"``; ``topic`` and ``username`` accept wildcards. Read the
+        entries (and their ids) with :meth:`get_acl_config`.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.post(
+            f"dbaas-kafka/{name}/topic/acl-config",
+            zone=zone,
+            json={"username": username, "topic": topic, "permission": permission},
+        )
+        return self._settle(response, zone=zone, wait=wait)
+
+    def delete_kafka_topic_acl(
+        self, name: str, acl_id: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> dict:
+        """Delete a topic ACL entry (``DELETE dbaas-kafka/{name}/topic/acl-config/{acl-id}``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.delete(f"dbaas-kafka/{name}/topic/acl-config/{acl_id}", zone=zone)
+        return self._settle(response, zone=zone, wait=wait)
+
+    def add_kafka_schema_registry_acl(
+        self,
+        name: str,
+        username: str,
+        resource: str,
+        permission: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Add a Schema Registry ACL entry (``POST dbaas-kafka/{name}/schema-registry/acl-config``).
+
+        ``permission`` is ``"schema_registry_read"`` or
+        ``"schema_registry_write"``; ``resource`` is e.g. ``"Subject:orders-*"``.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.post(
+            f"dbaas-kafka/{name}/schema-registry/acl-config",
+            zone=zone,
+            json={"username": username, "resource": resource, "permission": permission},
+        )
+        return self._settle(response, zone=zone, wait=wait)
+
+    def delete_kafka_schema_registry_acl(
+        self, name: str, acl_id: str, *, zone: str | None = None, wait: bool | None = None
+    ) -> dict:
+        """Delete a Schema Registry ACL entry (``DELETE …/schema-registry/acl-config/{acl-id}``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.delete(
+            f"dbaas-kafka/{name}/schema-registry/acl-config/{acl_id}", zone=zone
+        )
+        return self._settle(response, zone=zone, wait=wait)
+
+    def reveal_kafka_connect_password(self, name: str, *, zone: str | None = None) -> dict:
+        """Return the Kafka Connect credentials.
+
+        Wraps ``GET dbaas-kafka/{name}/connect/password/reveal``.
+
+        .. warning::
+           The returned dict holds a live password in clear text. Never log
+           or print it. Implemented from the API reference — pending live
+           verification.
+        """
+        return self.client.get(f"dbaas-kafka/{name}/connect/password/reveal", zone=self._zone(zone))
+
+    # ------------------------------------------------------------------ #
+    # OpenSearch ACL
+    # ------------------------------------------------------------------ #
+
+    def set_opensearch_acl_config(
+        self,
+        name: str,
+        *,
+        acl_enabled: bool | None = None,
+        extended_acl_enabled: bool | None = None,
+        acls: list[dict] | None = None,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Replace the OpenSearch ACL config (``PUT dbaas-opensearch/{name}/acl-config``).
+
+        ``acls`` is a list of ``{"username": ..., "rules": [{"index": ...,
+        "permission": ...}]}`` entries (permission ``admin`` / ``read`` /
+        ``deny`` / ``readwrite`` / ``write``). Read the current config with
+        :meth:`get_acl_config`.
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        body: dict[str, Any] = {}
+        if acl_enabled is not None:
+            body["acl-enabled"] = acl_enabled
+        if extended_acl_enabled is not None:
+            body["extended-acl-enabled"] = extended_acl_enabled
+        if acls is not None:
+            body["acls"] = acls
+        zone = self._zone(zone)
+        response = self.client.put(f"dbaas-opensearch/{name}/acl-config", zone=zone, json=body)
+        return self._settle(response, zone=zone, wait=wait)
+
+    # ------------------------------------------------------------------ #
+    # Valkey users and their access control
+    # ------------------------------------------------------------------ #
+
+    def list_valkey_users(self, name: str, *, zone: str | None = None) -> list[DBaaSValkeyUser]:
+        """List a Valkey service's users with their ACLs (``GET dbaas-valkey/{name}/user``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        payload = self.client.get(f"dbaas-valkey/{name}/user", zone=self._zone(zone))
+        users = payload.get("users") if isinstance(payload, dict) else None
+        return [DBaaSValkeyUser.model_validate(u) for u in users or [] if isinstance(u, dict)]
+
+    def update_valkey_user_access_control(
+        self,
+        name: str,
+        username: str,
+        access_control: DBaaSValkeyAccessControl | dict,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
+        """Replace a Valkey user's ACL (``PUT dbaas-valkey/{name}/user/{username}``).
+
+        .. warning::
+           Implemented from the API reference — pending live verification.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"dbaas-valkey/{name}/user/{username}",
+            zone=zone,
+            json={"access-control": to_api_payload(access_control)},
+        )
+        return self._settle(response, zone=zone, wait=wait)
