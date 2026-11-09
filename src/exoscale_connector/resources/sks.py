@@ -54,6 +54,16 @@ class SksNodepoolTaint(ExoscaleModel):
     effect: str | None = None
 
 
+class SksKubeletImageGc(ExoscaleModel):
+    """Kubelet image garbage-collection thresholds for a nodepool."""
+
+    # Disk usage percentages that start / stop image GC.
+    high_threshold: int | None = None
+    low_threshold: int | None = None
+    # Minimum age of an unused image before it may be collected (e.g. "2m").
+    min_age: str | None = None
+
+
 class SksNodepool(ExoscaleModel):
     """A pool of worker nodes within an SKS cluster.
 
@@ -85,6 +95,9 @@ class SksNodepool(ExoscaleModel):
     # returned on the nodepool object. Payload passes through create_nodepool /
     # update_nodepool, which accept a dict or model.
     nvidia_mig_profiles: dict[str, Any] | None = None
+    # Dedicated-hypervisor / edge placement for the nodepool's instances.
+    deploy_target: Reference | None = None
+    kubelet_image_gc: SksKubeletImageGc | None = None
 
 
 class SksCluster(ExoscaleModel):
@@ -204,6 +217,159 @@ class SksClusterClient(ResourceClient[SksCluster]):
             json=to_api_payload(payload),
         )
 
+    def upgrade(
+        self,
+        cluster_id: str,
+        version: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Upgrade the control plane to ``version`` (``PUT sks-cluster/{id}/upgrade``).
+
+        Pick ``version`` from :meth:`list_versions` and check
+        :meth:`list_deprecated_resources` first.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/upgrade",
+            zone=zone,
+            json={"version": version},
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def upgrade_service_level(
+        self,
+        cluster_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Move a ``starter`` cluster to ``pro`` (``PUT .../upgrade-service-level``).
+
+        One-way: there is no downgrade endpoint, and ``pro`` is billed.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/upgrade-service-level",
+            zone=zone,
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def rotate_ccm_credentials(
+        self,
+        cluster_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Rotate the cloud-controller-manager credentials (``PUT .../rotate-ccm-credentials``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/rotate-ccm-credentials",
+            zone=zone,
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def rotate_csi_credentials(
+        self,
+        cluster_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Rotate the CSI driver credentials (``PUT .../rotate-csi-credentials``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/rotate-csi-credentials",
+            zone=zone,
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def rotate_karpenter_credentials(
+        self,
+        cluster_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Rotate the Karpenter credentials (``PUT .../rotate-karpenter-credentials``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/rotate-karpenter-credentials",
+            zone=zone,
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def rotate_operators_ca(
+        self,
+        cluster_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Rotate the operators certificate authority (``PUT .../rotate-operators-ca``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/rotate-operators-ca",
+            zone=zone,
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def get_authority_cert(
+        self, cluster_id: str, authority: str, *, zone: str | None = None
+    ) -> str | None:
+        """Return a cluster CA certificate (``GET .../authority/{authority}/cert``).
+
+        ``authority`` is ``"control-plane"``, ``"aggregation"`` or ``"kubelet"``.
+        The value is the ``cacert`` string as the API returns it.
+        """
+        payload = self.client.get(
+            f"{self.collection_path}/{cluster_id}/authority/{authority}/cert",
+            zone=self._zone(zone),
+        )
+        value = payload.get("cacert")
+        return value if isinstance(value, str) else None
+
+    def get_inspection(self, cluster_id: str, *, zone: str | None = None) -> dict:
+        """Return the cluster diagnostic report (``GET sks-cluster/{id}/inspection``).
+
+        The shape is free-form in the spec, so it is returned as a plain dict.
+        """
+        return self.client.get(
+            f"{self.collection_path}/{cluster_id}/inspection", zone=self._zone(zone)
+        )
+
+    def generate_karpenter_nodeclass(
+        self, cluster_id: str, *, zone: str | None = None
+    ) -> str | None:
+        """Generate an ``ExoscaleNodeClass`` manifest for Karpenter.
+
+        Endpoint: ``PUT sks-cluster/{id}/generate-karpenter-exoscale-nodeclass``;
+        returns the manifest string.
+        """
+        payload = self.client.put(
+            f"{self.collection_path}/{cluster_id}/generate-karpenter-exoscale-nodeclass",
+            zone=self._zone(zone),
+        )
+        value = payload.get("exoscale-nodeclass")
+        return value if isinstance(value, str) else None
+
+    def generate_karpenter_nodepool(
+        self, cluster_id: str, *, zone: str | None = None
+    ) -> str | None:
+        """Generate a Karpenter ``NodePool`` manifest.
+
+        Endpoint: ``PUT sks-cluster/{id}/generate-karpenter-nodepool``; returns
+        the manifest string.
+        """
+        payload = self.client.put(
+            f"{self.collection_path}/{cluster_id}/generate-karpenter-nodepool",
+            zone=self._zone(zone),
+        )
+        value = payload.get("nodepool")
+        return value if isinstance(value, str) else None
+
     # ------------------------------------------------------------------ #
     # Nodepool sub-resource
     # ------------------------------------------------------------------ #
@@ -309,6 +475,51 @@ class SksClusterClient(ResourceClient[SksCluster]):
         response = self.client.delete(
             f"{self.collection_path}/{cluster_id}/nodepool/{nodepool_id}",
             zone=zone,
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def scale_nodepool(
+        self,
+        cluster_id: str,
+        nodepool_id: str,
+        size: int,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Set the size of a nodepool (``PUT .../nodepool/{id}:scale``).
+
+        The dedicated scale action; ``update_nodepool`` with a ``size``
+        also works but is a full update.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/nodepool/{nodepool_id}:scale",
+            zone=zone,
+            json={"size": size},
+        )
+        return self._wait_nodepool_operation(response, zone=zone, wait=wait)
+
+    def evict_nodepool_members(
+        self,
+        cluster_id: str,
+        nodepool_id: str,
+        instance_ids: list[str],
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Remove named nodes from a nodepool (``PUT .../nodepool/{id}:evict``).
+
+        ``instance_ids`` are member instances of the nodepool (see its
+        ``instance_pool``); they are drained and destroyed, and the size
+        shrinks to match.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{cluster_id}/nodepool/{nodepool_id}:evict",
+            zone=zone,
+            json={"instances": list(instance_ids)},
         )
         return self._wait_nodepool_operation(response, zone=zone, wait=wait)
 

@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IAMRoleClient.assume` returns a temporary key (`IAMAssumedRoleKey`, secret
   hidden from `repr`); `IAMRole` gains `max_session_ttl`.
 - `DnsDomainClient.get_zone_file` exports a domain as a BIND zone file.
+- `SksClusterClient`: `upgrade`, `upgrade_service_level`, `scale_nodepool`,
+  `evict_nodepool_members`, credential rotation (`rotate_ccm_credentials`,
+  `rotate_csi_credentials`, `rotate_karpenter_credentials`,
+  `rotate_operators_ca`), `get_authority_cert`, `get_inspection` and the
+  Karpenter manifest generators; `SksNodepool` types `deploy_target` and
+  `kubelet_image_gc`.
 - `reset_field(id, field)` on instances, instance pools, elastic IPs, private
   networks and load balancers clears an optional field
   (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and

@@ -1193,6 +1193,16 @@ A Kubernetes API in use on a cluster that a later release removes.
 | `subresource` | `subresource` | str \| None |
 | `removed_release` | `removed-release` | str \| None |
 
+#### model `SksKubeletImageGc`
+
+Kubelet image garbage-collection thresholds for a nodepool.
+
+| Python attribute | JSON key | Type |
+|---|---|---|
+| `high_threshold` | `high-threshold` | int \| None |
+| `low_threshold` | `low-threshold` | int \| None |
+| `min_age` | `min-age` | str \| None |
+
 #### model `SksNodepool`
 
 A pool of worker nodes within an SKS cluster.
@@ -1216,6 +1226,8 @@ A pool of worker nodes within an SKS cluster.
 | `instance_prefix` | `instance-prefix` | str \| None |
 | `public_ip_assignment` | `public-ip-assignment` | str \| None |
 | `nvidia_mig_profiles` | `nvidia-mig-profiles` | dict[str, Any] \| None |
+| `deploy_target` | `deploy-target` | Reference \| None |
+| `kubelet_image_gc` | `kubelet-image-gc` | SksKubeletImageGc \| None |
 
 #### model `SksNodepoolTaint`
 
@@ -1252,8 +1264,18 @@ Inherits the common operations (see above) plus the methods below, if any.
   Add a nodepool to an existing cluster.
 - `delete_nodepool(cluster_id: str, nodepool_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Delete a nodepool from a cluster.
+- `evict_nodepool_members(cluster_id: str, nodepool_id: str, instance_ids: list[str], *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Remove named nodes from a nodepool (``PUT .../nodepool/{id}:evict``).
+- `generate_karpenter_nodeclass(cluster_id: str, *, zone: str | None = None) -> str | None`
+  Generate an ``ExoscaleNodeClass`` manifest for Karpenter.
+- `generate_karpenter_nodepool(cluster_id: str, *, zone: str | None = None) -> str | None`
+  Generate a Karpenter ``NodePool`` manifest.
 - `generate_kubeconfig(cluster_id: str, payload: object, *, zone: str | None = None) -> dict`
   Request a new kubeconfig for a cluster.
+- `get_authority_cert(cluster_id: str, authority: str, *, zone: str | None = None) -> str | None`
+  Return a cluster CA certificate (``GET .../authority/{authority}/cert``).
+- `get_inspection(cluster_id: str, *, zone: str | None = None) -> dict`
+  Return the cluster diagnostic report (``GET sks-cluster/{id}/inspection``).
 - `get_nodepool(cluster_id: str, nodepool_id: str, *, zone: str | None = None) -> SksNodepool`
   Fetch a single nodepool by id.
 - `list_deprecated_resources(cluster_id: str, *, zone: str | None = None) -> list[SksDeprecatedResource]`
@@ -1262,8 +1284,22 @@ Inherits the common operations (see above) plus the methods below, if any.
   Return all nodepools belonging to a cluster.
 - `list_versions(*, zone: str | None = None) -> list[str]`
   Return the Kubernetes versions a new SKS cluster may be created with.
+- `rotate_ccm_credentials(cluster_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Rotate the cloud-controller-manager credentials (``PUT .../rotate-ccm-credentials``).
+- `rotate_csi_credentials(cluster_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Rotate the CSI driver credentials (``PUT .../rotate-csi-credentials``).
+- `rotate_karpenter_credentials(cluster_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Rotate the Karpenter credentials (``PUT .../rotate-karpenter-credentials``).
+- `rotate_operators_ca(cluster_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Rotate the operators certificate authority (``PUT .../rotate-operators-ca``).
+- `scale_nodepool(cluster_id: str, nodepool_id: str, size: int, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Set the size of a nodepool (``PUT .../nodepool/{id}:scale``).
 - `update_nodepool(cluster_id: str, nodepool_id: str, payload: object, *, zone: str | None = None, wait: bool | None = None) -> Operation`
   Update a nodepool (PUT).
+- `upgrade(cluster_id: str, version: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Upgrade the control plane to ``version`` (``PUT sks-cluster/{id}/upgrade``).
+- `upgrade_service_level(cluster_id: str, *, zone: str | None = None, wait: bool | None = None) -> Operation`
+  Move a ``starter`` cluster to ``pro`` (``PUT .../upgrade-service-level``).
 
 ### `exoscale_connector.resources.snapshot`
 
@@ -3934,6 +3970,8 @@ class SksNodepool(ExoscaleModel):
     instance_prefix: Optional[str]
     public_ip_assignment: Optional[str]
     nvidia_mig_profiles: Optional[Dict[str, Any]]  # MIG profiles for GPU nodes, keyed by GPU model
+    deploy_target: Optional[Reference]           # dedicated / edge placement
+    kubelet_image_gc: Optional[SksKubeletImageGc]  # high_threshold, low_threshold, min_age
 
 
 class SksCluster(ExoscaleModel):
@@ -4031,14 +4069,30 @@ op = sks.create_nodepool(cluster.id, SksNodepool(
 ))
 np_id = op.reference_id
 
-# Scale
-sks.update_nodepool(cluster.id, np_id, {"size": 3})
-sks.update_nodepool(cluster.id, np_id, {"size": 1})
+# Scale, or remove specific nodes (member ids from the nodepool's instance pool)
+sks.scale_nodepool(cluster.id, np_id, 3)
+sks.evict_nodepool_members(cluster.id, np_id, ["<member-instance-id>"])
+
+# Cluster reads: CA certificates, diagnostic report, Karpenter manifests
+ca = sks.get_authority_cert(cluster.id, "control-plane")   # or aggregation / kubelet
+report = sks.get_inspection(cluster.id)                     # free-form dict
+nodeclass = sks.generate_karpenter_nodeclass(cluster.id)    # manifest str
+karpenter_np = sks.generate_karpenter_nodepool(cluster.id)
+
+# Credential rotation (async; the cluster stays up)
+sks.rotate_ccm_credentials(cluster.id)
+sks.rotate_csi_credentials(cluster.id)
+sks.rotate_karpenter_credentials(cluster.id)
+sks.rotate_operators_ca(cluster.id)
 
 # Before a version upgrade: which Kubernetes APIs in use does a later release
 # remove? Migrate anything whose removed_release <= the target version first.
 for r in sks.list_deprecated_resources(cluster.id):
     print(r.group, r.version, r.resource, "removed in", r.removed_release)
+
+# Upgrade the control plane, or move starter -> pro (one-way, billed)
+sks.upgrade(cluster.id, "<newer version from list_versions()>")
+sks.upgrade_service_level(cluster.id)
 
 # Cleanup (nodepool first, then cluster)
 sks.delete_nodepool(cluster.id, np_id)
@@ -4080,6 +4134,15 @@ sks.delete(cluster.id)
   response. Use `op.reference_id` and then read the nodepool out of the
   cluster's `nodepools` array (or `list_nodepools(cluster_id)` which
   does exactly that).
+- **`upgrade` moves the control plane only.** `PUT sks-cluster/{id}/upgrade`
+  takes a version from `list_versions()`; check `list_deprecated_resources`
+  first. Existing nodes keep their version until they are replaced.
+- **`upgrade_service_level` is one-way.** It moves `starter` to `pro`, there
+  is no downgrade endpoint, and `pro` is billed.
+- **`scale_nodepool` vs `evict_nodepool_members`.** Scaling down lets the API
+  choose which nodes go; evict drains and destroys exactly the instances you
+  name (members of the nodepool's `instance_pool`) and shrinks the size to
+  match.
 
 #### End-to-end example
 

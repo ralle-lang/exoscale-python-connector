@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 import responses
 
 from exoscale_connector.resources.sks import (  # noqa: E402
@@ -351,3 +352,60 @@ def test_sks_oidc_serialises_kebab_case_on_create() -> None:
         name="c", oidc=SksOidc(client_id="k8s", issuer_url="https://idp.example")
     ).to_api_payload()
     assert payload["oidc"] == {"client-id": "k8s", "issuer-url": "https://idp.example"}
+
+
+@pytest.mark.parametrize(
+    ("call", "path", "body"),
+    [
+        (lambda c: c.upgrade("c-1", "1.32.1"), "c-1/upgrade", {"version": "1.32.1"}),
+        (lambda c: c.upgrade_service_level("c-1"), "c-1/upgrade-service-level", None),
+        (lambda c: c.rotate_ccm_credentials("c-1"), "c-1/rotate-ccm-credentials", None),
+        (lambda c: c.rotate_csi_credentials("c-1"), "c-1/rotate-csi-credentials", None),
+        (lambda c: c.rotate_karpenter_credentials("c-1"), "c-1/rotate-karpenter-credentials", None),
+        (lambda c: c.rotate_operators_ca("c-1"), "c-1/rotate-operators-ca", None),
+        (lambda c: c.scale_nodepool("c-1", "np-1", 3), "c-1/nodepool/np-1:scale", {"size": 3}),
+        (
+            lambda c: c.evict_nodepool_members("c-1", "np-1", ["i-1"]),
+            "c-1/nodepool/np-1:evict",
+            {"instances": ["i-1"]},
+        ),
+    ],
+)
+@responses.activate
+def test_sks_operations(client, base_url, call, path, body) -> None:
+    responses.add(
+        responses.PUT, f"{base_url}/sks-cluster/{path}", json={"id": "op", "state": "success"}
+    )
+    assert call(SksClusterClient(client)).state == "success"
+    sent = responses.calls[0].request.body
+    assert (json.loads(sent) if sent else None) == body
+
+
+@responses.activate
+def test_sks_reads(client, base_url) -> None:
+    base = f"{base_url}/sks-cluster/c-1"
+    responses.add(responses.GET, f"{base}/authority/kubelet/cert", json={"cacert": "PEM"})
+    responses.add(responses.GET, f"{base}/inspection", json={"nodes": []})
+    responses.add(
+        responses.PUT,
+        f"{base}/generate-karpenter-exoscale-nodeclass",
+        json={"exoscale-nodeclass": "nc"},
+    )
+    responses.add(responses.PUT, f"{base}/generate-karpenter-nodepool", json={"nodepool": "np"})
+    sks = SksClusterClient(client)
+    assert sks.get_authority_cert("c-1", "kubelet") == "PEM"
+    assert sks.get_inspection("c-1") == {"nodes": []}
+    assert sks.generate_karpenter_nodeclass("c-1") == "nc"
+    assert sks.generate_karpenter_nodepool("c-1") == "np"
+
+
+def test_nodepool_types_deploy_target_and_image_gc() -> None:
+    np = SksNodepool.model_validate(
+        {
+            "deploy-target": {"id": "dt-1"},
+            "kubelet-image-gc": {"high-threshold": 85, "low-threshold": 80, "min-age": "2m"},
+        }
+    )
+    assert np.deploy_target is not None and np.deploy_target.id == "dt-1"
+    assert np.kubelet_image_gc is not None and np.kubelet_image_gc.high_threshold == 85
+    assert np.model_dump(by_alias=True, exclude_none=True)["kubelet-image-gc"]["min-age"] == "2m"

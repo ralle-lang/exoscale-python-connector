@@ -24,7 +24,7 @@ import pytest
 from exoscale_connector.resources.dbaas import DBaaSServiceClient
 from exoscale_connector.resources.instance_pool import InstancePoolClient
 from exoscale_connector.resources.load_balancer import LoadBalancerClient
-from exoscale_connector.resources.sks import SksClusterClient, SksNodepool
+from exoscale_connector.resources.sks import SksClusterClient, SksKubeletImageGc, SksNodepool
 
 from ._fixtures import (
     assert_safe_name,
@@ -244,8 +244,14 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
 # ---------------------------------------------------------------------------- #
 
 
+def _version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split(".") if part.isdigit())
+
+
 def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> None:
-    """SKS: create cluster → kubeconfig → create nodepool → scale → delete.
+    """SKS: cluster → kubeconfig, CA certs, inspection, credential rotation,
+    Karpenter manifests → nodepool (image GC) → scale → evict → upgrade → pro →
+    delete.
 
     Uses the cheapest service level (``starter`` — free control plane) and a
     single ``standard.small`` worker (block-storage-eligible). Kubeconfig is
@@ -287,6 +293,21 @@ def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> No
     values = list(kubeconfig.values()) if isinstance(kubeconfig, dict) else []
     assert any(values), "kubeconfig response carried no value"
 
+    # 2b. Cluster reads and credential rotation (outputs are never printed).
+    for authority in ("control-plane", "aggregation", "kubelet"):
+        assert sks.get_authority_cert(cluster_id, authority), f"no {authority} CA cert"
+    assert isinstance(sks.get_inspection(cluster_id), dict)
+    for rotate in (
+        sks.rotate_ccm_credentials,
+        sks.rotate_csi_credentials,
+        sks.rotate_karpenter_credentials,
+        sks.rotate_operators_ca,
+    ):
+        assert rotate(cluster_id).state == "success", rotate.__name__
+        wait_for_state(lambda: sks.get(cluster_id), "running", timeout=900, interval=15)
+    assert sks.generate_karpenter_nodeclass(cluster_id)
+    assert sks.generate_karpenter_nodepool(cluster_id)
+
     # 3. Nodepool.
     nodepool_name = make_name(run_id, "np")[:32]
     np_payload = SksNodepool(
@@ -294,6 +315,7 @@ def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> No
         size=1,
         instance_type={"id": small_id},  # type: ignore[arg-type]
         disk_size=20,
+        kubelet_image_gc=SksKubeletImageGc(high_threshold=85, low_threshold=80, min_age="2m"),
     )
     np_op = sks.create_nodepool(cluster_id, np_payload)
     np_id = np_op.reference_id
@@ -315,16 +337,41 @@ def test_sks_lifecycle(tier_3_client, run_id, tracker, tier_4_sks_enabled) -> No
     else:
         raise AssertionError("nodepool never reached running state")
 
-    # 4. Scale: 1 → 2 → 1.
-    sks.update_nodepool(cluster_id, np_id, {"size": 2})
-    deadline = time.time() + 900
-    while time.time() < deadline:
-        cluster_now = sks.get(cluster_id)
-        np_now = next((n for n in (cluster_now.nodepools or []) if n.id == np_id), None)
-        if np_now and np_now.size == 2 and (np_now.state or "").lower() == "running":
-            break
-        time.sleep(15)
-    sks.update_nodepool(cluster_id, np_id, {"size": 1})
+    assert np_now.kubelet_image_gc is not None
+    assert np_now.kubelet_image_gc.high_threshold == 85
+
+    # 4. Scale 1 -> 2 with the dedicated action, then evict one named node.
+    def _nodepool_settled(size: int):
+        deadline = time.time() + 900
+        while time.time() < deadline:
+            cluster_now = sks.get(cluster_id)
+            found = next((n for n in (cluster_now.nodepools or []) if n.id == np_id), None)
+            if found and found.size == size and (found.state or "").lower() == "running":
+                return found
+            time.sleep(15)
+        raise AssertionError(f"nodepool never settled at size {size}")
+
+    sks.scale_nodepool(cluster_id, np_id, 2)
+    np_at_2 = _nodepool_settled(2)
+    assert np_at_2.instance_pool is not None and np_at_2.instance_pool.id
+    pool = InstancePoolClient(tier_3_client).get(np_at_2.instance_pool.id)
+    victim = pool.instances[0].id
+    assert victim
+    sks.evict_nodepool_members(cluster_id, np_id, [victim])
+    _nodepool_settled(1)
+
+    # 4b. Control-plane upgrade to the next supported version, then go pro.
+    newer = sorted(
+        (v for v in sks.list_versions() if _version_key(v) > _version_key(version)),
+        key=_version_key,
+    )
+    if newer:
+        assert sks.upgrade(cluster_id, newer[0]).state == "success"
+        upgraded = wait_for_state(lambda: sks.get(cluster_id), "running", timeout=1800, interval=20)
+        assert upgraded.version == newer[0]
+    assert sks.upgrade_service_level(cluster_id).state == "success"
+    pro = wait_for_state(lambda: sks.get(cluster_id), "running", timeout=900, interval=15)
+    assert pro.service_level == "pro"
 
     # 5. Tear down nodepool then cluster.
     sks.delete_nodepool(cluster_id, np_id)
