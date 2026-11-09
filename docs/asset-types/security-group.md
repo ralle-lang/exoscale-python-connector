@@ -72,6 +72,14 @@ sg.add_rule(group.id, SecurityGroupRule(
     description="https-from-anywhere",
 ))
 sg.delete_rule(group.id, rule_id)
+
+# Membership, driven from the group side
+sg.attach_instance(group.id, instance_id)
+sg.detach_instance(group.id, instance_id)
+
+# External sources: CIDRs treated as members of the group
+sg.add_external_source(group.id, "198.51.100.0/24")
+sg.remove_external_source(group.id, "198.51.100.0/24")
 ```
 
 ## Gotchas
@@ -90,6 +98,10 @@ sg.delete_rule(group.id, rule_id)
   Exoscale-managed **public** group by adding `"visibility": "public"`
   (`{"security-group": {"id": "<uuid>", "visibility": "public"}}`). Both round-trip
   on the response as a `SecurityGroupResource`.
+- **External sources are not rules.** `add_external_source` /
+  `remove_external_source` (`PUT security-group/{id}:add-source` /
+  `:remove-source`) edit the group's `external_sources` CIDR list. Rules in
+  *other* groups that reference this group then also match those CIDRs.
 
 ## End-to-end example
 

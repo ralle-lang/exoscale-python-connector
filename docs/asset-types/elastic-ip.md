@@ -50,6 +50,9 @@ eip = eips.create({"description": "web-frontend", "addressfamily": "inet4"})
 print(eip.ip)        # the assigned public IPv4
 
 eips.update(eip.id, {"description": "web-frontend (production)"})
+
+eips.attach_instance(eip.id, instance_id)   # PUT elastic-ip/{id}:attach
+eips.detach_instance(eip.id, instance_id)
 eips.delete(eip.id)
 ```
 
@@ -71,6 +74,10 @@ eips.delete(eip.id)
 - **Clear an optional field with `reset_field(id, "description")`.** It wraps
   `DELETE /elastic-ip/{id}/{field}`; the spec allows `description`. Use it
   instead of sending an empty value through `update`.
+- **Attaching does not configure the guest.** `attach_instance` binds the
+  address to the instance on the Exoscale side; a manual EIP must still be
+  added to an interface inside the OS. The instance's `elastic_ips` list
+  reflects the attachment.
 
 ## End-to-end example
 

@@ -28,6 +28,7 @@ import pytest
 
 from exoscale_connector.errors import APIError
 from exoscale_connector.resources.block_volume import BlockVolumeClient
+from exoscale_connector.resources.elastic_ip import ElasticIPClient
 from exoscale_connector.resources.instance import InstanceClient
 from exoscale_connector.resources.instance_pool import InstancePoolClient
 from exoscale_connector.resources.private_network import PrivateNetworkClient
@@ -421,6 +422,82 @@ def test_private_network_instance_attach_detach(
     tracker.unregister(inst_id)
     nets.delete(net_id)
     tracker.unregister(net_id)
+
+
+def test_instance_network_attachments(tier_3_client, run_id, tracker, tier_3_enabled) -> None:
+    """Security-group, elastic-IP and managed-network membership driven from the
+    group/address/network side, plus a static lease change and an EIP reset."""
+    sg_id, key_name = _make_deps(tier_3_client, run_id, tracker)
+    instances = InstanceClient(tier_3_client)
+    sgs = SecurityGroupClient(tier_3_client)
+    eips = ElasticIPClient(tier_3_client)
+    nets = PrivateNetworkClient(tier_3_client)
+
+    payload = _instance_payload(
+        run_id,
+        "net-inst",
+        resolve_instance_type(tier_3_client, "standard.tiny"),
+        resolve_linux_template(tier_3_client),
+        sg_id,
+        key_name,
+    )
+    inst_id = instances.create(payload).id
+    assert inst_id
+    tracker.register("instance", lambda: instances.delete(inst_id), inst_id)
+    wait_for_state(lambda: instances.get(inst_id), "running", timeout=600)
+
+    # Security group membership.
+    extra_name = make_name(run_id, "sg-extra")
+    extra_id = sgs.create({"name": extra_name, "description": "tier-3 attach"}).id
+    assert extra_id
+    tracker.register("security-group", lambda: sgs.delete(extra_id), extra_id)
+    sgs.attach_instance(extra_id, inst_id)
+    assert extra_id in {r.id for r in instances.get(inst_id).security_groups}
+    sgs.detach_instance(extra_id, inst_id)
+    assert extra_id not in {r.id for r in instances.get(inst_id).security_groups}
+
+    # Elastic IP attach/detach, then reset its description.
+    eip_desc = make_name(run_id, "eip")
+    eip_id = eips.create({"description": eip_desc, "addressfamily": "inet4"}).id
+    assert eip_id
+    tracker.register("elastic-ip", lambda: eips.delete(eip_id), eip_id)
+    eips.attach_instance(eip_id, inst_id)
+    assert eip_id in {r.id for r in instances.get(inst_id).elastic_ips or []}
+    eips.detach_instance(eip_id, inst_id)
+    assert eip_id not in {r.id for r in instances.get(inst_id).elastic_ips or []}
+    assert_safe_name(eip_desc)
+    eips.reset_field(eip_id, "description")
+    assert not eips.get(eip_id).description
+
+    # Managed private network: pinned lease, then move it.
+    net_name = make_name(run_id, "mpnet")
+    net_id = nets.create(
+        {
+            "name": net_name,
+            "start-ip": "10.42.0.10",
+            "end-ip": "10.42.0.50",
+            "netmask": "255.255.255.0",
+        }
+    ).id
+    assert net_id
+    tracker.register("private-network", lambda: nets.delete(net_id), net_id)
+    nets.attach_instance(net_id, inst_id, ip="10.42.0.20")
+    nets.update_instance_ip(net_id, inst_id, "10.42.0.30")
+    leases = {lease.instance_id: lease.ip for lease in nets.get(net_id).leases or []}
+    assert leases.get(inst_id) == "10.42.0.30"
+    nets.detach_instance(net_id, inst_id)
+
+    assert_safe_name(payload["name"])
+    instances.delete(inst_id)
+    tracker.unregister(inst_id)
+    eips.delete(eip_id)
+    tracker.unregister(eip_id)
+    assert_safe_name(net_name)
+    nets.delete(net_id)
+    tracker.unregister(net_id)
+    assert_safe_name(extra_name)
+    sgs.delete(extra_id)
+    tracker.unregister(extra_id)
 
 
 def test_instance_scale(tier_3_client, run_id, tracker, tier_3_enabled) -> None:

@@ -68,6 +68,7 @@ pn.delete(network.id)
 # Join / remove an instance (east-west networking)
 pn.attach_instance(network.id, instance_id)                 # DHCP / unmanaged
 pn.attach_instance(network.id, instance_id, ip="10.0.0.42") # static lease (managed)
+pn.update_instance_ip(network.id, instance_id, "10.0.0.43")  # move the lease
 pn.detach_instance(network.id, instance_id)
 ```
 
@@ -86,6 +87,10 @@ pn.detach_instance(network.id, instance_id)
 - **Clear an optional field with `reset_field(id, "labels")`.** It wraps
   `DELETE /private-network/{id}/{field}`; the spec allows `labels`. Use it
   instead of sending an empty value through `update`.
+- **Change a static lease with `update_instance_ip`** (`PUT
+  private-network/{id}:update-ip`). Managed networks only, and the new address
+  must sit inside `start-ip`..`end-ip`. The network's `leases` list shows the
+  result.
 
 ## End-to-end example
 

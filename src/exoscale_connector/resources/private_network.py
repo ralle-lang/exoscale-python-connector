@@ -110,6 +110,28 @@ class PrivateNetworkClient(ResetFieldMixin, ResourceClient[PrivateNetwork]):
         )
         return self._wait_membership_operation(response, zone=zone, wait=wait)
 
+    def update_instance_ip(
+        self,
+        network_id: str,
+        instance_id: str,
+        ip: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Change an attached instance's static lease (``PUT private-network/{id}:update-ip``).
+
+        Managed networks only; ``ip`` must fall inside the network's
+        ``start-ip``/``end-ip`` range.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{network_id}:update-ip",
+            zone=zone,
+            json={"instance": {"id": instance_id}, "ip": ip},
+        )
+        return self._wait_membership_operation(response, zone=zone, wait=wait)
+
     def _wait_membership_operation(
         self,
         response: dict,

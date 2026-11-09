@@ -5,7 +5,7 @@ API reference: https://openapi-v2.exoscale.com/group/endpoint-elastic-ip
 
 from __future__ import annotations
 
-from ..models import ExoscaleModel
+from ..models import ExoscaleModel, Operation
 from ._base import ResourceClient
 from ._reset_field import ResetFieldMixin
 from ._reverse_dns import ReverseDNSMixin
@@ -48,3 +48,47 @@ class ElasticIPClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[ElasticIP
     model = ElasticIP
     list_key = "elastic-ips"
     _rdns_kind = "elastic-ip"
+
+    def attach_instance(
+        self,
+        elastic_ip_id: str,
+        instance_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Attach the elastic IP to an instance (``PUT elastic-ip/{id}:attach``).
+
+        The instance still has to configure the address on an interface;
+        Exoscale does not do that inside the guest.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{elastic_ip_id}:attach",
+            zone=zone,
+            json={"instance": {"id": instance_id}},
+        )
+        return self._await(response, zone=zone, wait=wait)
+
+    def detach_instance(
+        self,
+        elastic_ip_id: str,
+        instance_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Detach the elastic IP from an instance (``PUT elastic-ip/{id}:detach``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{elastic_ip_id}:detach",
+            zone=zone,
+            json={"instance": {"id": instance_id}},
+        )
+        return self._await(response, zone=zone, wait=wait)
+
+    def _await(self, response: dict, *, zone: str | None, wait: bool | None) -> Operation:
+        operation = Operation.model_validate(response)
+        if self._should_wait(wait) and operation.id:
+            operation = self.client.wait_operation(operation, zone=zone)
+        return operation

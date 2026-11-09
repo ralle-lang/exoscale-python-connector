@@ -44,7 +44,7 @@ pytestmark = pytest.mark.integration
 
 
 def test_security_group_lifecycle(live_client, run_id, tracker, tier_1_enabled) -> None:
-    """Security group: create + rule add/delete + delete."""
+    """Security group: create + rule add/delete + external sources + delete."""
     sg = SecurityGroupClient(live_client)
     name = make_name(run_id, "sg")
     created = sg.create({"name": name, "description": "connector tier-1 smoke"})
@@ -103,6 +103,13 @@ def test_security_group_lifecycle(live_client, run_id, tracker, tier_1_enabled) 
     sg.delete_rule(sg_id, peer_matches[0].id)
     sg.delete(peer_id)
     tracker.unregister(peer_id)
+
+    # External sources: CIDRs that count as members of the group.
+    cidr = "198.51.100.0/24"  # TEST-NET-2 (RFC 5737)
+    sg.add_external_source(sg_id, cidr)
+    assert cidr in (sg.get(sg_id).external_sources or [])
+    sg.remove_external_source(sg_id, cidr)
+    assert cidr not in (sg.get(sg_id).external_sources or [])
 
     assert_safe_name(name)
     sg.delete(sg_id)

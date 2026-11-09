@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SnapshotClient.promote_to_template` and `TemplateClient.copy` (to another
   zone); `Template` gains `maintainer`,
   `application_consistent_snapshot_enabled` and `zones`.
+- `SecurityGroupClient.attach_instance` / `detach_instance` and
+  `add_external_source` / `remove_external_source`;
+  `ElasticIPClient.attach_instance` / `detach_instance`;
+  `PrivateNetworkClient.update_instance_ip`.
 - `reset_field(id, field)` on instances, instance pools, elastic IPs, private
   networks and load balancers clears an optional field
   (`DELETE /{type}/{id}/{field}`); `LoadBalancerClient.reset_service_field` and

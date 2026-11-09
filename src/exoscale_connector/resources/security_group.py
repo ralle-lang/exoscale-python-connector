@@ -99,6 +99,77 @@ class SecurityGroupClient(ResourceClient[SecurityGroup]):
         )
         return self._wait_operation(response, zone=zone, wait=wait)
 
+    def attach_instance(
+        self,
+        security_group_id: str,
+        instance_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Add an instance to the group (``PUT security-group/{id}:attach``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{security_group_id}:attach",
+            zone=zone,
+            json={"instance": {"id": instance_id}},
+        )
+        return self._wait_operation(response, zone=zone, wait=wait)
+
+    def detach_instance(
+        self,
+        security_group_id: str,
+        instance_id: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Remove an instance from the group (``PUT security-group/{id}:detach``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{security_group_id}:detach",
+            zone=zone,
+            json={"instance": {"id": instance_id}},
+        )
+        return self._wait_operation(response, zone=zone, wait=wait)
+
+    def add_external_source(
+        self,
+        security_group_id: str,
+        cidr: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Add a CIDR to the group's external sources (``PUT security-group/{id}:add-source``).
+
+        Rules that reference the group then also match traffic from ``cidr``.
+        """
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{security_group_id}:add-source",
+            zone=zone,
+            json={"cidr": cidr},
+        )
+        return self._wait_operation(response, zone=zone, wait=wait)
+
+    def remove_external_source(
+        self,
+        security_group_id: str,
+        cidr: str,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> Operation:
+        """Remove a CIDR from the external sources (``PUT security-group/{id}:remove-source``)."""
+        zone = self._zone(zone)
+        response = self.client.put(
+            f"{self.collection_path}/{security_group_id}:remove-source",
+            zone=zone,
+            json={"cidr": cidr},
+        )
+        return self._wait_operation(response, zone=zone, wait=wait)
+
     def _wait_operation(self, response: dict, *, zone: str | None, wait: bool | None) -> Operation:
         """Parse an operation response and await completion unless told not to."""
         operation = Operation.model_validate(response)
