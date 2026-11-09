@@ -85,6 +85,7 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
         self,
         instance_id: str,
         *,
+        rescue_profile: str | None = None,
         zone: str | None = None,
         wait: bool | None = None,
     ) -> Operation:
@@ -92,9 +93,15 @@ class InstanceClient(ReverseDNSMixin, ResourceClient[Instance]):
 
         The API uses colon-action syntax with HTTP PUT: ``PUT instance/{id}:start``.
         Returns the async operation, awaited by default.
+
+        Pass ``rescue_profile`` (``"netboot"`` for legacy boot, ``"netboot-efi"``
+        for UEFI templates) to boot into Rescue Mode instead of the disk.
         """
         zone = self._zone(zone)
-        response = self.client.put(f"{self.collection_path}/{instance_id}:start", zone=zone)
+        body = {"rescue-profile": rescue_profile} if rescue_profile is not None else None
+        response = self.client.put(
+            f"{self.collection_path}/{instance_id}:start", zone=zone, json=body
+        )
         return self._wait_lifecycle_operation(response, zone=zone, wait=wait)
 
     def stop(

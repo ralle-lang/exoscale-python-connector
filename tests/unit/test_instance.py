@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import responses
 
 from exoscale_connector.resources.instance import InstanceClient
@@ -111,6 +113,19 @@ def test_start_puts_colon_action(client, base_url) -> None:
     op = InstanceClient(client).start("i-1")
     assert op.state == "success"
     assert responses.calls[0].request.method == "PUT"
+    assert responses.calls[0].request.body is None
+
+
+@responses.activate
+def test_start_in_rescue_mode_sends_profile(client, base_url) -> None:
+    responses.add(
+        responses.PUT,
+        f"{base_url}/instance/i-1:start",
+        json={"id": "op-start", "state": "success"},
+        status=200,
+    )
+    InstanceClient(client).start("i-1", rescue_profile="netboot-efi")
+    assert json.loads(responses.calls[0].request.body) == {"rescue-profile": "netboot-efi"}
 
 
 @responses.activate

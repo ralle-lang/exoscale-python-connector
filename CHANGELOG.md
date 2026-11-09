@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `InstanceClient.start(..., rescue_profile=...)` boots a stopped instance into
+  Rescue Mode (`netboot` / `netboot-efi`).
+
 ## [0.7.1] - 2026-11-09
 
 Small feature release: pin a fixed address when attaching an instance to a VPC
