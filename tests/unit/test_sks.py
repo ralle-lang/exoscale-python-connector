@@ -409,3 +409,14 @@ def test_nodepool_types_deploy_target_and_image_gc() -> None:
     assert np.deploy_target is not None and np.deploy_target.id == "dt-1"
     assert np.kubelet_image_gc is not None and np.kubelet_image_gc.high_threshold == 85
     assert np.model_dump(by_alias=True, exclude_none=True)["kubelet-image-gc"]["min-age"] == "2m"
+
+
+@responses.activate
+def test_get_inspection_returns_none_before_first_run(client, base_url) -> None:
+    responses.add(
+        responses.GET,
+        f"{base_url}/sks-cluster/c-1/inspection",
+        json={"message": "Couldn't find last inspection"},
+        status=404,
+    )
+    assert SksClusterClient(client).get_inspection("c-1") is None

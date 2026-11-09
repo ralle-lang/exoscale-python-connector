@@ -1274,8 +1274,8 @@ Inherits the common operations (see above) plus the methods below, if any.
   Request a new kubeconfig for a cluster.
 - `get_authority_cert(cluster_id: str, authority: str, *, zone: str | None = None) -> str | None`
   Return a cluster CA certificate (``GET .../authority/{authority}/cert``).
-- `get_inspection(cluster_id: str, *, zone: str | None = None) -> dict`
-  Return the cluster diagnostic report (``GET sks-cluster/{id}/inspection``).
+- `get_inspection(cluster_id: str, *, zone: str | None = None) -> dict | None`
+  Return the last cluster diagnostic report (``GET sks-cluster/{id}/inspection``).
 - `get_nodepool(cluster_id: str, nodepool_id: str, *, zone: str | None = None) -> SksNodepool`
   Fetch a single nodepool by id.
 - `list_deprecated_resources(cluster_id: str, *, zone: str | None = None) -> list[SksDeprecatedResource]`
@@ -2754,12 +2754,17 @@ roles.reset_organization_policy(confirm=True)
   the API may simply have ignored the body. Re-verify with the spec shape
   before relying on either behaviour. The permission `policy` does round-trip
   on `get()`.
-- **`assume(role_id, ttl)` mints a temporary API key** (`POST
-  /iam-role/{id}/assume`). The caller must satisfy the role's assume-role
-  policy, and `ttl` (seconds) may not exceed the role's `max_session_ttl`
-  (set it on create or `update`). The returned `IAMAssumedRoleKey.secret` is a
-  credential and is hidden from `repr`; the key expires on its own at
-  `expires_at`.
+- **`assume(role_id, ttl)` is implemented from the spec but returned 404
+  live.** It wraps `POST /iam-role/{id}/assume` and should mint a temporary
+  API key (`IAMAssumedRoleKey`, whose `secret` is hidden from `repr`). On
+  2026-11-09 the test tenant answered `404 not found` for an existing role,
+  with the assume-role policy set inline at create or via `update`, and also
+  for the `:assume` spelling. That is not an IAM-role refusal (those are
+  `403 Forbidden by role policy`), so the endpoint is not served for that
+  account. Treat it as unverified.
+- **`max-session-ttl` and `assume-role-policy` are write-only in practice.**
+  Both are accepted on create and `update`, but `get()` returned neither on
+  2026-11-09, so `IAMRole.max_session_ttl` reads back as `None`.
 
 #### End-to-end example
 
@@ -3114,12 +3119,12 @@ instances.start(instance.id, rescue_profile="netboot")
 # Protection, password, disk
 instances.add_protection(instance.id)          # delete now fails until removed
 instances.remove_protection(instance.id)
-instances.reset_password(instance.id)
+instances.reset_password(instance.id)          # instance stopped
 password = instances.reveal_password(instance.id)   # a credential: never log it
 instances.resize_disk(instance.id, 20)         # GiB, grow only, instance stopped
 instances.enable_tpm(instance.id)
 instances.revert_to_snapshot(instance.id, snapshot_id)   # instance stopped
-instances.reset(instance.id)                   # re-install: WIPES the disk
+instances.reset(instance.id)                   # re-install: WIPES the disk; stopped
 
 # Update + delete
 instances.update(instance.id, {"labels": {"role": "web"}})
@@ -3149,14 +3154,20 @@ instances.delete(instance.id)
   `DELETE /instance/{id}/{field}`; the spec allows `labels`. Use it
   instead of sending an empty value through `update`.
 - **`reset()` wipes the disk.** It re-installs from the instance's template
-  (or `template_id=`) and can change `disk_size=` at the same time. It is
+  (or `template_id=`) and can change `disk_size=` at the same time. The
+  instance must be stopped (`400 The instance needs to be stopped`). It is
   library-only, like the other destructive actions.
+- **Stopping a Rescue Mode boot can take minutes.** A netbooted rescue system
+  may ignore the graceful shutdown, so the stop only completes once Exoscale
+  forces it.
 - **Disks only grow.** `resize_disk(id, size)` rejects a smaller size;
   `revert_to_snapshot(id, snapshot_id)` needs the instance stopped and a
   snapshot of that same instance.
 - **`reveal_password()` returns a credential.** It reads
   `GET instance/{id}:password`; treat the value like any secret and never log
-  it. `reset_password()` generates a new one first.
+  it. `reset_password()` generates a new one first and needs the instance
+  stopped (`409 Instance must be stopped prior to the update` otherwise,
+  observed live).
 
 #### End-to-end example
 
@@ -3769,6 +3780,11 @@ pn.detach_instance(network.id, instance_id)
   private-network/{id}:update-ip`). Managed networks only, and the new address
   must sit inside `start-ip`..`end-ip`. The network's `leases` list shows the
   result.
+- **Creation can be disabled per tenant.** On 2026-11-09 the test tenant
+  answered `403 Operation 'create-private-network' not enabled` while listing
+  still worked. That is a product gate on the account, not an IAM-role
+  refusal. `update_instance_ip` and `reset_field` are therefore unit-tested
+  only for now.
 
 #### End-to-end example
 
@@ -4075,7 +4091,7 @@ sks.evict_nodepool_members(cluster.id, np_id, ["<member-instance-id>"])
 
 # Cluster reads: CA certificates, diagnostic report, Karpenter manifests
 ca = sks.get_authority_cert(cluster.id, "control-plane")   # or aggregation / kubelet
-report = sks.get_inspection(cluster.id)                     # free-form dict
+report = sks.get_inspection(cluster.id)     # last report (dict) or None if none ran yet
 nodeclass = sks.generate_karpenter_nodeclass(cluster.id)    # manifest str
 karpenter_np = sks.generate_karpenter_nodepool(cluster.id)
 
@@ -4143,6 +4159,15 @@ sks.delete(cluster.id)
   choose which nodes go; evict drains and destroys exactly the instances you
   name (members of the nodepool's `instance_pool`) and shrinks the size to
   match.
+- **Credential rotation needs the matching addon.** `rotate_ccm_credentials`
+  on a cluster without `exoscale-cloud-controller` fails with
+  `405 Cluster without exoscale-cloud-controller addon enabled` (observed
+  live). Likewise, CSI rotation needs `exoscale-container-storage-interface`
+  and the Karpenter calls need `karpenter`.
+- **The `karpenter` addon needs a pro cluster.** Creating a `starter` cluster
+  with it fails with `403 A PRO cluster is required`. Upgrade with
+  `upgrade_service_level`, then add it through `update` (`addons` is
+  updatable).
 
 #### End-to-end example
 
@@ -4447,9 +4472,9 @@ public = templates.list()                      # API default: public
 mine = templates.list(visibility="private")
 smallest_linux = templates.find_linux()        # smallest public Linux image
 
-# Copy a private template to another zone; the copy has a new id there
-op = templates.copy(template_id, "ch-gva-2")
-copy = TemplateClient(client, zone="ch-gva-2").get(op.reference_id)
+# Copy a private template to another zone; it keeps the same id there
+templates.copy(template_id, "ch-gva-2")
+copy = TemplateClient(client, zone="ch-gva-2").get(template_id)
 ```
 
 #### Gotchas
@@ -4465,9 +4490,12 @@ copy = TemplateClient(client, zone="ch-gva-2").get(op.reference_id)
   stays ~200 KB even at 10 GB virtual size.
 - **register/delete live-verified 2026-06-11** via `test_template_register_delete`
   (Tier 1, gated on `EXOSCALE_TEST_TEMPLATE_URL` + `EXOSCALE_TEST_TEMPLATE_CHECKSUM`).
-- **`copy(id, target_zone)` is `POST /template/{id}`** with
-  `{"target-zone": {"name": ...}}`. The copy is a separate template with its
-  own id, which you delete in the target zone.
+- **`copy(id, target_zone)` keeps the template id.** It is `POST
+  /template/{id}` with `{"target-zone": {"name": ...}}`, and
+  `operation.reference_id` is the *same* id. One template then exists in
+  several zones, and **deleting it in any zone removes it everywhere**
+  (observed 2026-11-09: after a delete in the target zone the source zone
+  returned 404). `Template.zones` was empty on the read.
 
 ### vpc (+ subnets, routes)
 

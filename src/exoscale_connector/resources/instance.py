@@ -190,6 +190,7 @@ class InstanceClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[Instance])
 
         Endpoint: ``PUT instance/{id}:reset``. Pass ``template_id`` to re-install
         from a different template and ``disk_size`` (GiB) to change the disk.
+        The instance must be stopped (the API answers 400 otherwise).
         """
         body: dict[str, Any] = {}
         if template_id is not None:
@@ -251,7 +252,8 @@ class InstanceClient(ResetFieldMixin, ReverseDNSMixin, ResourceClient[Instance])
     ) -> Operation:
         """Generate a new password for the template's default user.
 
-        Endpoint: ``PUT instance/{id}:reset-password``. Read the new value with
+        Endpoint: ``PUT instance/{id}:reset-password``. The instance must be
+        stopped (the API answers 409 otherwise). Read the new value with
         :meth:`reveal_password`.
         """
         zone = self._zone(zone)

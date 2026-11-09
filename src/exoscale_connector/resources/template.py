@@ -83,8 +83,9 @@ class TemplateClient(ResourceClient[Template]):
     ) -> Operation:
         """Copy a private template to another zone (``POST template/{id}``).
 
-        ``zone`` is the zone the template lives in; the copy gets a new id in
-        ``target_zone``, carried by ``operation.reference_id``.
+        ``zone`` is the zone the template lives in. The copy keeps the same id
+        (``operation.reference_id`` is the template id), and deleting the
+        template in any zone removes it everywhere (observed live).
         """
         zone = self._zone(zone)
         response = self.client.post(

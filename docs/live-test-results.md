@@ -469,3 +469,34 @@ instance without an address, detaches it, re-attaches it with a pinned
 address from the subnet block, and checks the subnet's `instances` list reports
 exactly that lease. **1 passed** in 59 s. The API honours the field as the spec
 describes; no mismatches.
+
+## 0.7.2 request-gap coverage — 2026-11-09 (zone `at-vie-1`)
+
+**Context:** the new methods found by `scripts/request_field_audit.py`. Tier 1,
+tier 3 and tier 4 SKS ran against the test tenant.
+
+**Results:** tier 1 7 passed / 3 skipped; tier 3 all passed after the fixes
+below, with private-network tests and one block-volume resize skipped on
+tenant limits; tier 4 `test_sks_lifecycle` passed (about 5 min, including a
+real control-plane upgrade to the next version and the move to `pro`).
+
+**Spec-vs-reality findings (documented in the asset-type gotchas):**
+
+21. **`POST /iam-role/{id}/assume` answers 404** for an existing role, with the
+    assume-role policy set inline or via update, and also as `:assume`. Not an
+    IAM refusal (those are 403); `assume()` stays unverified.
+22. **`max-session-ttl` and `assume-role-policy` are not echoed** by
+    `GET /iam-role/{id}`, though both are accepted on create and update.
+23. **Private-network creation is disabled on the tenant:**
+    `403 Operation 'create-private-network' not enabled`, while listing works.
+    The private-network tests now skip on it; `update_instance_ip` and
+    private-network `reset_field` are unit-tested only.
+24. **`GET sks-cluster/{id}/inspection` is 404 until an inspection has run**
+    ("Couldn't find last inspection"); `get_inspection()` returns `None`.
+25. **SKS credential rotation needs its addon** (405 "Cluster without
+    exoscale-cloud-controller addon enabled"), and **the `karpenter` addon
+    needs a pro cluster** (403 "A PRO cluster is required"). `addons` is
+    updatable, so Karpenter is added after `upgrade_service_level`.
+26. **`reset-password` and `reset` need a stopped instance** (409 / 400).
+27. **Template copy keeps the template id,** and deleting it in the target
+    zone removes it from the source zone too. `zones` came back empty.

@@ -152,12 +152,17 @@ roles.reset_organization_policy(confirm=True)
   the API may simply have ignored the body. Re-verify with the spec shape
   before relying on either behaviour. The permission `policy` does round-trip
   on `get()`.
-- **`assume(role_id, ttl)` mints a temporary API key** (`POST
-  /iam-role/{id}/assume`). The caller must satisfy the role's assume-role
-  policy, and `ttl` (seconds) may not exceed the role's `max_session_ttl`
-  (set it on create or `update`). The returned `IAMAssumedRoleKey.secret` is a
-  credential and is hidden from `repr`; the key expires on its own at
-  `expires_at`.
+- **`assume(role_id, ttl)` is implemented from the spec but returned 404
+  live.** It wraps `POST /iam-role/{id}/assume` and should mint a temporary
+  API key (`IAMAssumedRoleKey`, whose `secret` is hidden from `repr`). On
+  2026-11-09 the test tenant answered `404 not found` for an existing role,
+  with the assume-role policy set inline at create or via `update`, and also
+  for the `:assume` spelling. That is not an IAM-role refusal (those are
+  `403 Forbidden by role policy`), so the endpoint is not served for that
+  account. Treat it as unverified.
+- **`max-session-ttl` and `assume-role-policy` are write-only in practice.**
+  Both are accepted on create and `update`, but `get()` returned neither on
+  2026-11-09, so `IAMRole.max_session_ttl` reads back as `None`.
 
 ## End-to-end example
 

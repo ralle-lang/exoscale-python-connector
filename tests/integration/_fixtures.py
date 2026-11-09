@@ -161,3 +161,22 @@ def resolve_sks_version(client: Any, zone: str | None = None) -> str:
 # asset-type docs reference it). Re-exported here so the tiers keep importing
 # it from _fixtures. It now raises WaitTimeoutError instead of AssertionError.
 from exoscale_connector.wait import wait_for_state  # noqa: E402,F401
+
+
+def create_private_network_or_skip(nets: Any, payload: dict) -> Any:
+    """Create a private network, skipping the test when the tenant blocks it.
+
+    Since 2026-11-09 the test tenant answers ``403 Operation
+    'create-private-network' not enabled`` (a product gate, not the key's IAM
+    role; listing still works). Skip rather than fail, like the VPC tests did.
+    """
+    import pytest
+
+    from exoscale_connector.errors import APIError
+
+    try:
+        return nets.create(payload)
+    except APIError as exc:
+        if exc.status_code == 403 and "not enabled" in str(exc):
+            pytest.skip(f"private-network creation disabled on this tenant ({exc})")
+        raise

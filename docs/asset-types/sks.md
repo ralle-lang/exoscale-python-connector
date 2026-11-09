@@ -135,7 +135,7 @@ sks.evict_nodepool_members(cluster.id, np_id, ["<member-instance-id>"])
 
 # Cluster reads: CA certificates, diagnostic report, Karpenter manifests
 ca = sks.get_authority_cert(cluster.id, "control-plane")   # or aggregation / kubelet
-report = sks.get_inspection(cluster.id)                     # free-form dict
+report = sks.get_inspection(cluster.id)     # last report (dict) or None if none ran yet
 nodeclass = sks.generate_karpenter_nodeclass(cluster.id)    # manifest str
 karpenter_np = sks.generate_karpenter_nodepool(cluster.id)
 
@@ -203,6 +203,15 @@ sks.delete(cluster.id)
   choose which nodes go; evict drains and destroys exactly the instances you
   name (members of the nodepool's `instance_pool`) and shrinks the size to
   match.
+- **Credential rotation needs the matching addon.** `rotate_ccm_credentials`
+  on a cluster without `exoscale-cloud-controller` fails with
+  `405 Cluster without exoscale-cloud-controller addon enabled` (observed
+  live). Likewise, CSI rotation needs `exoscale-container-storage-interface`
+  and the Karpenter calls need `karpenter`.
+- **The `karpenter` addon needs a pro cluster.** Creating a `starter` cluster
+  with it fails with `403 A PRO cluster is required`. Upgrade with
+  `upgrade_service_level`, then add it through `update` (`addons` is
+  updatable).
 
 ## End-to-end example
 
