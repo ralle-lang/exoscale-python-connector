@@ -117,8 +117,11 @@ lbs.delete(lb.id)
 - **Clear optional fields with `reset_field(lb_id, "labels")`** (LB:
   `description`, `labels`) and `reset_service_field(lb_id, service_id,
   "description")` (service: `description`). Read a single service with
-  `get_service(lb_id, service_id)`. These three are unit-tested but not yet
-  live-verified.
+  `get_service(lb_id, service_id)`. All three are live-verified (2026-11-09).
+- **Wait for the service to settle after a reset.** The reset operation
+  succeeds while the service is still `updating`, and deleting it in that
+  state fails with `409 Cannot transition service ... from state :updating to
+  :deleting`. Poll `get_service(...)` until `state` is `running` first.
 
 ## End-to-end example
 

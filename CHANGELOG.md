@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Closes every non-DBaaS gap found by the new request-level coverage audit
 (`scripts/request_field_audit.py`): ~40 APIv2 operations that existed in the
 spec, under path families the connector already covered, but had no client
-method. Live-verified on tier 1, tier 3 and tier 4 SKS, except as noted below.
+method. Live-verified on tier 1, tier 3 and tier 4 (SKS and load balancer),
+except as noted below.
 
-Not yet live-verified: `PrivateNetworkClient.update_instance_ip` and private-network `reset_field`
-(private-network creation is disabled on the test tenant), and the
-load-balancer `get_service` / `reset_service_field`.
+Not yet live-verified: `PrivateNetworkClient.update_instance_ip` and
+private-network `reset_field` (private-network creation is disabled on the
+test tenant).
 
 ### Fixed
 
