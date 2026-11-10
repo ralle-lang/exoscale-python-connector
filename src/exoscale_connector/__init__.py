@@ -29,7 +29,7 @@ from .errors import (
 from .models import ExoscaleModel, Operation, Reference
 from .wait import wait_for_state
 
-__version__ = "0.7.2"
+__version__ = "0.8.0"
 
 __all__ = [
     "ExoscaleClient",
