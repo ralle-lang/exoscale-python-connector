@@ -39,23 +39,6 @@ from `v0.2.0` onward publish over OIDC with no stored token. See the
 
 ---
 
-## Milestone: v0.8.0 — DBaaS tier C (issue #136)
-
-The DBaaS remainder of the 2026-08-31 coverage audit plus the DBaaS findings
-of the 2026-11-09 request-level audit, in this order: the migration family,
-the engine-specific endpoints (pg connection pools, upgrade-check,
-allow-replication; mysql `enable/writes`), the Kafka ACLs, and the request
-fields (user `access-control` / `authentication` / `allow-replication` /
-`password`, pg database `lc-collate` / `lc-ctype`, the Valkey user
-access-control update, the per-engine user/role lists). `[BETA]` DBaaS
-operations — integrations, external endpoints, ClickHouse — are excluded.
-
-**Status (2026-11-09):** code, unit tests and docs done on
-`feat/136-dbaas-tier-c`; the request audit reports no non-beta gaps. Live
-verification is open: every new method needs a running service (Tier 4,
-paid), and the preconditions (plan level, engine state) are unknown, so a
-short pg probe comes first, then live tests per engine.
-
 ## Shipped since v0.2.0
 
 See `CHANGELOG.md` for details.
@@ -71,6 +54,9 @@ See `CHANGELOG.md` for details.
 - **0.7.1** (2026-11-09) — `VpcClient.attach_subnet(ipv4=)`.
 - **0.7.2** (2026-11-09) — the non-DBaaS request-audit gaps (~40 methods,
   `reset_field`).
+- **0.8.0** (2026-11-10) — DBaaS tier C (#136): migration, pg connection
+  pools / replication / upgrade check, mysql writes, Kafka ACLs, OpenSearch
+  ACL config, Valkey users; live-verified on five engines.
 
 ---
 
