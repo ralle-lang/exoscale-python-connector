@@ -10,19 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - DBaaS tier C (#136), every non-beta DBaaS operation the request audit
-  reported, all implemented from the API reference and pending live
-  verification:
+  reported. Live-verified on pg, mysql, valkey, opensearch and kafka
+  (2026-11-10) except `check_migration` (needs an external source database)
+  and `reveal_kafka_connect_password` (needs a plan with Kafka Connect):
   - Migration: `check_migration`, `get_task`, `get_migration_status`,
     `stop_migration` (pg / mysql / valkey).
   - PostgreSQL: `create_connection_pool` / `update_connection_pool` /
     `delete_connection_pool` (pools listed on the new typed
     `DBaaSService.connection_pools`, URI hidden from `repr`),
-    `set_allow_replication`, `check_upgrade`.
+    `set_allow_replication` (awaits the operation the live API returns; the
+    spec documents a user list), `check_upgrade`.
   - MySQL: `enable_writes`.
   - Kafka: topic and Schema Registry ACL entries (`add_kafka_topic_acl`,
     `delete_kafka_topic_acl`, `add_kafka_schema_registry_acl`,
     `delete_kafka_schema_registry_acl`) and `reveal_kafka_connect_password`.
-  - OpenSearch: `set_opensearch_acl_config`.
+  - OpenSearch: `set_opensearch_acl_config`. The live PUT is a full replace
+    that rejects partial bodies, so arguments left as `None` keep their
+    current value (read first).
   - Valkey: `list_valkey_users` (`DBaaSValkeyUser`) and
     `update_valkey_user_access_control`.
   - `create_user` gains `allow_replication` (pg), `authentication` (mysql)
@@ -30,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and `authentication` (mysql). Each rejects the wrong engine with
     `ValueError`.
   - Typed `DBaaSTask` and `DBaaSMigrationStatus` responses.
+- Live tests: the Tier 4 pg lifecycle covers tier C; a new
+  `EXOSCALE_TEST_TIER_4_DBAAS_ENGINES=1` flag runs one test each for mysql,
+  valkey, opensearch and kafka (one paid service each).
 - `SksNodepool.addons` is typed (nodepool addons such as `storage-lvm`).
 - `scripts/request_field_audit.py` reports `[BETA]` operations in their own
   section instead of as gaps. DBaaS integrations, external endpoints and

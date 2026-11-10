@@ -207,11 +207,9 @@ dbaas.delete(name)
 
 ## Service updates and user management
 
-`update()`, `create_user()` and `delete_user()` are live-verified (extended
-Tier 4 pg lifecycle, 2026-06-10). `reset_user_password()` is implemented from
-the API reference only — the live test doesn't call
-it (resetting `avnadmin`'s password mid-test would be disruptive for no
-extra wire-shape coverage):
+`update()`, `create_user()`, `delete_user()` and `reset_user_password()` are
+live-verified (Tier 4 pg lifecycle; `reset_user_password` on a test user since
+2026-11-10, never on `avnadmin`):
 
 ```python
 # Plan change / maintenance window / type-specific settings.
@@ -239,14 +237,16 @@ dbaas.create_user("my-valkey-1", "app", service_type="valkey",
 dbaas.reset_user_password(name, "analyst", service_type="pg", password=new_password)
 ```
 
-The engine-specific user options and the `password` argument are implemented
-from the API reference — pending live verification.
+The engine-specific user options and the `password` argument are
+live-verified (2026-11-10): `allow_replication` on pg, `authentication` on
+mysql create and reset, `access_control` on valkey, a chosen `password` on
+valkey.
 
 ### Databases (pg / mysql)
 
 A new service only holds its default database. Create and drop further ones
 inside it; the current list is the `databases` field of the type-specific
-detail. Implemented from the API reference — pending live verification.
+detail. Live-verified on pg (2026-11-10).
 
 ```python
 dbaas.create_database(name, "app", service_type="pg", lc_collate="C", lc_ctype="C")
@@ -262,9 +262,8 @@ dbaas.delete_database(name, "app", service_type="pg")
 
 ### TLS trust, logs and metrics
 
-Engine-generic reads. `get_ca_certificate` is live-verified (2026-10-08);
-`get_logs` / `get_metrics` are implemented from the API reference — pending
-live verification (no DBaaS service on the test tenant):
+Engine-generic reads, all live-verified (`get_ca_certificate` 2026-10-08,
+`get_logs` / `get_metrics` on pg 2026-11-10):
 
 ```python
 # The CA that signs every DBaaS server certificate. Pin it to verify the host
@@ -290,9 +289,9 @@ metrics = dbaas.get_metrics(name, period="day")
 ### Generic engine sub-resources (settings / ACL / maintenance)
 
 Three read/trigger helpers that generalise across engine types.
-`get_settings` is live-verified (Tier 4 pg lifecycle); `get_acl_config` /
-`start_maintenance` are implemented from the API reference — pending live
-verification:
+`get_settings` is live-verified (Tier 4 pg lifecycle), `get_acl_config` on
+kafka and opensearch (2026-11-10); `start_maintenance` is implemented from the
+API reference — pending live verification:
 
 ```python
 # Discover the settings schema an engine accepts (short type form: "pg", not
@@ -333,8 +332,10 @@ dbaas.start_maintenance("my-pg-1", service_type="pg")
 
 ### Engine-specific operations
 
-Operations that exist for one engine (or a few) only. All are implemented from
-the API reference — pending live verification:
+Operations that exist for one engine (or a few) only. All are live-verified
+(Tier 4, 2026-11-10) except `check_migration`, which needs an external source
+database, and `reveal_kafka_connect_password`, which needs a plan with Kafka
+Connect:
 
 ```python
 # Migration from an external pg / mysql / valkey database. The source URI
@@ -349,8 +350,8 @@ dbaas.create_connection_pool(name, "app-pool", "app", mode="transaction", size=2
 dbaas.get_connection_info(name, service_type="pg").connection_pools  # current pools
 dbaas.update_connection_pool(name, "app-pool", size=40)
 dbaas.delete_connection_pool(name, "app-pool")
-users = dbaas.set_allow_replication(name, "replicator", True)   # the service's users
-check = dbaas.check_upgrade(name, "17")                   # DBaaSTask; changes nothing
+dbaas.set_allow_replication(name, "replicator", True)    # awaited operation
+check = dbaas.check_upgrade(name, "18")                   # DBaaSTask; changes nothing
 
 # MySQL: lift the read-only mode a full disk triggers, briefly
 dbaas.enable_writes("my-mysql-1")
@@ -363,10 +364,11 @@ dbaas.add_kafka_schema_registry_acl("my-kafka-1", "app", "Subject:orders-*",
 dbaas.delete_kafka_schema_registry_acl("my-kafka-1", acl_id)
 connect = dbaas.reveal_kafka_connect_password("my-kafka-1")  # a secret: never print
 
-# OpenSearch: replace the ACL config
+# OpenSearch: replace the ACL config (omitted fields keep their current value)
 dbaas.set_opensearch_acl_config("my-os-1", acl_enabled=True, acls=[
     {"username": "app", "rules": [{"index": "logs-*", "permission": "read"}]},
 ])
+dbaas.set_opensearch_acl_config("my-os-1", acl_enabled=False)  # rules kept
 
 # Valkey: users with their ACLs
 for user in dbaas.list_valkey_users("my-valkey-1"):
@@ -377,8 +379,25 @@ dbaas.update_valkey_user_access_control("my-valkey-1", "app", {"keys": ["app:*"]
 - **`check_migration` and `check_upgrade` only check.** Neither starts a
   migration or an upgrade; the result lands in a `DBaaSTask`. A migration
   itself starts by creating or updating the service with a `migration` block.
-- **`set_allow_replication` and `check_upgrade` answer directly**, not with an
-  operation, so they take no `wait` argument.
+- **`check_upgrade` answers directly** with the task, not with an operation,
+  so it takes no `wait` argument. Its `target_version` must be one the API
+  offers (15–18 on 2026-11-10); a service already on the newest major has no
+  valid target and gets a 400.
+- **`set_allow_replication` answers with an operation**, although the spec
+  documents the service's user list as the response. The connector follows the
+  live API and awaits it.
+- **`get_migration_status` raises `NotFoundError`** when no migration exists;
+  `stop_migration` without a running migration is an accepted no-op.
+- **`set_opensearch_acl_config` always sends all three fields.** The live PUT
+  is a full replace and rejects a body missing `extended-acl-enabled` (the spec
+  marks every field optional), so the connector reads the current config and
+  fills in any argument you leave as `None`.
+- **Kafka ACL entries carry an `id`** in `get_acl_config()` (`topic-acl` and
+  `schema-registry-acl` lists); delete by that id. Schema Registry ACLs can be
+  managed on a service without Schema Registry enabled.
+- **Kafka Connect is plan-gated.** The cheapest Kafka plan refuses
+  `kafka-connect-enabled` (409), and `reveal_kafka_connect_password` on a
+  service without Connect answers 500.
 - **[BETA] DBaaS operations are not wrapped**: integrations between services,
   external endpoints (Datadog, Prometheus, rsyslog, Elasticsearch, OpenSearch)
   and everything ClickHouse. The connector ships no `[BETA]` operation without

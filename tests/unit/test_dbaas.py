@@ -829,15 +829,16 @@ def test_connection_pool_create_update_delete(client, base_url) -> None:
 
 
 @responses.activate
-def test_set_allow_replication_returns_users(client, base_url) -> None:
+def test_set_allow_replication_settles_the_operation(client, base_url) -> None:
+    # Live answers with an operation, not the user list the spec documents.
     responses.add(
         responses.PUT,
         f"{base_url}/dbaas-postgres/svc/user/app/allow-replication",
-        json={"users": [{"username": "app", "allow-replication": True}]},
+        json=OP_OK,
     )
-    users = DBaaSServiceClient(client).set_allow_replication("svc", "app", True)
+    result = DBaaSServiceClient(client).set_allow_replication("svc", "app", True)
     assert _sent() == {"allow-replication": True}
-    assert users == [{"username": "app", "allow-replication": True}]
+    assert result["state"] == "success"
 
 
 @responses.activate
@@ -899,11 +900,32 @@ def test_reveal_kafka_connect_password(client, base_url) -> None:
 
 
 @responses.activate
-def test_set_opensearch_acl_config_sends_only_given_fields(client, base_url) -> None:
+def test_set_opensearch_acl_config_sends_all_fields_without_reading(client, base_url) -> None:
     responses.add(responses.PUT, f"{base_url}/dbaas-opensearch/svc/acl-config", json=OP_OK)
     acls = [{"username": "app", "rules": [{"index": "logs-*", "permission": "read"}]}]
-    DBaaSServiceClient(client).set_opensearch_acl_config("svc", acl_enabled=True, acls=acls)
-    assert _sent() == {"acl-enabled": True, "acls": acls}
+    DBaaSServiceClient(client).set_opensearch_acl_config(
+        "svc", acl_enabled=True, extended_acl_enabled=False, acls=acls
+    )
+    assert len(responses.calls) == 1
+    assert _sent() == {"acl-enabled": True, "extended-acl-enabled": False, "acls": acls}
+
+
+@responses.activate
+def test_set_opensearch_acl_config_keeps_omitted_fields(client, base_url) -> None:
+    # Live: the PUT is a full replace and a body missing a field is a 400.
+    current_acls = [{"username": "app", "rules": [{"index": "a-*", "permission": "admin"}]}]
+    responses.add(
+        responses.GET,
+        f"{base_url}/dbaas-opensearch/svc/acl-config",
+        json={"acl-enabled": True, "extended-acl-enabled": True, "acls": current_acls},
+    )
+    responses.add(responses.PUT, f"{base_url}/dbaas-opensearch/svc/acl-config", json=OP_OK)
+    DBaaSServiceClient(client).set_opensearch_acl_config("svc", acl_enabled=False)
+    assert _sent(1) == {
+        "acl-enabled": False,
+        "extended-acl-enabled": True,
+        "acls": current_acls,
+    }
 
 
 @responses.activate
