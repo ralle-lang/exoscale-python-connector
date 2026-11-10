@@ -508,3 +508,32 @@ added; the first attempt hit finding 28.
     operation already succeeded; `DELETE` on it then answers 409
     ("Cannot transition service ... from state :updating to :deleting"). The
     test waits for `running` before deleting.
+
+## 0.8.0 DBaaS tier C — 2026-11-10 (zone `at-vie-1`)
+
+**Context:** the #136 engine-specific operations. A probe per engine first,
+then the Tier 4 tests: `test_dbaas_pg_lifecycle` (`EXOSCALE_TEST_TIER_4_DBAAS=1`)
+and one test each for mysql, valkey, opensearch and kafka
+(`EXOSCALE_TEST_TIER_4_DBAAS_ENGINES=1`), run in parallel on the cheapest plans.
+
+**Results:** 5 passed (about 2–4 min each) after the fixes below; every service
+deleted. Not exercised: `check_migration` (needs an external source database)
+and `reveal_kafka_connect_password` (needs a plan with Kafka Connect).
+
+**Spec-vs-reality findings (documented in the asset-type gotchas):**
+
+29. **`PUT dbaas-opensearch/{name}/acl-config` is a full replace** and rejects
+    a body without `extended-acl-enabled` (400), though the spec marks every
+    field optional. `set_opensearch_acl_config` now reads the current config
+    and fills in omitted arguments.
+30. **`PUT …/user/{username}/allow-replication` answers with an operation**,
+    not the user list the spec documents. `set_allow_replication` now awaits
+    it and returns the operation.
+31. **`check_upgrade` needs an offered target** (400 "should be one of …"); a
+    service on the newest major has none, so the test creates pg on 17.
+32. **`GET /dbaas-migration-status/{name}` is 404** without a migration;
+    `stop_migration` without one is an accepted no-op (pg, mysql, valkey).
+33. **Kafka Connect is plan-gated:** the cheapest Kafka plan refuses
+    `kafka-connect-enabled` (409), and the Connect password reveal answers 500
+    on a service without Connect. Schema Registry ACLs work without Schema
+    Registry enabled.

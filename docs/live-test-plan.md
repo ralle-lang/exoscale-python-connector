@@ -56,7 +56,7 @@ enable exactly what you want; no flag = skipped.
 | 1 — free mutations | `EXOSCALE_TEST_TIER_1=1` | €0 | security-group, vpc, private-network, anti-affinity-group, ssh-key, iam-role, dns (api-key behind `EXOSCALE_TEST_TIER_1_API_KEY=1`) |
 | 2 — cheap, no compute | `EXOSCALE_TEST_TIER_2=1` | < €0.01/run | bucket (S3), block-volume + snapshot (detached), elastic-ip |
 | 3 — compute, minutes-of-runtime | `EXOSCALE_TEST_TIER_3=1` | ~€0.01–0.05/run | instance(+lifecycle, scale), instance-pool(+scale, evict), compute-snapshot(+template), block-volume attach/detach, SG/EIP attach (`test_instance_network_attachments`), private-network attach and static lease (`test_private_network_static_lease`), VPC subnet attach (`test_vpc_subnet_attach_detach`) |
-| 4 — expensive / long-lived | `EXOSCALE_TEST_TIER_4_DBAAS=1`, `EXOSCALE_TEST_TIER_4_SKS=1`, `EXOSCALE_TEST_TIER_4_LB=1` | each ~€0.01–0.10/run, 10–20 min | dbaas, sks(+nodepool+kubeconfig), load-balancer(+service) |
+| 4 — expensive / long-lived | `EXOSCALE_TEST_TIER_4_DBAAS=1`, `EXOSCALE_TEST_TIER_4_DBAAS_ENGINES=1`, `EXOSCALE_TEST_TIER_4_SKS=1`, `EXOSCALE_TEST_TIER_4_LB=1` | each ~€0.01–0.10/run, 10–20 min | dbaas (pg; engines flag: mysql, valkey, opensearch, kafka), sks(+nodepool+kubeconfig), load-balancer(+service) |
 | KMS — opt-in, lingering | `EXOSCALE_TEST_KMS=1` | key cost; **key lingers ≥7 days** | kms (crypto round-trip) |
 | ❌ — out of live scope | n/a | n/a | iam-user create (sends invite emails) |
 
@@ -262,12 +262,26 @@ not hardcoded).
 - **Ops**: `list`, `get`, `find_by_name`, `get_or_none`, `create` (type-specific), `update`, `delete`, `get_connection_info`, `reveal_user_password`, `create_user`, `delete_user`, `reset_user_password`, `create_database`, `delete_database`, `list_service_types`, `get_settings`, `get_acl_config`, `start_maintenance`, `get_ca_certificate`, `get_logs`, `get_metrics`.
 - **Live sequence**:
   1. `list_service_types()`; pick the cheapest **pg** plan dynamically (typically `hobbyist-2` or equivalent — resolved at run time, not hardcoded).
-  2. `create(service_type="pg", name="<prefix>-pg", payload={"plan": <cheapest>, "ip-filter": ["203.0.113.0/24"]})`.
+  2. `create(service_type="pg", name="<prefix>-pg", payload={"plan": <cheapest>, "ip-filter": ["203.0.113.0/24"], "version": "17"})`.
   3. Wait until `state == "running"` (5–10 min).
   4. `get`; assert; `get_connection_info` — assert host/port present, **never print the credentials**.
   5. `reveal_user_password("avnadmin")` — assert non-empty, **never print**.
   6. `update` maintenance window or `ip-filter` to a no-op change.
-  7. `delete`.
+  7. Tier C (0.8.0): `create_database`; `create_user(allow_replication=True)`;
+     `set_allow_replication`; `reset_user_password`; connection pool create →
+     listed on `connection_pools` → `update_connection_pool(size=10)` → delete;
+     `check_upgrade("18")` + `get_task` (the service is created on version 17
+     so a target exists); `get_migration_status` → `NotFoundError`;
+     `stop_migration` no-op.
+  8. `delete`.
+- **Engine tests** (`EXOSCALE_TEST_TIER_4_DBAAS_ENGINES=1`, one cheapest
+  service each): mysql (auth plugin on create/reset, `enable_writes`,
+  migration no-ops); valkey (user ACL create → `list_valkey_users` →
+  `update_valkey_user_access_control`, chosen password); opensearch
+  (`set_opensearch_acl_config` enable, then disable with the other fields
+  kept); kafka (topic and Schema Registry ACL add → id from `get_acl_config` →
+  delete). Not covered: `check_migration` (needs an external source DB) and
+  `reveal_kafka_connect_password` (the cheapest Kafka plan has no Connect).
 - **Additive-coverage checks** (0.6.0): `get_settings("pg")` is read-only and can
   run as a free Tier-0-style probe; `get_acl_config`/`start_maintenance` and the
   first-class `version` update param need a live service (fold into the sequence

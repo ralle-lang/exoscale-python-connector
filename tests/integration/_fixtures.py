@@ -37,6 +37,12 @@ def make_run_id() -> str:
     return f"{ts}-{rand}"
 
 
+def random_password(length: int = 24) -> str:
+    """A throwaway password for live tests (letters, digits and one symbol)."""
+    alphabet = string.ascii_letters + string.digits
+    return "Ct-" + "".join(secrets.choice(alphabet) for _ in range(length))
+
+
 def make_name(run_id: str, suffix: str) -> str:
     """Compose a test-resource name; capped at 120 chars to satisfy API limits."""
     return f"{TEST_PREFIX}-{run_id}-{suffix}"[:120]

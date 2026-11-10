@@ -21,6 +21,7 @@ import time
 
 import pytest
 
+from exoscale_connector.errors import NotFoundError
 from exoscale_connector.resources.dbaas import DBaaSServiceClient
 from exoscale_connector.resources.instance_pool import InstancePoolClient
 from exoscale_connector.resources.load_balancer import LoadBalancerClient
@@ -29,6 +30,7 @@ from exoscale_connector.resources.sks import SksClusterClient, SksKubeletImageGc
 from ._fixtures import (
     assert_safe_name,
     make_name,
+    random_password,
     resolve_cheapest_dbaas_plan,
     resolve_instance_type,
     resolve_linux_template,
@@ -179,9 +181,10 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
     tracker.register("dbaas", lambda: dbaas.delete(name), name)
     # Create with an ip-filter allow-list so the typed field is exercised end to
     # end. (This is a control-plane setting; it does not affect the API calls
-    # this test makes.)
+    # this test makes.) Pin one major below the newest so check_upgrade has a
+    # valid target: the API rejects any target-version it does not offer.
     dbaas.create(
-        {"plan": plan, "ip-filter": ["203.0.113.0/24"]},
+        {"plan": plan, "ip-filter": ["203.0.113.0/24"], "version": "17"},
         service_type="pg",
         name=name,
     )
@@ -237,6 +240,50 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
     wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
     dbaas.delete_user(name, "conn-test-user", service_type="pg")
 
+    # Tier C (0.8.0): database, replication user, connection pool round trip.
+    dbaas.create_database(name, "conn_test_db", service_type="pg")
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    dbaas.create_user(name, "conn-test-repl", service_type="pg", allow_replication=True)
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    dbaas.set_allow_replication(name, "conn-test-repl", False)
+    dbaas.reset_user_password(name, "conn-test-repl", service_type="pg")
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+
+    dbaas.create_connection_pool(
+        name,
+        "conn_test_pool",
+        "conn_test_db",
+        mode="transaction",
+        size=5,
+        username="conn-test-repl",
+    )
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    pools = dbaas.get_connection_info(name, service_type="pg").connection_pools or []
+    pool = next((p for p in pools if p.name == "conn_test_pool"), None)
+    assert pool is not None, "connection pool not listed on the service"
+    assert pool.connection_uri, "connection pool carries no URI"
+    dbaas.update_connection_pool(name, "conn_test_pool", size=10)
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    pools = dbaas.get_connection_info(name, service_type="pg").connection_pools or []
+    assert next(p for p in pools if p.name == "conn_test_pool").size == 10
+    dbaas.delete_connection_pool(name, "conn_test_pool")
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+
+    # Upgrade check runs as a task; the task is readable by id.
+    task = dbaas.check_upgrade(name, "18")
+    assert task.id, "check_upgrade returned no task id"
+    assert dbaas.get_task(name, task.id).id == task.id
+
+    # No migration is running: status is a 404, stop is an accepted no-op.
+    with pytest.raises(NotFoundError):
+        dbaas.get_migration_status(name)
+    dbaas.stop_migration(name, service_type="pg")
+
+    dbaas.delete_user(name, "conn-test-repl", service_type="pg")
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+    dbaas.delete_database(name, "conn_test_db", service_type="pg")
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=600, interval=10)
+
     # update(): set a maintenance window and confirm the service stays healthy.
     dbaas.update(
         name,
@@ -248,6 +295,145 @@ def test_dbaas_pg_lifecycle(tier_3_client, run_id, tracker, tier_4_dbaas_enabled
     assert_safe_name(name)
     dbaas.delete(name)
     tracker.unregister(name)
+
+
+def _dbaas_service(dbaas, tier_3_client, run_id, tracker, engine: str) -> str:
+    """Create the cheapest ``engine`` service, tracked for teardown; wait running."""
+    plan = resolve_cheapest_dbaas_plan(tier_3_client, engine)
+    name = make_name(run_id, engine[:4])[:50]
+    tracker.register("dbaas", lambda: dbaas.delete(name), name)
+    dbaas.create({"plan": plan}, service_type=engine, name=name)
+    wait_for_state(lambda: dbaas.get(name), "running", timeout=2400, interval=15)
+    return name
+
+
+def _dbaas_teardown(dbaas, tracker, name: str) -> None:
+    assert_safe_name(name)
+    dbaas.delete(name)
+    tracker.unregister(name)
+
+
+def test_dbaas_mysql_engine_ops(
+    tier_3_client, run_id, tracker, tier_4_dbaas_engines_enabled
+) -> None:
+    """MySQL: auth plugin on create/reset, enable_writes, migration no-ops."""
+    dbaas = DBaaSServiceClient(tier_3_client)
+    name = _dbaas_service(dbaas, tier_3_client, run_id, tracker, "mysql")
+    running = lambda: wait_for_state(lambda: dbaas.get(name), "running", timeout=600)  # noqa: E731
+
+    dbaas.create_user(
+        name, "conn-test-user", service_type="mysql", authentication="caching_sha2_password"
+    )
+    running()
+    dbaas.reset_user_password(
+        name, "conn-test-user", service_type="mysql", authentication="mysql_native_password"
+    )
+    running()
+    dbaas.enable_writes(name)
+    with pytest.raises(NotFoundError):
+        dbaas.get_migration_status(name)
+    dbaas.stop_migration(name, service_type="mysql")
+    dbaas.delete_user(name, "conn-test-user", service_type="mysql")
+    running()
+    _dbaas_teardown(dbaas, tracker, name)
+
+
+def test_dbaas_valkey_engine_ops(
+    tier_3_client, run_id, tracker, tier_4_dbaas_engines_enabled
+) -> None:
+    """Valkey: user with an ACL, typed user listing, ACL replace, chosen password."""
+    dbaas = DBaaSServiceClient(tier_3_client)
+    name = _dbaas_service(dbaas, tier_3_client, run_id, tracker, "valkey")
+    running = lambda: wait_for_state(lambda: dbaas.get(name), "running", timeout=600)  # noqa: E731
+
+    def acl_of(username: str):
+        user = next(u for u in dbaas.list_valkey_users(name) if u.username == username)
+        assert user.access_control is not None
+        return user.access_control
+
+    acl = {"categories": ["+@read"], "keys": ["conn:*"], "channels": [], "commands": []}
+    dbaas.create_user(name, "conn-test-user", service_type="valkey", access_control=acl)
+    running()
+    assert acl_of("conn-test-user").categories == ["+@read"]
+
+    acl["categories"] = ["+@read", "+@write"]
+    dbaas.update_valkey_user_access_control(name, "conn-test-user", acl)
+    running()
+    assert acl_of("conn-test-user").categories == ["+@read", "+@write"]
+
+    dbaas.reset_user_password(
+        name, "conn-test-user", service_type="valkey", password=random_password()
+    )
+    running()
+    dbaas.stop_migration(name, service_type="valkey")
+    dbaas.delete_user(name, "conn-test-user", service_type="valkey")
+    running()
+    _dbaas_teardown(dbaas, tracker, name)
+
+
+def test_dbaas_opensearch_acl_config(
+    tier_3_client, run_id, tracker, tier_4_dbaas_engines_enabled
+) -> None:
+    """OpenSearch: enable ACLs with a rule, then disable keeping the other fields."""
+    dbaas = DBaaSServiceClient(tier_3_client)
+    name = _dbaas_service(dbaas, tier_3_client, run_id, tracker, "opensearch")
+    running = lambda: wait_for_state(lambda: dbaas.get(name), "running", timeout=600)  # noqa: E731
+
+    acls = [{"username": "avnadmin", "rules": [{"index": "conn*", "permission": "admin"}]}]
+    dbaas.set_opensearch_acl_config(name, acl_enabled=True, extended_acl_enabled=False, acls=acls)
+    running()
+    cfg = dbaas.get_acl_config(name, service_type="opensearch")
+    assert cfg.get("acl-enabled") is True
+    assert len(cfg.get("acls") or []) == 1
+
+    # Only acl_enabled given: the other two fields are read back and resent,
+    # since the live PUT rejects a partial body.
+    dbaas.set_opensearch_acl_config(name, acl_enabled=False)
+    running()
+    cfg = dbaas.get_acl_config(name, service_type="opensearch")
+    assert cfg.get("acl-enabled") is False
+    assert len(cfg.get("acls") or []) == 1
+    _dbaas_teardown(dbaas, tracker, name)
+
+
+def test_dbaas_kafka_acls(tier_3_client, run_id, tracker, tier_4_dbaas_engines_enabled) -> None:
+    """Kafka: topic and Schema Registry ACL entries round trip by id.
+
+    The cheapest plan cannot run Kafka Connect, so reveal_kafka_connect_password
+    is not exercised here (it answers 500 on a service without Connect).
+    """
+    dbaas = DBaaSServiceClient(tier_3_client)
+    name = _dbaas_service(dbaas, tier_3_client, run_id, tracker, "kafka")
+    running = lambda: wait_for_state(lambda: dbaas.get(name), "running", timeout=600)  # noqa: E731
+
+    def entry(kind: str):
+        cfg = dbaas.get_acl_config(name, service_type="kafka")
+        return next((a for a in cfg.get(kind) or [] if a.get("username") == "conn-test-user"), None)
+
+    dbaas.create_user(name, "conn-test-user", service_type="kafka")
+    running()
+
+    dbaas.add_kafka_topic_acl(name, "conn-test-user", "conn-*", "read")
+    running()
+    topic = entry("topic-acl")
+    assert topic and topic.get("id"), "topic ACL entry not listed"
+    dbaas.delete_kafka_topic_acl(name, topic["id"])
+    running()
+    assert entry("topic-acl") is None
+
+    dbaas.add_kafka_schema_registry_acl(
+        name, "conn-test-user", "Subject:conn-*", "schema_registry_read"
+    )
+    running()
+    sr = entry("schema-registry-acl")
+    assert sr and sr.get("id"), "schema-registry ACL entry not listed"
+    dbaas.delete_kafka_schema_registry_acl(name, sr["id"])
+    running()
+    assert entry("schema-registry-acl") is None
+
+    dbaas.delete_user(name, "conn-test-user", service_type="kafka")
+    running()
+    _dbaas_teardown(dbaas, tracker, name)
 
 
 # ---------------------------------------------------------------------------- #
