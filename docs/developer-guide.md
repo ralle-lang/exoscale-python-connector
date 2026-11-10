@@ -300,6 +300,7 @@ mypy src                                 # type-check
   | 2 — cheap, no compute | `EXOSCALE_TEST_TIER_2=1` | < €0.01 |
   | 3 — compute | `EXOSCALE_TEST_TIER_3=1` | < €0.05, ~10–15 min |
   | 4 — LB / DBaaS / SKS | `EXOSCALE_TEST_TIER_4_LB`, `_DBAAS`, `_SKS` | each ~€0.01–0.05, 10–30 min |
+  | 4 — DBaaS engines | `EXOSCALE_TEST_TIER_4_DBAAS_ENGINES=1` | mysql, valkey, opensearch, kafka: one cheapest service each, ~5 min apiece |
   | KMS (opt-in) | `EXOSCALE_TEST_KMS=1` | key cost; each run leaves a key pending deletion ≥7 days |
 
   The tier-1 template register/delete sub-test additionally needs

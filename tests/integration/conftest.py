@@ -149,6 +149,16 @@ def tier_4_dbaas_enabled(require_mutation_allowed) -> None:
 
 
 @pytest.fixture
+def tier_4_dbaas_engines_enabled(require_mutation_allowed) -> None:
+    """Tier 4 — DBaaS mysql/valkey/opensearch/kafka engine-specific calls (one service each)."""
+    if not _env_bool("EXOSCALE_TEST_TIER_4_DBAAS_ENGINES"):
+        pytest.skip(
+            "Tier 4 DBaaS engine tests disabled "
+            "(set EXOSCALE_TEST_TIER_4_DBAAS_ENGINES=1 to enable)"
+        )
+
+
+@pytest.fixture
 def tier_4_sks_enabled(require_mutation_allowed) -> None:
     """Tier 4 — SKS cluster + nodepool + kubeconfig (longest-running tier)."""
     if not _env_bool("EXOSCALE_TEST_TIER_4_SKS"):
