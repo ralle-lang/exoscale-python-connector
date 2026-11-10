@@ -475,9 +475,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         password is *not* returned here — fetch it afterwards with
         :meth:`reveal_user_password`. Pass ``password`` from a secret store,
         never a literal.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         body: dict[str, Any] = {}
         if password is not None:
@@ -575,9 +572,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         ``lc_ctype`` set the PostgreSQL locale and are rejected for mysql. List
         the existing databases via :attr:`DBaaSService.databases` on
         :meth:`get_connection_info`. Returns the settled operation envelope.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         url_type = self._database_engine(service_type)
         body: dict[str, Any] = {"database-name": database_name}
@@ -604,9 +598,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
         Wraps ``DELETE dbaas-{type}/{name}/database/{database_name}``. Returns
         the settled operation envelope.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         url_type = self._database_engine(service_type)
         zone = self._zone(zone)
@@ -645,9 +636,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         A read despite the POST. ``limit`` is 1–500 (API default 100);
         ``sort_order`` is ``"desc"`` (default) or ``"asc"``; ``offset`` is the
         opaque cursor from a previous page's :attr:`DBaaSServiceLogs.offset`.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         body = {"limit": limit, "offset": offset, "sort-order": sort_order}
         payload = self.client.post(
@@ -663,9 +651,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         A read despite the POST. ``period`` is one of ``hour`` (API default),
         ``day``, ``week``, ``month``, ``year``. The metric series are
         engine-specific, so the ``metrics`` object is returned as a raw dict.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         payload = self.client.post(
             f"dbaas-service-metrics/{name}",
@@ -776,19 +761,12 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """Read a DBaaS background task (``GET /dbaas-task/{name}/{id}``).
 
         Covers the migration check and the pg upgrade check.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         payload = self.client.get(f"dbaas-task/{name}/{task_id}", zone=self._zone(zone))
         return DBaaSTask.model_validate(payload)
 
     def get_migration_status(self, name: str, *, zone: str | None = None) -> DBaaSMigrationStatus:
-        """Return the service's migration status (``GET /dbaas-migration-status/{name}``).
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
-        """
+        """Return the service's migration status (``GET /dbaas-migration-status/{name}``)."""
         payload = self.client.get(f"dbaas-migration-status/{name}", zone=self._zone(zone))
         return DBaaSMigrationStatus.model_validate(payload)
 
@@ -803,9 +781,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """Stop a running migration (``POST dbaas-{type}/{name}/migration/stop``).
 
         Available for pg, mysql and valkey; other engines raise ``ValueError``.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         url_type = self._url_type(service_type)
         if url_type not in self._MIGRATION_ENGINES:
@@ -838,9 +813,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         ``size`` is 1–10000; ``username`` is the pool's database user. List
         existing pools via :attr:`DBaaSService.connection_pools` on
         :meth:`get_connection_info`.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         body: dict[str, Any] = {"name": pool_name, "database-name": database_name}
         if mode is not None:
@@ -868,9 +840,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         """Update a connection pool (``PUT dbaas-postgres/{name}/connection-pool/{pool}``).
 
         Only the fields you pass are sent.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         body: dict[str, Any] = {}
         if database_name is not None:
@@ -890,11 +859,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     def delete_connection_pool(
         self, name: str, pool_name: str, *, zone: str | None = None, wait: bool | None = None
     ) -> dict:
-        """Delete a connection pool (``DELETE dbaas-postgres/{name}/connection-pool/{pool}``).
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
-        """
+        """Delete a connection pool (``DELETE dbaas-postgres/{name}/connection-pool/{pool}``)."""
         zone = self._zone(zone)
         response = self.client.delete(
             f"dbaas-postgres/{name}/connection-pool/{pool_name}", zone=zone
@@ -902,24 +867,28 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         return self._settle(response, zone=zone, wait=wait)
 
     def set_allow_replication(
-        self, name: str, username: str, allow: bool, *, zone: str | None = None
-    ) -> list[dict]:
+        self,
+        name: str,
+        username: str,
+        allow: bool,
+        *,
+        zone: str | None = None,
+        wait: bool | None = None,
+    ) -> dict:
         """Grant or revoke a pg user's replication privilege.
 
-        Wraps ``PUT dbaas-postgres/{name}/user/{username}/allow-replication``,
-        which answers with the service's users (``username`` +
-        ``allow-replication``) rather than an operation; that list is returned.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        Wraps ``PUT dbaas-postgres/{name}/user/{username}/allow-replication``.
+        The spec documents the service's user list as the response; live, it
+        answers with an operation (verified 2026-11-10), awaited unless
+        ``wait=False``.
         """
-        payload = self.client.put(
+        zone = self._zone(zone)
+        response = self.client.put(
             f"dbaas-postgres/{name}/user/{username}/allow-replication",
-            zone=self._zone(zone),
+            zone=zone,
             json={"allow-replication": allow},
         )
-        users = payload.get("users") if isinstance(payload, dict) else None
-        return [u for u in users or [] if isinstance(u, dict)]
+        return self._settle(response, zone=zone, wait=wait)
 
     def check_upgrade(
         self, name: str, target_version: str, *, zone: str | None = None
@@ -929,9 +898,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         Wraps ``POST dbaas-postgres/{name}/upgrade-check``, which answers with
         the task directly (re-read it with :meth:`get_task` while it runs).
         Changes nothing on the service.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         payload = self.client.post(
             f"dbaas-postgres/{name}/upgrade-check",
@@ -953,9 +919,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
         MySQL services switch to read-only when their storage fills up; this
         lifts that for a short window so you can delete data or upgrade the plan.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         zone = self._zone(zone)
         response = self.client.put(f"dbaas-mysql/{name}/enable/writes", zone=zone)
@@ -980,9 +943,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         ``permission`` is ``"admin"``, ``"read"``, ``"readwrite"`` or
         ``"write"``; ``topic`` and ``username`` accept wildcards. Read the
         entries (and their ids) with :meth:`get_acl_config`.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         zone = self._zone(zone)
         response = self.client.post(
@@ -995,11 +955,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     def delete_kafka_topic_acl(
         self, name: str, acl_id: str, *, zone: str | None = None, wait: bool | None = None
     ) -> dict:
-        """Delete a topic ACL entry (``DELETE dbaas-kafka/{name}/topic/acl-config/{acl-id}``).
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
-        """
+        """Delete a topic ACL entry (``DELETE dbaas-kafka/{name}/topic/acl-config/{acl-id}``)."""
         zone = self._zone(zone)
         response = self.client.delete(f"dbaas-kafka/{name}/topic/acl-config/{acl_id}", zone=zone)
         return self._settle(response, zone=zone, wait=wait)
@@ -1018,9 +974,6 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
         ``permission`` is ``"schema_registry_read"`` or
         ``"schema_registry_write"``; ``resource`` is e.g. ``"Subject:orders-*"``.
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
         """
         zone = self._zone(zone)
         response = self.client.post(
@@ -1033,11 +986,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     def delete_kafka_schema_registry_acl(
         self, name: str, acl_id: str, *, zone: str | None = None, wait: bool | None = None
     ) -> dict:
-        """Delete a Schema Registry ACL entry (``DELETE …/schema-registry/acl-config/{acl-id}``).
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
-        """
+        """Delete a Schema Registry ACL entry (``DELETE …/schema-registry/acl-config/{acl-id}``)."""
         zone = self._zone(zone)
         response = self.client.delete(
             f"dbaas-kafka/{name}/schema-registry/acl-config/{acl_id}", zone=zone
@@ -1051,8 +1000,9 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
 
         .. warning::
            The returned dict holds a live password in clear text. Never log
-           or print it. Implemented from the API reference — pending live
-           verification.
+           or print it. Needs a plan with Kafka Connect enabled: on the
+           cheapest plan (no Connect) the API answers 500. Not live-verified
+           on a Connect-capable plan.
         """
         return self.client.get(f"dbaas-kafka/{name}/connect/password/reveal", zone=self._zone(zone))
 
@@ -1077,17 +1027,24 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         ``deny`` / ``readwrite`` / ``write``). Read the current config with
         :meth:`get_acl_config`.
 
-        .. warning::
-           Implemented from the API reference — pending live verification.
+        The live API treats this PUT as a full replace and rejects a body
+        missing any of the three fields (the spec marks them optional), so an
+        argument left as ``None`` keeps its current value, read first.
         """
-        body: dict[str, Any] = {}
-        if acl_enabled is not None:
-            body["acl-enabled"] = acl_enabled
-        if extended_acl_enabled is not None:
-            body["extended-acl-enabled"] = extended_acl_enabled
-        if acls is not None:
-            body["acls"] = acls
         zone = self._zone(zone)
+        if acl_enabled is None or extended_acl_enabled is None or acls is None:
+            current = self.get_acl_config(name, service_type="opensearch", zone=zone)
+            if acl_enabled is None:
+                acl_enabled = bool(current.get("acl-enabled"))
+            if extended_acl_enabled is None:
+                extended_acl_enabled = bool(current.get("extended-acl-enabled"))
+            if acls is None:
+                acls = list(current.get("acls") or [])
+        body: dict[str, Any] = {
+            "acl-enabled": acl_enabled,
+            "extended-acl-enabled": extended_acl_enabled,
+            "acls": acls,
+        }
         response = self.client.put(f"dbaas-opensearch/{name}/acl-config", zone=zone, json=body)
         return self._settle(response, zone=zone, wait=wait)
 
@@ -1096,11 +1053,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
     # ------------------------------------------------------------------ #
 
     def list_valkey_users(self, name: str, *, zone: str | None = None) -> list[DBaaSValkeyUser]:
-        """List a Valkey service's users with their ACLs (``GET dbaas-valkey/{name}/user``).
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
-        """
+        """List a Valkey service's users with their ACLs (``GET dbaas-valkey/{name}/user``)."""
         payload = self.client.get(f"dbaas-valkey/{name}/user", zone=self._zone(zone))
         users = payload.get("users") if isinstance(payload, dict) else None
         return [DBaaSValkeyUser.model_validate(u) for u in users or [] if isinstance(u, dict)]
@@ -1114,11 +1067,7 @@ class DBaaSServiceClient(ResourceClient[DBaaSService]):
         zone: str | None = None,
         wait: bool | None = None,
     ) -> dict:
-        """Replace a Valkey user's ACL (``PUT dbaas-valkey/{name}/user/{username}``).
-
-        .. warning::
-           Implemented from the API reference — pending live verification.
-        """
+        """Replace a Valkey user's ACL (``PUT dbaas-valkey/{name}/user/{username}``)."""
         zone = self._zone(zone)
         response = self.client.put(
             f"dbaas-valkey/{name}/user/{username}",
